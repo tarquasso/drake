@@ -1111,8 +1111,10 @@ classdef RigidBodyManipulator < Manipulator
       end
 
       model = applyToAllRigidBodyElements(model,'updateParams',fr.getPoly,p);
-
-      model = compile(model);
+      
+      if isnumeric(p)
+        model = compile(model);
+      end
     end
 
     function p = getParams(model)
