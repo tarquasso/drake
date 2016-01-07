@@ -135,7 +135,7 @@ classdef Quadrotor < RigidBodyManipulator
       options.capture_lcm_channels = 'LCMGL';
       [ytraj,xtraj,lcmlog] = simulate(sys,[0 2],double(x0),options);
       lcmlog
-      v.playback(xtraj,struct('lcmlog',lcmlog));
+      v.playback(xtraj,struct('lcmlog',lcmlog,'slider',true));
 %      figure(1); clf; fnplt(ytraj);
     end
   end
