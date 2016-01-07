@@ -7,15 +7,15 @@
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 
-#include "drakeCollisionMacros.h"
 #include "Element.h"
 #include "PointPair.h"
+#include "drakeCollision_export.h"
 
 namespace DrakeCollision
 {
   typedef std::pair<ElementId, ElementId> ElementIdPair;
 
-  class DLLEXPORT_drakeCollision Model {
+  class DRAKECOLLISION_EXPORT Model {
     public:
       Model() {}
 
@@ -48,6 +48,11 @@ namespace DrakeCollision
 
       virtual std::vector<PointPair> potentialCollisionPoints(const bool use_margins) 
       { return std::vector<PointPair>(); };
+
+      virtual bool collidingPointsCheckOnly(
+          const std::vector<Eigen::Vector3d>& points, 
+          double collision_threshold)
+      { return false; };
 
       virtual std::vector<size_t> collidingPoints(
           const std::vector<Eigen::Vector3d>& points, 

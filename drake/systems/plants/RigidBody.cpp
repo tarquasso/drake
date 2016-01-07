@@ -1,5 +1,5 @@
 
-#include "RigidBodyManipulator.h"
+#include "RigidBody.h"
 #include <stdexcept>
 
 using namespace std;

@@ -8,8 +8,10 @@
 #include <Eigen/StdVector>
 #include <memory>
 #include "DrakeJoint.h"
+#include <drakeRBM_export.h>
+#include <plants/collision/DrakeCollision.h>
 
-class DLLEXPORT_RBM RigidBody {
+class DRAKERBM_EXPORT RigidBody {
 private:
   std::unique_ptr<DrakeJoint> joint;
   DrakeCollision::bitmask collision_filter_group;
@@ -59,7 +61,7 @@ public:
 public:
   std::string linkname;
   int robotnum; // uses 0-index. starts from 0
-// note: it's very ugly, but parent,dofnum,and pitch also exist currently (independently) at the rigidbodymanipulator level to represent the featherstone structure.  this version is for the kinematics.
+// note: it's very ugly, but parent,dofnum,and pitch also exist currently (independently) at the RigidBodyTree level to represent the featherstone structure.  this version is for the kinematics.
   std::shared_ptr<RigidBody> parent;
   int body_index;
   int position_num_start;
@@ -79,7 +81,7 @@ public:
   friend std::ostream& operator<<( std::ostream &out, const RigidBody &b);
 
   // FIXME: move to a better place:
-  class DLLEXPORT_RBM CollisionElement : public DrakeCollision::Element
+  class DRAKERBM_EXPORT CollisionElement : public DrakeCollision::Element
   {
     public:
       CollisionElement(const CollisionElement& other);

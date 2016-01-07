@@ -10,6 +10,7 @@
 #include <string>
 #include "convexHull.h"
 #include "atlasUtil.h"
+#include <drakeQPLocomotionPlan_export.h> // TODO: exports
 
 // TODO: discuss possibility of chatter in knee control
 // TODO: make body_motions a map from RigidBody* to BodyMotionData, remove body_id from BodyMotionData?
@@ -20,7 +21,7 @@ using namespace Eigen;
 
 const std::map<SupportLogicType, std::vector<bool> > QPLocomotionPlan::support_logic_maps = QPLocomotionPlan::createSupportLogicMaps();
 
-QPLocomotionPlan::QPLocomotionPlan(RigidBodyManipulator& robot, const QPLocomotionPlanSettings& settings, const std::string& lcm_channel) :
+QPLocomotionPlan::QPLocomotionPlan(RigidBodyTree & robot, const QPLocomotionPlanSettings& settings, const std::string& lcm_channel) :
     robot(robot),
     settings(settings),
     start_time(std::numeric_limits<double>::quiet_NaN()),
@@ -358,7 +359,7 @@ bool QPLocomotionPlan::isFinished(double t) const
   }
 }
 
-const RigidBodyManipulator& QPLocomotionPlan::getRobot() const
+const RigidBodyTree & QPLocomotionPlan::getRobot() const
 {
   return robot;
 }
@@ -700,7 +701,7 @@ const std::map<SupportLogicType, std::vector<bool> > QPLocomotionPlan::createSup
   return ret;
 }
 
-const std::map<Side, int> QPLocomotionPlan::createFootBodyIdMap(RigidBodyManipulator& robot, const std::map<Side, std::string>& foot_names)
+const std::map<Side, int> QPLocomotionPlan::createFootBodyIdMap(RigidBodyTree & robot, const std::map<Side, std::string>& foot_names)
 {
   std::map<Side, int> foot_body_ids;
   for (auto it = Side::values.begin(); it != Side::values.end(); ++it) {
@@ -709,7 +710,7 @@ const std::map<Side, int> QPLocomotionPlan::createFootBodyIdMap(RigidBodyManipul
   return foot_body_ids;
 }
 
-const std::map<Side, int> QPLocomotionPlan::createJointIndicesMap(RigidBodyManipulator& robot, const std::map<Side, std::string>& joint_names)
+const std::map<Side, int> QPLocomotionPlan::createJointIndicesMap(RigidBodyTree & robot, const std::map<Side, std::string>& joint_names)
 {
   std::map<Side, int> joint_indices;
   for (auto it = Side::values.begin(); it != Side::values.end(); ++it) {

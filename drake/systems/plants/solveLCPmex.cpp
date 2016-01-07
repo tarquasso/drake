@@ -2,11 +2,11 @@
 #include <iostream>
 #include "drakeMexUtil.h"
 #include "MexWrapper.h"
-#include "RigidBodyManipulator.h"
+#include "RigidBodyTree.h"
 #include "math.h"
 #include "fastQP.h"
 #include <sstream>
-#include "rigidBodyManipulatorMexConversions.h"
+#include "rigidBodyTreeMexConversions.h"
 
 using namespace Eigen;
 using namespace std;
@@ -196,7 +196,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
   static unique_ptr<MexWrapper> lcp_mex = unique_ptr<MexWrapper>(new MexWrapper(PATHLCP_MEXFILE));
 
   int arg_num = 0;
-  RigidBodyManipulator *model = static_cast<RigidBodyManipulator*>(getDrakeMexPointer(prhs[arg_num++]));
+  RigidBodyTree *model = static_cast<RigidBodyTree *>(getDrakeMexPointer(prhs[arg_num++]));
   KinematicsCache<double>& cache = fromMex(prhs[arg_num++], static_cast<KinematicsCache<double>*>(nullptr));
   cache.checkCachedKinematicsSettings(true, true, "solveLCPmex");
 
@@ -243,9 +243,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
   const size_t nP = phiP.size();
   
   //Convert jacobians to velocity mappings
-  const MatrixXd n_velocity = model->transformPositionDotMappingToVelocityMapping(cache,n);
-  const MatrixXd JL_velocity = model->transformPositionDotMappingToVelocityMapping(cache,JL);
-  const auto JP_velocity = model->transformPositionDotMappingToVelocityMapping(cache,JP);
+  const MatrixXd n_velocity = cache.transformPositionDotMappingToVelocityMapping(n);
+  const MatrixXd JL_velocity = cache.transformPositionDotMappingToVelocityMapping(JL);
+  const auto JP_velocity = cache.transformPositionDotMappingToVelocityMapping(JP);
   
   plhs[2] = mxCreateDoubleMatrix(nv, 1, mxREAL);
   Map<VectorXd> wvn(mxGetPrSafe(plhs[2]), nv);
@@ -296,7 +296,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] ) {
       Map<MatrixXd> D_i(mxGetPrSafe(mxGetCell(D_array, i)), num_contact_pairs , nq);
       MatrixXd D_i_possible, D_i_exclude;
       filterByIndices(possible_contact_indices, D_i, D_i_possible);
-      D_possible.block(nC * i, 0, nC, nv) = model->transformPositionDotMappingToVelocityMapping(cache,D_i_possible);
+      D_possible.block(nC * i, 0, nC, nv) = cache.transformPositionDotMappingToVelocityMapping(D_i_possible);
     }
 
     // J in velocity coordinates
