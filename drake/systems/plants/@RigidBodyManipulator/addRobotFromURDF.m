@@ -39,7 +39,8 @@ if (~isfield(options,'ignore_friction')), options.ignore_friction = false; end
 
 %disp(['Parsing ', urdf_filename]);
 urdf_filename = GetFullPath(urdf_filename);
-[options.urdfpath,name,ext] = fileparts(urdf_filename);
+% extract path, file name, and file name extension from urdf_filename.
+[options.urdfpath,name,ext] = fileparts(urdf_filename); 
 
 urdf = xmlread(urdf_filename);
 
