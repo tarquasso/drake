@@ -2,74 +2,66 @@
 #define DRAKE_RIGIDBODYSYSTEM_H
 
 #include "System.h"
+#include "Optimization.h"
 #include "RigidBodyTree.h"
 #include "KinematicsCache.h"
+#include <drakeRBSystem_export.h>
 
-class TiXmlElement;
+namespace tinyxml2 {
+  class XMLElement;
+}
 
 namespace Drake {
 
-  class RigidBodySystem; // forward declaration
+  class RigidBodyForceElement; // forward declaration
 
-  /** RigidBodyPropellor
-   * @concept{system_concept}
-   * @brief System to model the forces and moments produced by a simple propellor
-   *
-   * note that some of this logic will move to a base class (or concept) for RigidBodyForceElements,
-   * but I've chosen to handle the single type case before writing the general one
-   */
-  class RigidBodyPropellor {
-  public:
-    template <typename ScalarType> using StateVector = NullVector<ScalarType>;
-    template <typename ScalarType> using InputVector = Eigen::Matrix<ScalarType,1,1>;
-    template <typename ScalarType> using OutputVector = Eigen::Matrix<ScalarType,6,1>;
+  namespace RigidBodyConstraints {
+    /** @defgroup rigid_body_constraint RigidBodyConstraint Concept
+     * @ingroup concepts
+     * @{
+     * @brief A constraint that can be updated using the state of the rigid body system
+     * @nbsp
+     *
+     * | Valid Expressions (which must be implemented) |  |
+     * ------------------|-------------------------------------------------------------|
+     * | template <typename ScalarType> updateConstraint(const KinematicCache<ScalarType>& kinsol)  | Updates the parameters of the constraint |
+     * | Eigen::MatrixXd constraintForceJacobian() | returns the J used in J^T force for any constraint forces implied
+     * | size_t getNumConstraintForces() |
+     * @}
+     */
 
-    RigidBodyPropellor(RigidBodySystem* sys, TiXmlElement* node, std::string name);
+    /* RigidBodyConstraint::LoopConstraint
+     * @brief Implements Hvdot = C
+     * @concept{rigid_body_constraint}
+     */
+    /*
+    class LoopConstraint : public LinearEqualityConstraint {
 
-    // some quick thoughts:
-    // might want to be nonlinear in the robot state, but linear in the prop input.
-    // probably means I want to separate out those inputs
-    // and that I want a more general way to specify the input-output relationships for miso functions
-
-    // todo: replace the KinematicCache with RigidBodySystem::State once that transition occurs
-    template <typename ScalarType> StateVector<ScalarType> dynamics(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u, const KinematicsCache<ScalarType>& rigid_body_state) {
-      return StateVector<ScalarType>();  // no dynamics
-    }
-
-    template <typename ScalarType> OutputVector<ScalarType> output(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u, const KinematicsCache<ScalarType>& rigid_body_state) {
-      OutputVector<ScalarType> f_ext;
-      f_ext << scale_factor_moment*u(0)*axis, scale_factor_thrust*u(0)*axis;
-      return f_ext;
-    }
-
-    RigidBodyFrame* getFrame() { return frame.get(); }
-
-  private:
-    RigidBodySystem* sys;
-    std::shared_ptr<RigidBodyFrame> frame;
-    Eigen::Vector3d axis;
-    double scale_factor_thrust; // scale factor between input and thrust
-    double scale_factor_moment; // scale factor between input and moment due to aerodynamic drag
-    double lower_limit;
-    double upper_limit;
-    std::string name;
-
-  public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  };
+    };
+*/
+  }
 
   /** RigidBodySystem
    * @brief implements the System concept by wrapping the RigidBodyTree algorithms with additional sensors and actuators/forces
    * @concept{system_concept}
    */
-  class RigidBodySystem {
+  class DRAKERBSYSTEM_EXPORT RigidBodySystem {
   public:
     template <typename ScalarType> using InputVector = Eigen::Matrix<ScalarType,Eigen::Dynamic,1>;
     template <typename ScalarType> using StateVector = Eigen::Matrix<ScalarType,Eigen::Dynamic,1>;
     template <typename ScalarType> using OutputVector = Eigen::Matrix<ScalarType,Eigen::Dynamic,1>;
 
-    RigidBodySystem(const std::shared_ptr<RigidBodyTree>& rigid_body_tree) : tree(rigid_body_tree) {};
-    RigidBodySystem(const std::string &urdf_filename, const DrakeJoint::FloatingBaseType floating_base_type = DrakeJoint::QUATERNION) {
+    RigidBodySystem(const std::shared_ptr<RigidBodyTree>& rigid_body_tree) : tree(rigid_body_tree),
+                                                                             use_multi_contact(false),
+                                                                             penetration_stiffness(150.0),
+                                                                             penetration_damping(penetration_stiffness/10.0),
+                                                                             friction_coefficient(1.0) {};
+    RigidBodySystem(const std::string &urdf_filename, const DrakeJoint::FloatingBaseType floating_base_type = DrakeJoint::QUATERNION) :
+            use_multi_contact(false),
+            penetration_stiffness(150.0),
+            penetration_damping(penetration_stiffness/10.0),
+            friction_coefficient(1.0)
+    {
       //tree = std::allocate_shared<RigidBodyTree>(Eigen::aligned_allocator<RigidBodyTree>()); // this crashed g++-4.7
       tree = std::shared_ptr<RigidBodyTree>(new RigidBodyTree());
       addRobotFromURDF(urdf_filename, floating_base_type);
@@ -80,65 +72,31 @@ namespace Drake {
     void addRobotFromURDF(const std::string &urdf_filename, const DrakeJoint::FloatingBaseType floating_base_type = DrakeJoint::QUATERNION);
 
     // note: will generalize this soon
-    void addForceElement(const std::shared_ptr<RigidBodyPropellor>& prop) { props.push_back(prop); }
+    void addForceElement(const std::shared_ptr<RigidBodyForceElement>& f) { force_elements.push_back(f); }
 
     const std::shared_ptr<RigidBodyTree>& getRigidBodyTree(void) { return tree; }
-    size_t getNumStates(void) { return tree->num_positions + tree->num_velocities; }
-    size_t getNumInputs(void) { return tree->actuators.size() + props.size(); }
-    size_t getNumOutputs(void) { return getNumStates(); }
+    size_t getNumStates() const { return tree->num_positions + tree->num_velocities; }
+    size_t getNumInputs() const;
+    size_t getNumOutputs() const { return getNumStates(); }
 
-    template <typename ScalarType>
-    StateVector<ScalarType> dynamics(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
-      using namespace Eigen;
-      eigen_aligned_unordered_map<const RigidBody *, Matrix<ScalarType, 6, 1> > f_ext;
-
-      // todo: make kinematics cache once and re-use it (but have to make one per type)
-      auto nq = tree->num_positions;
-      auto nv = tree->num_velocities;
-      auto num_actuators = tree->actuators.size();
-      auto q = x.topRows(nq);
-      auto v = x.bottomRows(nv);
-      auto kinsol = tree->doKinematics(q,v);
-
-      auto H = tree->massMatrix(kinsol);
-      MatrixXd Hinv = H.ldlt().solve(MatrixXd::Identity(nv,nv));
-
-      const NullVector<ScalarType> force_state;  // todo:  will have to handle this case
-
-      { // loop through rigid body force elements and accumulate f_ext
-        int u_index = 0;
-        for (auto prop : props) {
-          RigidBodyFrame* frame = prop->getFrame();
-          RigidBody* body = frame->body.get();
-          int num_inputs = 1;  // todo: generalize this
-          RigidBodyPropellor::InputVector<ScalarType> u_i(u.middleRows(u_index,num_inputs));
-          // todo: push the frame to body transform into the dynamicsBias method?
-          Matrix<ScalarType,6,1> f_ext_i = transformSpatialForce(frame->transform_to_body,prop->output(t,force_state,u_i,kinsol));
-          if (f_ext.find(body)==f_ext.end()) f_ext[body] = f_ext_i;
-          else f_ext[body] = f_ext[body]+f_ext_i;
-          u_index += num_inputs;
-        }
-      }
-
-      VectorXd tau = -tree->dynamicsBiasTerm(kinsol,f_ext);
-      if (num_actuators > 0) tau += tree->B*u.topRows(num_actuators);
-
-      if (tree->getNumPositionConstraints()) {
-        int nc = tree->getNumPositionConstraints();
-        const double alpha = 5.0;  // 1/time constant of position constraint satisfaction (see my latex rigid body notes)
-
-        // then compute the constraint force
-        auto phi = tree->positionConstraints(kinsol);
-        auto J = tree->positionConstraintsJacobian(kinsol,false);
-        auto Jdotv = tree->positionConstraintsJacDotTimesV(kinsol);
-
-        MatrixXd tmp = JacobiSVD<MatrixXd>(J*Hinv*J.transpose(),ComputeThinU | ComputeThinV).solve(MatrixXd::Identity(nc,nc));  // computes the pseudo-inverse per the discussion at http://eigen.tuxfamily.org/bz/show_bug.cgi?id=257
-        tau.noalias() += -J.transpose()*tmp*(J*Hinv*tau + Jdotv + 2*alpha*J*v + alpha*alpha*phi);  // adds in the computed constraint forces
-      }
-      StateVector<ScalarType> dot(nq+nv);
-      dot << kinsol.transformPositionDotMappingToVelocityMapping(Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic>::Identity(nq, nq))*v, Hinv*tau;
-      return dot;
-    }
+    /** dynamics
+     * Formulates the forward dynamics of the rigid body system as an optimization
+     *   find vdot, f  (feasibility problem ok for now => implicit objective is min norm solution)
+     *   subject to
+     *       position equality constraints (differentiated twice + stabilization):   A vdot = b
+     *       velocity equality constraints (differentiated once + stabilization):    A vdot = b
+     *       forces from joint limits and contact OR
+     *       contact force constraints on vdot,f.  can be linear, nonlinear, even complementarity.  may have inequalities
+     *   the trick is that each new constraint can add decision variables (the new constraint forces and/or slack variables)
+     *   to the problem, so the last constraint to add is
+     *       equations of motion: H vdot + C(q,qdot,u,f_ext) = J^T(q,qdot) f
+     *   where J is accumulated through the constraint logic
+     *
+     * The solver will then dispatch to the right tool for the job.  Note that for many systems, especially those
+     * without any contact constraints (or with simple friction models), the formulation is linear and can be solved
+     * with least-squares.
+     */
+    StateVector<double> dynamics(const double& t, const StateVector<double>& x, const InputVector<double>& u) const;
 
     template <typename ScalarType>
     OutputVector<ScalarType> output(const ScalarType& t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) const {
@@ -148,16 +106,137 @@ namespace Drake {
     bool isTimeVarying() const  { return false; }
     bool isDirectFeedthrough() const { return false; }
 
-    friend StateVector<double> getInitialState(const RigidBodySystem& sys);
+    friend DRAKERBSYSTEM_EXPORT StateVector<double> getInitialState(const RigidBodySystem& sys);
+
+    // some parameters defining the contact
+    bool use_multi_contact;
+    double penetration_stiffness;   // k
+    double penetration_damping;     // b
+    double friction_coefficient;    // mu
 
   private:
     std::shared_ptr<RigidBodyTree> tree;
-    std::vector<std::shared_ptr<RigidBodyPropellor> > props;  // note: will generalize this soon
+    std::vector<std::shared_ptr<RigidBodyForceElement> > force_elements;
+
+    /*
+    mutable OptimizationProblem dynamics_program;
+    std::list<std::shared_ptr<LinearEqualityConstraint>> dynamics_program_constraints;  // each must also implement the RigidBodyConstraint Concept
+    std::list<std::shared_ptr<LinearEqualityConstraint>> conditional_dynamics_program_constraints;  // each must also implement the RigidBodyConstraint Concept
+*/
+  public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+
+  /** RigidBodyForceElement
+   * @brief interface class for elements which define a generalized force acting on the rigid body system
+   */
+  class DRAKERBSYSTEM_EXPORT RigidBodyForceElement {
+  public:
+    RigidBodyForceElement(RigidBodySystem* sys, std::string name) : sys(sys), name(name) {}
+    virtual ~RigidBodyForceElement() {}
+
+    virtual size_t getNumInputs() const { return 0; }
+    virtual Eigen::VectorXd output(const double& t, /* todo: add force state here */ const Eigen::VectorXd& u, const KinematicsCache<double>& rigid_body_state) const = 0;
+
+  protected:
+    RigidBodySystem* sys;
+    std::string name;
+  };
+
+  /** spatialForceInFrameToJointTorque
+   * @brief helper function for rigid body force elements.  todo: move this into RigidBodyTree?
+   */
+  Eigen::VectorXd spatialForceInFrameToJointTorque(const RigidBodyTree* tree, const KinematicsCache<double>& rigid_body_state, const RigidBodyFrame* frame, const Eigen::Matrix<double,6,1>& force) {
+    auto T_frame_to_world = tree->relativeTransform(rigid_body_state, 0, frame->frame_index);
+    auto force_in_world = transformSpatialForce(T_frame_to_world, force);
+    std::vector<int> v_indices;
+    auto J = tree->geometricJacobian(rigid_body_state, 0, frame->frame_index, 0, false, &v_indices);
+    Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree->num_velocities);
+    for (int i=0; i<v_indices.size(); i++) {
+      tau(v_indices[i]) = J.col(i).dot(force_in_world);
+//      std::cout << " f_" << tree->getVelocityName(v_indices[i]) << " = " << tau(v_indices[i]) << std::endl;
+    }
+    return tau;
+  }
+
+  // todo: insert a RigidBodyForceImpl with CRTP here once I go back and template these methods
+
+  /** RigidBodyPropellor
+   * @brief Models the forces and moments produced by a simple propellor
+   */
+  class DRAKERBSYSTEM_EXPORT RigidBodyPropellor : public RigidBodyForceElement {
+  public:
+    RigidBodyPropellor(RigidBodySystem* sys, tinyxml2::XMLElement* node, std::string name);
+    virtual ~RigidBodyPropellor() {}
+
+    virtual size_t getNumInputs() const override { return 1; }
+
+    // some quick thoughts:
+    // might want to be nonlinear in the robot state, but linear in the prop input.
+    // probably means I want to separate out those inputs
+    // and that I want a more general way to specify the input-output relationships for miso functions
+
+    virtual Eigen::VectorXd output(const double& t, /* todo: add force state here */ const Eigen::VectorXd& u, const KinematicsCache<double>& rigid_body_state) const override {
+      Eigen::Matrix<double,6,1> force;
+      force << scale_factor_moment*u(0)*axis, scale_factor_thrust*u(0)*axis;
+      return spatialForceInFrameToJointTorque(sys->getRigidBodyTree().get(),rigid_body_state,frame.get(),force);
+    }
+
+  private:
+    std::shared_ptr<RigidBodyFrame> frame;
+    Eigen::Vector3d axis;
+    double scale_factor_thrust; // scale factor between input and thrust
+    double scale_factor_moment; // scale factor between input and moment due to aerodynamic drag
+    double lower_limit;
+    double upper_limit;
 
   public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 
+  /** RigidBodySpringDamper
+   * @brief Models the forces produced by a linear spring-damper
+   */
+  class DRAKERBSYSTEM_EXPORT RigidBodySpringDamper : public RigidBodyForceElement {
+  public:
+    RigidBodySpringDamper(RigidBodySystem* sys, tinyxml2::XMLElement* node, std::string name);
+    virtual ~RigidBodySpringDamper() {}
+
+    virtual Eigen::VectorXd output(const double& t, /* todo: add force state here */ const Eigen::VectorXd& u, const KinematicsCache<double>& rigid_body_state) const override {
+      using namespace Eigen;
+      const Vector3d origin = Vector3d::Zero();
+      Vector3d xA_in_B = sys->getRigidBodyTree()->transformPoints(rigid_body_state,origin,frameA->frame_index,frameB->frame_index);
+      Vector3d xB_in_A = sys->getRigidBodyTree()->transformPoints(rigid_body_state,origin,frameB->frame_index,frameA->frame_index);
+      auto JA_in_B = sys->getRigidBodyTree()->transformPointsJacobian(rigid_body_state,origin,frameA->frame_index,frameB->frame_index,false);
+
+      double length = xA_in_B.norm();
+      double vel = (JA_in_B*rigid_body_state.getV()).dot(xA_in_B)/(length+EPSILON);
+      double force_magnitude = stiffness*(length - rest_length) + damping*vel;
+
+//      std::cout << "l=" << length << ", v=" << vel << ", f=" << force_magnitude << std::endl;
+
+      Matrix<double,6,1> force = Matrix<double,6,1>::Zero();
+
+      // apply (force_magnitude/length)*xA_in_B to B
+      force.tail<3>() = (force_magnitude/(length+EPSILON))*xA_in_B;
+      auto tau = spatialForceInFrameToJointTorque(sys->getRigidBodyTree().get(),rigid_body_state,frameB.get(),force);
+
+      // apply (force_magnitude/length)*xB_in_A to A
+      force.tail<3>() = (force_magnitude/(length+EPSILON))*xB_in_A;
+      tau += spatialForceInFrameToJointTorque(sys->getRigidBodyTree().get(),rigid_body_state,frameA.get(),force);
+
+      return tau;
+    }
+
+  private:
+    std::shared_ptr<RigidBodyFrame> frameA, frameB;
+    double stiffness;
+    double damping;
+    double rest_length;
+
+  public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
 } // end namespace Drake
 
 #endif
