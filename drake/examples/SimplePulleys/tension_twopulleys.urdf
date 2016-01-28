@@ -1,4 +1,4 @@
-
+﻿
 <robot xmlns="http://drake.mit.edu"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd" name="tension_twopulleys">
@@ -64,7 +64,7 @@
 
   <link name="load">
     <inertial>
-      <mass value="2"/>
+      <mass value="0.5"/>
       <inertia ixx="0.506667" ixy="0.000000" ixz="0.000000" iyy="1.000000" iyz="0.000000" izz="0.506667" />
     </inertial>
     <visual>
@@ -96,7 +96,7 @@
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner_left"/>
-    <dynamics damping=".5"/>
+    <dynamics damping="2.5"/>
   </joint>
 
   <joint name="tensioner_angle_right" type="revolute">
@@ -104,7 +104,7 @@
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner_right"/>
-    <dynamics damping=".5"/>
+    <dynamics damping="2.5"/>
   </joint>
   
   <link name="load_x" />
@@ -126,13 +126,13 @@
 
 
   <force_element name="tensioner_spring_left">
-    <torsional_spring rest_angle="0" stiffness="40">
+    <torsional_spring rest_angle="0" stiffness="100">
       <joint name="tensioner_angle_left"/>
     </torsional_spring>
   </force_element> 
 
   <force_element name="tensioner_spring_right">
-    <torsional_spring rest_angle="0" stiffness="40">
+    <torsional_spring rest_angle="0" stiffness="100">
       <joint name="tensioner_angle_right"/>
     </torsional_spring>
   </force_element>
