@@ -1,4 +1,6 @@
 function testIKtraj()
+% TIMEOUT 1500
+rng(0,'twister');
 options.floating = true;
 options.dt = 0.001;
 r = RigidBodyManipulator();

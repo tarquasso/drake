@@ -4,16 +4,11 @@
 
 #include "spruce.hh"
 
-#include "tinyxml2.h"
-#include "RigidBodyTree.h"
-#include "joints/FixedJoint.h"
-#include "joints/HelicalJoint.h"
-#include "joints/PrismaticJoint.h"
-#include "joints/RevoluteJoint.h"
-#include "joints/QuaternionFloatingJoint.h"
-#include "joints/RollPitchYawFloatingJoint.h"
+#include "drake/thirdParty/tinyxml2/tinyxml2.h"
+#include "drake/systems/plants/RigidBodyTree.h"
+#include "joints/DrakeJoints.h"
 
-#include "Path.h"
+#include "drake/Path.h"
 #include "urdfParsingUtil.h"
 
 // from http://stackoverflow.com/questions/478898/how-to-execute-a-command-and-get-output-of-command-within-c
@@ -194,8 +189,7 @@ void parseInertial(shared_ptr<RigidBody> body, XMLElement* node, RigidBodyTree *
     parseScalarAttribute(inertia, "izz", I(2, 2));
   }
 
-  auto bodyI = transformSpatialInertia(T, static_cast<Gradient<Isometry3d::MatrixType, Eigen::Dynamic>::type*>(NULL), I);
-  body->I = bodyI.value();
+  body->I = transformSpatialInertia(T, I);
 }
 
 bool parseMaterial(XMLElement* node, map<string, Vector4d, less<string>, aligned_allocator<pair<string, Vector4d> > > & materials)
