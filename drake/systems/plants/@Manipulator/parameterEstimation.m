@@ -178,9 +178,9 @@ if strcmp(options.method,'nonlinprog') || strcmp(options.method,'linprog')
     prog=prog.addConstraint(BoundingBoxConstraint(pmin,pmax),1:np);
     
     if strcmp(options.method,'nonlinprog')
-        % % Only nonlinear least squares
-        % nonlinfun = @(x) nonlinerr(x,lp,p,M_data,Mb_data);
-        % prog=prog.addCost(FunctionHandleObjective(np,nonlinfun),1:np);
+        % Only nonlinear least squares
+        nonlinfun = @(x) nonlinerr(x,lp,p,M_data,Mb_data);
+        prog=prog.addCost(FunctionHandleObjective(np,nonlinfun),1:np);
     end
     if strcmp(options.method,'linprog')
         % Least squares -> Nonlinear least squares on lumped parameter solution
