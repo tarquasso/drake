@@ -1,5 +1,5 @@
 function paramEstSyntheticData
-
+tStart0 = tic;
 tmp = addpathTemporary(fullfile(pwd,'..'));
 
 %% CONFIGURATION
@@ -80,14 +80,21 @@ if hasParamErr
 end
 
 %% Generate swingup data
-[utraj,xtraj] = swingUpTrajectory(rtrue);
+fprintf('Generating Swing Up Trajectory...\n');
+[utraj,xtraj] = swingUpTrajectory(rtrue); % Output is "Elapsed time is ... seconds"
 Ts = .0001; breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
 tsamples = T0:Ts:Tf;
 usamples = eval(utraj,tsamples)';
 if strcmp(simMethod,'dircol')
+    fprintf('Computing Trajectory using Direct Collocation...\n');
+    tStart1 = tic;
     xsamples = eval(xtraj,tsamples)';
+    toc(tStart1)
 elseif strcmp(simMethod,'euler')
-    xsamples = computeTraj(rtrue,eval(xtraj,T0),usamples',tsamples)';
+    fprintf('Computing Trajectory using Forward Euler Method...\n');
+    tStart2 = tic;
+    xsamples = computeTraj(rtrue,eval(xtraj,T0),usamples',tsamples)'; %depending on step size, this might take some time to compute
+    toc(tStart2)
 else error('Must choose a simulation method'); end
 
 %% Add gaussian noise to measurements
@@ -124,8 +131,11 @@ else
     xsamplesfinal = xsamplesnoisy;
 end
 
+fprintf('Perform Parameter Estimation ...\n');
+tStart3 = tic;
 data = iddata(xsamplesfinal,usamples,Ts,'InputName',r.getInputFrame.getCoordinateNames(),'OutputName',outputFrameNames);
 [estimated_parameters,simerror] = parameterEstimation(r,data,parameterEstimationOptions);
+toc(tStart3)
 
 %% Print out results
 coords = getCoordinateNames(r.getParamFrame);
@@ -138,6 +148,9 @@ for i=1:length(coords)
   fprintf('%7s  \t%8.2f\t%8.2f\t%8.2f\n',coords{i},p_true(i),p_init(i),estimated_parameters(i));
 end
 fprintf('Simulation Error: %s:\n',simerror);
+totalTime = toc(tStart0);
+fprintf('Total Execution Time: %9.6f seconds:\n',totalTime);
+
 end
 
 function xtraj = computeTraj(obj,x0,utraj,t)
