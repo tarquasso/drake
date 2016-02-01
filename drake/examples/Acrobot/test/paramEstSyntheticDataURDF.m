@@ -66,22 +66,24 @@ if hasParamErr
     while sum(paramerr<=-1)~=0
         paramerr(paramerr<-1) = randn(1,sum(paramerr<-1))*paramstd;
     end
-    
+    paramTrue = r.getParams;
+    paramWithError = paramTrue; %first copy true values to then disturbe them
     % rtrue.l1 = rtrue.l1 + rtrue.l1*paramerr(1); 
     % rtrue.l2 = rtrue.l2 + rtrue.l2*paramerr(2); 
     % rtrue.m1 = rtrue.m1 + rtrue.m1*paramerr(3); 
     % rtrue.m2 = rtrue.m2 + rtrue.m2*paramerr(4);
-    r.b1  = r.b1 + r.b1*paramerr(5);
-    r.b2  = r.b2 + r.b2*paramerr(6);
-    r.lc1 = r.lc1 + r.lc1*paramerr(7); 
-    r.lc2 = r.lc2 + r.lc2*paramerr(8); 
-    r.Ic1 = r.Ic1 + r.Ic1*paramerr(9);  
-    r.Ic2 = r.Ic2 + r.Ic2*paramerr(10);
+    paramWithError.b1  = paramWithError.b1 + paramWithError.b1*paramerr(5);
+    paramWithError.b2  = paramWithError.b2 + paramWithError.b2*paramerr(6);
+    paramWithError.lc1 = paramWithError.lc1 + paramWithError.lc1*paramerr(7); 
+    paramWithError.lc2 = paramWithError.lc2 + paramWithError.lc2*paramerr(8); 
+    paramWithError.Ic1 = paramWithError.Ic1 + paramWithError.Ic1*paramerr(9);  
+    paramWithError.Ic2 = paramWithError.Ic2 + paramWithError.Ic2*paramerr(10);
+    r = r.setParams(paramWithError); %update the parameters and then copy it over (since no pass by reference)
 end
 
 %% Generate swingup data
 fprintf('Generating Swing Up Trajectory...\n');
-[utraj,xtraj] = swingUpTrajectory(rtrue); % Output is "Elapsed time is ... seconds"
+[utraj,xtraj] = swingUpURDF(rtrue); % Output is "Elapsed time is ... seconds"
 Ts = .0001; breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
 tsamples = T0:Ts:Tf;
 usamples = eval(utraj,tsamples)';
