@@ -419,7 +419,7 @@ classdef RigidBodyManipulator < Manipulator
 
       nv = model.getNumVelocities();
       % Note: this will fail if damping is a trigpoly (we could handle this case, but need to do it carefully to not hurt performance)
-      damping = zeros(nv, 1);
+      damping = v(1)*zeros(nv, 1);
       % Note: this will fail if friction is a trigpoly (as it should)
       coulomb_friction = zeros(nv, 1);
       static_friction = zeros(nv, 1);
@@ -1121,8 +1121,10 @@ classdef RigidBodyManipulator < Manipulator
       end
 
       model = applyToAllRigidBodyElements(model,'updateParams',fr.getPoly,p);
-
-      model = compile(model);
+      
+      if isnumeric(p)
+        model = compile(model);
+      end
     end
 
     function p = getParams(model)

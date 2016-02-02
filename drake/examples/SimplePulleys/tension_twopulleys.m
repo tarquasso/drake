@@ -1,7 +1,7 @@
-%function tension
+function tension_twopulleys
 
 %r = PlanarRigidBodyManipulator('tension.urdf');
-r = TimeSteppingRigidBodyManipulator('tension.urdf',.01,struct('twoD',true));
+r = TimeSteppingRigidBodyManipulator('tension_twopulleys.urdf',.01,struct('twoD',true));
 
 v = r.constructVisualizer();
 v.xlim = [-5 5];
@@ -13,7 +13,7 @@ x0.load_z = 4;
 %x0.tensioner_angle = pi/2;
 %x0.load_zdot = -4;
 
-v.drawWrapper(0,x0(1:3));
+v.drawWrapper(0,x0(1:4));
 
 %manip = r.getManipulator();
 %[l,dl]=manip.position_constraints{1}.eval(x0(1:3));
@@ -22,14 +22,14 @@ v.drawWrapper(0,x0(1:3));
 %return;
 
 x0 = resolveConstraints(r,x0,v);
-v.drawWrapper(0,x0(1:3));
+v.drawWrapper(0,x0(1:4));
 
 ytraj = simulate(r,[0 8],x0);
 if(0)
 ts = ytraj.getBreaks();
 for i=1:numel(ts)
   x = ytraj.eval(ts(i));
-  length(i) = r.position_constraints{1}.eval(x(1:3));
+  length(i) = r.position_constraints{1}.eval(x(1:4));
 end
 figure(1); clf; plot(ts,length);
 end

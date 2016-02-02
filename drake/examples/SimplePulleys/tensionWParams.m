@@ -1,7 +1,10 @@
-%function tension
+%function trueParameters = tensionWParams
 
-%r = PlanarRigidBodyManipulator('tension.urdf');
-r = TimeSteppingRigidBodyManipulator('tension.urdf',.01,struct('twoD',true));
+
+%r = PlanarRigidBodyManipulator('tensionWParams.urdf');
+r = TimeSteppingRigidBodyManipulator('tensionWParams.urdf',.01,struct('twoD',true));
+
+trueParameters = getParams(r);
 
 v = r.constructVisualizer();
 v.xlim = [-5 5];
@@ -10,7 +13,7 @@ v.ylim = [-.2 6.2];
 x0 = Point(getStateFrame(r));
 x0.load_x = 0;
 x0.load_z = 4;
-%x0.tensioner_angle = pi/2;
+x0.tensioner_angle = .1414;%pi/2;
 %x0.load_zdot = -4;
 
 v.drawWrapper(0,x0(1:3));
