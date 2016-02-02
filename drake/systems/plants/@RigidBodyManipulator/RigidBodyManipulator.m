@@ -419,7 +419,7 @@ classdef RigidBodyManipulator < Manipulator
 
       nv = model.getNumVelocities();
       % Note: this will fail if damping is a trigpoly (we could handle this case, but need to do it carefully to not hurt performance)
-      damping = zeros(nv, 1);
+      damping = zeros(nv, 1) * v(1);
       % Note: this will fail if friction is a trigpoly (as it should)
       coulomb_friction = zeros(nv, 1);
       static_friction = zeros(nv, 1);
@@ -843,10 +843,10 @@ classdef RigidBodyManipulator < Manipulator
       model = model.setInputLimits(u_limit(:,1),u_limit(:,2));
 
       %% check basic assumption from kinematics:
-      for i=1:length(model.body)
-        valuecheck(model.body(i).Ttree(end,1:end-1),0);
-        valuecheck(model.body(i).Ttree(end,end),1);
-      end
+%       for i=1:length(model.body)
+%         valuecheck(model.body(i).Ttree(end,1:end-1),0);
+%         valuecheck(model.body(i).Ttree(end,end),1);
+%       end
 
       model = adjustCollisionGeometry(model);
       model = setupCollisionFiltering(model);
