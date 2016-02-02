@@ -12,7 +12,7 @@ paramstd = .20;
 hasMeasNoise = true;
 % Standard deviation of error for theta1,theta2,theta1dot,theta2dot,theta1doubledot,theta2doubledot
 % noisestd = sqrt([.000001, .000001, .0000001, .0000001, 0, 0,]);
-noisestd = sqrt([1e-5, 1e-5, 1e-11, 1e-11, 0, 0,]);
+noisestd = sqrt([1e-4, 1e-4, 1e-11, 1e-11, 0, 0,]);
 
 % Introduce delay into estimation (Not complete)
 delay = false;
