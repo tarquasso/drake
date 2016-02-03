@@ -25,7 +25,7 @@ classdef CableLength < drakeFunction.kinematic.Kinematic
 
       length = 0;
       dlength = 0*q';
-      %ddlength = zeros(1,numel(q)^2);
+      %ddlength = zeros(1,numel(q)^2); % unused variable
       
       for i=1:numel(obj.pulley)
           
