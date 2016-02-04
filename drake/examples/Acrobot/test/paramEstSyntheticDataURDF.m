@@ -53,34 +53,30 @@ parameterEstimationOptions.C = eye(4);
 
 %% Initialize Acrobot plants and variables
 rtrue = RigidBodyManipulator('AcrobotWSixParams.urdf');
-r = RigidBodyManipulator('AcrobotWSixParams.urdf');
-nq = r.num_positions;
+r = rtrue;
+nq = r.getNumPositions;
 outputFrameNames = r.getOutputFrame.getCoordinateNames();
+p_orig = double(r.getParams);
+np = length(p_orig);
+pnames = getCoordinateNames(getParamFrame(r));
 
 %% Initialize estimated Acrobot system with parameter error
-%TODO: make consistent with parameter bounds
 if hasParamErr
-    % Perturb original parameter estimates with random percentage error
-    % normally distributed with standard dev = paramstd, and greater than -1
-    %rndVals = [-0.5913,-1.8031,-1.1472,1.8904,0.4688,-0.0241,0.5373,-0.2985,-0.1107,-0.4345];
-    rndVals = randn(1,10);
-    paramerr = rndVals*paramstd;
-
-    while sum(paramerr<=-1)~=0
-        paramerr(paramerr<-1) = randn(1,sum(paramerr<-1))*paramstd;
-    end
-    pErr = r.getParams; %first copy true values to then disturb them
-    % rtrue.l1 = rtrue.l1 + rtrue.l1*paramerr(1); 
-    % rtrue.l2 = rtrue.l2 + rtrue.l2*paramerr(2); 
-    % rtrue.m1 = rtrue.m1 + rtrue.m1*paramerr(3); 
-    % rtrue.m2 = rtrue.m2 + rtrue.m2*paramerr(4);
-    pErr.b1  = pErr.b1 + pErr.b1*paramerr(5);
-    pErr.b2  = pErr.b2 + pErr.b2*paramerr(6);
-    pErr.lc1 = pErr.lc1 + pErr.lc1*paramerr(7); 
-    pErr.lc2 = pErr.lc2 + pErr.lc2*paramerr(8); 
-    pErr.Ic1 = pErr.Ic1 + pErr.Ic1*paramerr(9);  
-    pErr.Ic2 = pErr.Ic2 + pErr.Ic2*paramerr(10);
-    r = r.setParams(pErr); %update the parameters and then copy it over (since no pass by reference)
+  % Perturb original parameter estimates with random percentage error
+  % normally distributed with standard dev = paramstd, and greater than -1
+  rndVals = randn(1,np);
+  paramerr = rndVals*paramstd;
+  
+  while sum(paramerr<=-1)~=0
+    paramerr(paramerr<-1) = randn(1,sum(paramerr<-1))*paramstd;
+  end
+  
+  pErr = p_orig; %first copy true values to then disturb them
+  for i = 1:np
+    pErr(i) = pErr(i)  + pErr(i) * paramerr(i);
+  end
+  
+  r = r.setParams(pErr); %update the parameters and then copy it over (since no pass by reference)
 end
 
 %% Generate swingup data
