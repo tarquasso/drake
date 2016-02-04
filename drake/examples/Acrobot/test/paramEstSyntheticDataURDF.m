@@ -61,6 +61,7 @@ np = length(p_orig);
 pnames = getCoordinateNames(getParamFrame(r));
 
 %% Initialize estimated Acrobot system with parameter error
+%TODO: make consistent with parameter bounds
 if hasParamErr
   % Perturb original parameter estimates with random percentage error
   % normally distributed with standard dev = paramstd, and greater than -1
