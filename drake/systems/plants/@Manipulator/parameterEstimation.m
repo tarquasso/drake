@@ -99,7 +99,8 @@ np = length(p_orig);
 
 [pmin,pmax] = getParamLimits(obj);
 assert(all(pmin>=0));  % otherwise I'll have to subtract it out from the coordinates
-%  not hard, just not implmented yet.
+%  not hard, just not implmented yet. %% TODO: Implement allowing negative parameter
+%  values
 
 % Used often
 isDynamic = strcmp(options.model,'dynamic');
@@ -138,7 +139,7 @@ t=msspoly('t',1);
 
 % Set up known parameters
 p=obj.getParamFrame.getPoly;
-pobj = setParams(obj,p);
+pobj = setParams(obj,p); %Using model that was parsed in, overwriting numeric parameters with msspoly
 
 [H,C,B] = manipulatorDynamics(pobj,qt,qd);
 
@@ -165,12 +166,12 @@ if isDynamic || isEnergetic
         qd2=msspoly('qdtf',nq);
         
         % Formulate energy equations
-        [T1,U1] = energy(pobj,[qt1;qd1]);
+        [T1,U1] = energy(pobj,[qt1;qd1]); %not revised yet
         [T2,U2] = energy(pobj,[qt2;qd2]);
         
-        % ACROBOT-SPECIFIC FORMULATION - MUST CHANGE
+        % ACROBOT-SPECIFIC FORMULATION - TODO: MUST CHANGE
         % Need to formulate energy dissipation from AcrobotPlant class
-        dE = (B*u-[p(1);p(2)].*qd1)'*qd1*dt;
+        dE = (B*u-[p(1);p(2)].*qd1)'*qd1*dt; %todo: make generic
         err = (T1+U1)-(T2+U2)+dE;
         
     end
