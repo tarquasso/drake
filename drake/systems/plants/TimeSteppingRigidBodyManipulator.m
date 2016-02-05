@@ -1215,6 +1215,11 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       p = obj.manip.getParams;
     end
     
+    function [pmin,pmax] = getParamLimits(obj)
+      % Returns the current lower and upper bounds on the system parameters
+      [pmin,pmax] = getParamLimits(obj.manip);
+    end
+    
     function model = setParams(model,p)
       model.manip = setParams(model.manip,p);
     end
