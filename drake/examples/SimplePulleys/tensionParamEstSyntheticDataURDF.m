@@ -52,7 +52,8 @@ qddmode = 'derivative';
 parameterEstimationOptions.C = eye(4);
 
 %% Initialize tension plants and variables
-rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',.01,struct('twoD',true));
+% TODO: find out if just a PlanarRigidBodyManipulator would also work??
+rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',.01,struct('twoD',true));  
 r = rtrue;
 nq = r.getNumPositions; %CHANGE TO BEFORE
 outputFrameNames = r.getOutputFrame.getCoordinateNames();
@@ -66,7 +67,6 @@ pnames = getCoordinateNames(getParamFrame(r));
 if hasParamErr
   % Perturb original parameter estimates with random percentage error
   % normally distributed with standard dev = paramstd, and greater than -1
-  %rndVals = [-0.5913,-1.8031,-1.1472,1.8904,0.4688,-0.0241,0.5373,-0.2985,-0.1107,-0.4345];
   rndVals = randn(1,np);
   paramerr = rndVals*paramstd;
   
