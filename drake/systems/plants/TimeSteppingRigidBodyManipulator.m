@@ -1207,8 +1207,8 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       out = obj.manip.name;
     end
 
-    function fr = getParamFrame(model)
-      fr = getParamFrame(model.manip);
+    function fr = getParamFrame(obj)
+      fr = getParamFrame(obj.manip);
     end
 
     function p = getParams(obj)
@@ -1220,10 +1220,16 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
       [pmin,pmax] = getParamLimits(obj.manip);
     end
     
-    function model = setParams(model,p)
-      model.manip = setParams(model.manip,p);
+    function obj = setParams(obj,p)
+      obj.manip = setParams(obj.manip,p);
     end
-
+    
+    function [phat,simulation_error,estimated_delay,exitflag] = ...
+        parameterEstimation(obj,data,varargin)
+      [phat,simulation_error,estimated_delay,exitflag] = ...
+        obj.manip.parameterEstimation(data,varargin);
+    end
+    
     function terrain_contact_point_struct = getTerrainContactPoints(obj,varargin)
       terrain_contact_point_struct = getTerrainContactPoints(obj.manip,varargin{:});
     end
