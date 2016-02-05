@@ -141,6 +141,8 @@ t=msspoly('t',1);
 p=obj.getParamFrame.getPoly;
 pobj = setParams(obj,p); %Using model that was parsed in, overwriting numeric parameters with msspoly
 
+% using parameterized model pobj to calculate manipulator equations that
+% contain the parameters
 [H,C,B] = manipulatorDynamics(pobj,qt,qd);
 
 if isDynamic || isEnergetic
