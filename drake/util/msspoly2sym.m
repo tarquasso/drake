@@ -2,7 +2,7 @@ function ps = msspoly2sym(xm,xs,pm)
 
 % SPOT to symbolic matlab converter
 % flips an msspoly polynomial, pm, which depends on variables xm, and
-% outputs the sym polynomial, ps, in terms of the syms xp.
+% outputs the sym polynomial, ps, in terms of the syms xs.
 
 typecheck(xm,'msspoly');
 typecheck(xs,'sym');
