@@ -46,6 +46,7 @@ classdef CableLength < drakeFunction.kinematic.Kinematic
         if i>1
           vec = pt-last_pt; % last_pt is the pt from the previous pulley
           C = sqrt(vec'*vec); % abs distance between the two pulleys
+          %Csq = vec'*vec; %squared distance between the two pulleys
           
           if nargout>1
             dvec = dpt-last_dpt;
@@ -63,7 +64,7 @@ classdef CableLength < drakeFunction.kinematic.Kinematic
           
           % if the pulleys overlap, skip this case
           if (C<r1+r2+eps) % cut me a little slack, eh?
-            continue;  % just skip this one... because the optimizers might actually get here
+            continue;  % TODO: just skip this one... because the optimizers might actually get here
           end
           
           

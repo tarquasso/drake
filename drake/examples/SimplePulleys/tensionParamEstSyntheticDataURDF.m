@@ -5,7 +5,7 @@ tmp = addpathTemporary(fullfile(pwd,'..'));
 %% CONFIGURATION
 
 %Sampling Time
-Ts = 0.001;
+Ts = 0.05; %this tremedously changes simulation time
 % Introduce parameter error into estimation
 hasParamErr = true;
 % Standard deviation of the parameter percent error
@@ -59,10 +59,19 @@ parameterEstimationOptions.C = eye(4);
 rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',Ts,struct('twoD',true));  
 r = rtrue;
 nq = r.getNumPositions;
-outputFrameNames = r.getOutputFrame.getCoordinateNames();
+outputFrameNamesAll = r.getOutputFrame.getCoordinateNames();
+outputFrameNamesDisk = outputFrameNamesAll([2 3 5 6]);
 p_orig = double(r.getParams);
 np = length(p_orig);
 %pnames = getCoordinateNames(getParamFrame(r));
+
+if(~isempty(rtrue.getManipulator.position_constraints))
+  isPositionConstrainted = true;
+  nc = numel(rtrue.getManipulator.position_constraints);
+else
+  isPositionConstrainted = false;
+  nc = 0;
+end
 
 % Set Output Frame to what is observable
 % stateFrame = getStateFrame(r);
@@ -106,27 +115,28 @@ tsamples = breaks; %T0:Ts:Tf;
 if strcmp(simMethod,'dircol')
   fprintf('Computing Trajectory using Direct Collocation...\n');
   tStart1 = tic;
-  xsamplesFull = eval(xtraj,tsamples)';
+  xSamplesAll = eval(xtraj,tsamples)';
   toc(tStart1)
 elseif strcmp(simMethod,'euler')
   fprintf('Computing Trajectory using Forward Euler Method...\n');
   tStart2 = tic;
-  xsamplesFull = computeTraj(rtrue.getManipulator,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
+  xSamplesAll = computeTraj(rtrue.getManipulator,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
   toc(tStart2)
 else error('Must choose a simulation method'); end
 
 %% Remove Unobservable components
 % TODO shouldn't that be something that can be done in the simulate
 % function already?
-xsamples = xsamplesFull(:,[1:(nq-1),(nq+1):(2*nq-1)]); %theta_angle
-
+xsamplesDisk = xSamplesAll(:,[2:(nq),(nq+2):(2*nq)]); %TODO: remove the theta_angle and its derivative
+nq = nq-nc; %TODO: do this more elegant adjust dimension
+ 
 %% Add gaussian noise to measurements
 if hasMeasNoise
-  measurementNoise = randn(size(xsamples))*diag(noisestd(1:size(xsamples,2)));
+  measurementNoise = randn(size(xsamplesDisk))*diag(noisestd(1:size(xsamplesDisk,2)));
 else
   measurementNoise = 0;
 end
-xsamplesnoisy = xsamples+measurementNoise;
+xsamplesnoisy = xsamplesDisk+measurementNoise;
 
 %% Generate second derivative
 if strcmp(parameterEstimationOptions.model,'dynamic')
@@ -149,14 +159,14 @@ if strcmp(parameterEstimationOptions.model,'dynamic')
   end
   xsamplesfinal = [xsamplesnoisy(1:length(qdd),:), qdd];
   %usamples = usamples(1:length(qdd),:);
-  outputFrameNames = [outputFrameNames;'load_xdotdot';'load_zdotdot';'tensioner_angledotdot'];
+  outputFrameNamesDisk = [outputFrameNamesDisk;'load_xdotdot';'load_zdotdot'];
 else
   xsamplesfinal = xsamplesnoisy;
 end
 
 fprintf('Perform Parameter Estimation ...\n');
 tStart3 = tic;
-data = iddata(xsamplesfinal,[],Ts,'OutputName',outputFrameNames); %'InputName',r.getInputFrame.getCoordinateNames(),
+data = iddata(xsamplesfinal,[],Ts,'OutputName',outputFrameNamesDisk); %'InputName',r.getInputFrame.getCoordinateNames(),
 [estimated_parameters,simerror] = parameterEstimation(r,data,parameterEstimationOptions);
 toc(tStart3)
 
