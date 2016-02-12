@@ -76,6 +76,9 @@ end
 if (~isfield(options,'C'))
   options.C=eye(2*obj.num_positions);
 end
+if (~isfield(options,'symbolicClass'))
+  options.symbolicClass='msspoly'; %other option is 'sym'
+end
 if ~(strcmp(options.model,'dynamic') ||...
     strcmp(options.model,'energetic') ||...
     strcmp(options.model,'simerr'))
@@ -115,9 +118,9 @@ end
 % Used often
 isDynamic = strcmp(options.model,'dynamic');
 isEnergetic = strcmp(options.model,'energetic');
+useMatlabSym = strcmp(options.symbolicClass,'sym');
 
-
-%%   Step 1: Extract data
+%%   Step 1a: Extract data
 if (nargin>1)
   % populate A and b matrices from iddata
   % todo: make the processing of q,qd,qdd more robust
@@ -126,6 +129,7 @@ if (nargin>1)
   t_data = get(data,'SamplingInstants')';
   x_data = get(data,'OutputData')';
   q_data = x_data(1:qMeasured,:);
+  n = size(q_data,2);
   qd_data = x_data(qMeasured+(1:qMeasured),:);
   u_data = get(data,'InputData')';
   dt_data = diff(t_data);
@@ -137,32 +141,91 @@ if (nargin>1)
   xobs = [q_data;qd_data];
 end
 
+%%   Step 1b: Reconstruct missing states q(1) and qd(1)
+  %If there is a constraint, reconstruct missing q(1) qd(1)
+  if(isPositionConstrainted)
+    %TODO: z0 by using resolve constraint
+    q_known = q_data; %nMeasuredx1xn
+    qd_known = qd_data; %nMeasuredx1xn
+    
+    for i=1:size(q_data,2)
+      %use resolveconstraint instead
+      nlprog = NonlinearProgram(2);      
+      constraint = FunctionHandleConstraint(zeros(nc*2,1),zeros(nc*2,1),...
+        @(q_uk,qd_uk) cableLengthConstraint(obj,q_known(:,i),qd_known(:,i),q_uk,qd_uk));
+      %nlprog.x_name
+      nlprog = nlprog.addConstraint(constraint,{1,2});
+      z = nlprog.solve(z0); %some more return arguments like the status
+      z0 = z; %reassign current as the previous state for the next program run
+      % TODO: write the reconstructed data to the full dataset;
+    end
+  end
+  
+  % ToDo: use polynomial fitting to get from (q(1), qd(1)) to qdd(1)
+  polynomialOrder = 5;
+  [polynomialFactors,S,mu] = polyfit(timeSteps,q1Data,polynomialOrder);
+  %calculate residual between q data and qd data
+
+%%   Step 1c) Calculate Constraint J = dphi/dq = dlength
+Jdata = zeros(nq,size(qData,2));
+for i = 1:size(qData,2)
+ [~,Jdata(:,i)] = obj.position_constraints{i}.eval(qDataAll); %%TODO: fgix this by running iteration
+
+end
 %%   Step 2: Formulate error models
 % Initialize Variables
 q=msspoly('q',nq);
 s=msspoly('s',nq);
 c=msspoly('c',nq);
-qt=TrigPoly(q,s,c);
-qd=msspoly('qd',nq);
-qdd=msspoly('qdd',nq);
-u=msspoly('u',nu);
-t=msspoly('t',1);
+if(useMatlabSym)
+  %q = sym('q%d',[nq,1],'real');
+  qtm=TrigPoly(q,s,c);
+  qt = getsym(qtm); %is there a trigpoly function for syms?
+  qd = sym('qd',[nq,1],'real');
+  %qd = msspoly2sym(qd,qds,qd);
+  qdd = sym('qdd',[nq,1],'real');
+  %qdd = msspoly2sym(qdd,qdds,qdd);
+  u = sym('u',[nu,1],'real');
+  %u = msspoly2sym(u,us,u);
+  t = sym('t',[1,1],'real');
+else % using msspoly
+  qt=TrigPoly(q,s,c);
+  qd=msspoly('qd',nq);
+  qdd=msspoly('qdd',nq);
+  u=msspoly('u',nu);
+  t=msspoly('t',1);
+end
 
 % Set up known parameters
-p=obj.getParamFrame.getPoly;
-pobj = setParams(obj,p); %Using model that was parsed in, overwriting numeric parameters with msspoly
-
+% TODO: Fix this so it also works for Matlab Symbolic
+%if(useMatlabSym)
+%  paramsSym = sym(obj.getParamFrame().getCoordinateNames(), 'real');
+%else
+  paramsSym = obj.getParamFrame.getPoly; %remove all the unnecessary parameters
+%end
+if ~isempty(paramsSym)
+  pobj = obj.setParams(paramsSym); %Using model that was parsed in, overwriting numeric parameters with msspoly
+end
+  
+% msspoly describing the unknown constraint force
+lambda = msspoly('lambda',1); %constraint force
+% add the constraint force as a parameter to the paramsSym object
+paramsSym = [paramsSym; lambda];
+ 
 % using parameterized model pobj to calculate manipulator equations that
 % contain the parameters
 [H,C,B] = manipulatorDynamics(pobj,qt,qd);
+
+% treat J as an msspoly that gets replaced later      
+J = msspoly('J',nq);
 
 if isDynamic || isEnergetic
   if isDynamic
     % Formulate equation error from equations of motion
     if(nu > 0)
-      err = H*qdd + C - B*u;
+      err = H*qdd + C - J*lambda - B*u;
     else
-      err = H*qdd + C;
+      err = H*qdd + C - J*lambda;
     end
     
   elseif isEnergetic %TODO: make formulation independent of Acrobot
@@ -184,34 +247,37 @@ if isDynamic || isEnergetic
     qd2=msspoly('qdtf',nq);
     
     % Formulate energy equations
-    [T1,U1] = energy(pobj,[qt1;qd1]); %not revised yet
+    %TODO this needs implementation within rigidbodymanipulator
+    [T1,U1] = energy(pobj,[qt1;qd1]); 
     [T2,U2] = energy(pobj,[qt2;qd2]);
     
     % ACROBOT-SPECIFIC FORMULATION - TODO: MUST CHANGE
     % Need to formulate energy dissipation from AcrobotPlant class
-    dE = (B*u-[p(1);p(2)].*qd1)'*qd1*dt; %todo: make generic
+    % TODO: make generic or fit for tension example
+    dE = ([paramsSym(1);paramsSym(2)].*qd1)'*qd1*dt; 
     err = (T1+U1)-(T2+U2)+dE;
     
   end
   
-  %% Add Constraints if those exist
-  if(isPositionConstrainted)
+  % Add Constraints if those exist - this method does not work because of cableLength calculations
+  %if(isPositionConstrainted)
     % add position constraints to err matrix
-    for i = 1:nc
-      parametricPositionConstraint = pobj.position_constraints{i}.eval(qt); %%BUG RIGHT HERE
-      err = [err;parametricPositionConstraint];
-    end
-  end
-    
+    %for i = 1:nc
+      %[parametricPositionConstraint,parametricVelocityConstraint] = ...
+      % pobj.position_constraints{i}.eval(qt);
+      %err = [err;parametricPositionConstraint;parametricVelocityConstraint];
+      %q1 and q1d into lp?
+    %end
+  %end
   
   % Isolate parameters from error equations
-  [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(err),p); % posynomial lumped params
+  [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(err),paramsSym); % polynomial lumped params
   % [lp, M, Mb] = linearParameters(getmsspoly(err),p); % monomial lumped params
   nlp = length(lp);
-  lp_orig = double(subs(lp,p,p_orig));
+  lp_orig = double(subs(lp,paramsSym,p_orig));
   lumped_params = msspoly('lp',nlp);
   % now err=M*lp+Mb and lperr=M*lumped_params+Mb;
-  
+    
   if isDynamic
     ndata = length(t_data);
     variables = [q;s;c;qd;qdd;u];
@@ -256,13 +322,13 @@ if strcmp(options.model,'simerr')
   prog=prog.setSolverOptions('snopt','MajorOptimalityTolerance',1.0e-5);
 elseif strcmp(options.method,'nonlinprog')
   % Only nonlinear least squares
-  nonlinfun = @(x) nonlinerr(x,lp,p,M_data,Mb_data);
+  nonlinfun = @(x) nonlinerr(x,lp,paramsSym,M_data,Mb_data);
   prog=prog.addCost(FunctionHandleObjective(np,nonlinfun),1:np);
 elseif strcmp(options.method,'linprog')
   % Least squares -> Nonlinear least squares on lumped parameter solution
   lp_est = -pinv(full(M_data))*Mb_data;
   prog=prog.addQuadraticCost(eye(np),p_orig,1:np);
-  lpconstraint_handle = @(x) lpconstraint_fun(x,lp,p);
+  lpconstraint_handle = @(x) lpconstraint_fun(x,lp,paramsSym);
   lpconstraint = FunctionHandleConstraint(lp_est,lp_est,nlp,lpconstraint_handle);
   prog=prog.addConstraint(lpconstraint,1:np);
 end
@@ -369,4 +435,13 @@ for i=1:N
   f = dynamics(obj,t(i),xtraj(:,i),utraj(:,i));
   xtraj(:,i+1) = xtraj(:,i)+f*dt(i);
 end
+end
+
+function [f,df] = cableLengthConstraint(obj, q_known,qd_known,q_uk,qd_uk)
+%call eval within cableLength.m
+[cable_length,dlength,ddlength] = obj.positionConstraints([q_uk;q_known]);
+lengthdot = dlength*[qd_uk;qd_known];
+dlengthdot = [reshape(ddlength,[],numel([q_uk;q_known]))*[qd_uk;qd_known] dlength];
+f = [cable_length - obj.pulley_length; lengthdot]; %find obj.pulley_length
+df = [dlength zeros(size(dlength)); dlengthdot];
 end
