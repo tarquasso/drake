@@ -3,9 +3,12 @@ tStart0 = tic;
 tmp = addpathTemporary(fullfile(pwd,'..'));
 
 %% CONFIGURATION
+timeToSim = 1; %seconds
+generateNewData = true;
 
 %Sampling Time
-Ts = 0.05; %this tremedously changes simulation time
+Ts = 0.01; %this tremedously changes simulation time
+
 % Introduce parameter error into estimation
 hasParamErr = true;
 % Standard deviation of the parameter percent error
@@ -57,6 +60,7 @@ parameterEstimationOptions.C = eye(4);
 %% Initialize tension plants and variables
 % TODO: find out if just a PlanarRigidBodyManipulator would also work??
 rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',Ts,struct('twoD',true));  
+%rtrue = RigidBodyManipulator('tensionWParams.urdf');
 r = rtrue;
 nq = r.getNumPositions;
 outputFrameNamesAll = r.getOutputFrame.getCoordinateNames();
@@ -65,9 +69,19 @@ p_orig = double(r.getParams);
 np = length(p_orig);
 %pnames = getCoordinateNames(getParamFrame(r));
 
-if(~isempty(rtrue.getManipulator.position_constraints))
+%get a handle on the manipulator plant
+if(isa(rtrue,'TimeSteppingRigidBodyManipulator'))
+  manip = rtrue.getManipulator;
+elseif(isa(rtrue,'RigidBodyManipulator'))
+  manip = rtrue;
+else
+  error('not supported type of plant');
+end
+  
+%Check if plant is position constrained
+if(~isempty(manip.position_constraints))
   isPositionConstrainted = true;
-  nc = numel(rtrue.getManipulator.position_constraints);
+  nc = numel(manip.position_constraints);
 else
   isPositionConstrainted = false;
   nc = 0;
@@ -106,9 +120,13 @@ if hasParamErr
   r = r.setParams(pErr); %update the parameters and then copy it over (since no pass by reference)
 end
 
-%% Generate swingup data
+%% Generate disk drop data
+%check if previously recorded data is available
+testingDataExists = exist('testingData.mat','file');
+if(testingDataExists ~= 2 || generateNewData) %only generate if no previous data is there
+
 fprintf('Generating Disk Drop on Tensioner Trajectory...\n');
-xtraj = diskOnTensionerDrop(rtrue); % Output is "Elapsed time is ... seconds"
+xtraj = diskOnTensionerDrop(rtrue,timeToSim); % Output is "Elapsed time is ... seconds"
 breaks=getBreaks(xtraj); T0 = breaks(1); Tf = breaks(end);
 %Ts = 10 * (Tf-T0)/(numel(breaks)-1);
 tsamples = breaks; %T0:Ts:Tf;
@@ -120,7 +138,7 @@ if strcmp(simMethod,'dircol')
 elseif strcmp(simMethod,'euler')
   fprintf('Computing Trajectory using Forward Euler Method...\n');
   tStart2 = tic;
-  xSamplesAll = computeTraj(rtrue.getManipulator,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
+  xSamplesAll = computeTraj(manip,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
   toc(tStart2)
 else error('Must choose a simulation method'); end
 
@@ -167,6 +185,12 @@ end
 fprintf('Perform Parameter Estimation ...\n');
 tStart3 = tic;
 data = iddata(xsamplesfinal,[],Ts,'OutputName',outputFrameNamesDisk); %'InputName',r.getInputFrame.getCoordinateNames(),
+
+% now that it generated new data, save it
+  save('testingData.mat','data');
+else
+  load('testingData.mat');
+end
 [estimated_parameters,simerror] = parameterEstimation(r,data,parameterEstimationOptions);
 toc(tStart3)
 
@@ -197,7 +221,7 @@ for i=1:N
 end
 end
 
-function xtraj = diskOnTensionerDrop(obj)
+function xtraj = diskOnTensionerDrop(obj,timeToSim)
 
 x0 = Point(getStateFrame(obj));
 x0.load_x = 0;
@@ -205,7 +229,7 @@ x0.load_z = 3.99;
 x0.load_zdot = -2.5; %starting velocity
 x0 = resolveConstraints(obj,x0);
 
-xtraj = simulate(obj,[0 1],x0);
+xtraj = simulate(obj,[0 timeToSim],x0);
 
 end
 
