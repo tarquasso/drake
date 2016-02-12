@@ -20,6 +20,7 @@ classdef CableLength < drakeFunction.kinematic.Kinematic
       obj.pulley = horzcat(obj.pulley, p);
     end
     
+    % TODO: clean these eval calls up
     function [length,dlength,ddlength] = eval(obj,q)
       [length,dlength] = eval_old(obj,q);
       if nargout >2 
