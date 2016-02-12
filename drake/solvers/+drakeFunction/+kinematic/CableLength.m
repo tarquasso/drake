@@ -20,7 +20,20 @@ classdef CableLength < drakeFunction.kinematic.Kinematic
       obj.pulley = horzcat(obj.pulley, p);
     end
     
-    function [length,dlength] = eval(obj,q)
+    function [length,dlength,ddlength] = eval(obj,q)
+      [length,dlength] = eval_old(obj,q);
+      if nargout >2 
+        [~,ddlength] = geval(@obj.eval_dlength,q,struct('grad_method','numerical'));
+        ddlength = reshape(ddlength,numel(length),[]);
+      end
+    end
+    
+    function dlength = eval_dlength(obj,q)
+      [~,dlength] = eval_old(obj,q);
+      dlength = dlength(:);
+    end
+    
+    function [length,dlength] = eval_old(obj,q)
       kinsol = obj.rbm.doKinematics(q,nargout>2);
 
       length = 0;
