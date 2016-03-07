@@ -3,9 +3,12 @@ tStart0 = tic;
 tmp = addpathTemporary(fullfile(pwd,'..'));
 
 %% CONFIGURATION
+timeToSim = 1; %seconds
+generateNewData = true;
 
 %Sampling Time
-Ts = 0.001;
+Ts = 0.01; %this tremedously changes simulation time
+
 % Introduce parameter error into estimation
 hasParamErr = true;
 % Standard deviation of the parameter percent error
@@ -57,12 +60,32 @@ parameterEstimationOptions.C = eye(4);
 %% Initialize tension plants and variables
 % TODO: find out if just a PlanarRigidBodyManipulator would also work??
 rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',Ts,struct('twoD',true));  
+%rtrue = RigidBodyManipulator('tensionWParams.urdf');
 r = rtrue;
 nq = r.getNumPositions;
-outputFrameNames = r.getOutputFrame.getCoordinateNames();
+outputFrameNamesAll = r.getOutputFrame.getCoordinateNames();
+outputFrameNamesDisk = outputFrameNamesAll([2 3 5 6]);
 p_orig = double(r.getParams);
 np = length(p_orig);
 %pnames = getCoordinateNames(getParamFrame(r));
+
+%get a handle on the manipulator plant
+if(isa(rtrue,'TimeSteppingRigidBodyManipulator'))
+  manip = rtrue.getManipulator;
+elseif(isa(rtrue,'RigidBodyManipulator'))
+  manip = rtrue;
+else
+  error('not supported type of plant');
+end
+  
+%Check if plant is position constrained
+if(~isempty(manip.position_constraints))
+  isPositionConstrainted = true;
+  nc = numel(manip.position_constraints);
+else
+  isPositionConstrainted = false;
+  nc = 0;
+end
 
 % Set Output Frame to what is observable
 % stateFrame = getStateFrame(r);
@@ -97,36 +120,41 @@ if hasParamErr
   r = r.setParams(pErr); %update the parameters and then copy it over (since no pass by reference)
 end
 
-%% Generate swingup data
+%% Generate disk drop data
+%check if previously recorded data is available
+testingDataExists = exist('testingData.mat','file');
+if(testingDataExists ~= 2 || generateNewData) %only generate if no previous data is there
+
 fprintf('Generating Disk Drop on Tensioner Trajectory...\n');
-xtraj = diskOnTensionerDrop(rtrue); % Output is "Elapsed time is ... seconds"
+xtraj = diskOnTensionerDrop(rtrue,timeToSim); % Output is "Elapsed time is ... seconds"
 breaks=getBreaks(xtraj); T0 = breaks(1); Tf = breaks(end);
 %Ts = 10 * (Tf-T0)/(numel(breaks)-1);
 tsamples = breaks; %T0:Ts:Tf;
 if strcmp(simMethod,'dircol')
   fprintf('Computing Trajectory using Direct Collocation...\n');
   tStart1 = tic;
-  xsamplesFull = eval(xtraj,tsamples)';
+  xSamplesAll = eval(xtraj,tsamples)';
   toc(tStart1)
 elseif strcmp(simMethod,'euler')
   fprintf('Computing Trajectory using Forward Euler Method...\n');
   tStart2 = tic;
-  xsamplesFull = computeTraj(rtrue.getManipulator,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
+  xSamplesAll = computeTraj(manip,eval(xtraj,T0),tsamples)'; %depending on step size, this might take some time to compute
   toc(tStart2)
 else error('Must choose a simulation method'); end
 
 %% Remove Unobservable components
 % TODO shouldn't that be something that can be done in the simulate
 % function already?
-xsamples = xsamplesFull(:,[1:(nq-1),(nq+1):(2*nq-1)]); %theta_angle
-
+xsamplesDisk = xSamplesAll(:,[2:(nq),(nq+2):(2*nq)]); %TODO: remove the theta_angle and its derivative
+nq = nq-nc; %TODO: do this more elegant adjust dimension
+ 
 %% Add gaussian noise to measurements
 if hasMeasNoise
-  measurementNoise = randn(size(xsamples))*diag(noisestd(1:size(xsamples,2)));
+  measurementNoise = randn(size(xsamplesDisk))*diag(noisestd(1:size(xsamplesDisk,2)));
 else
   measurementNoise = 0;
 end
-xsamplesnoisy = xsamples+measurementNoise;
+xsamplesnoisy = xsamplesDisk+measurementNoise;
 
 %% Generate second derivative
 if strcmp(parameterEstimationOptions.model,'dynamic')
@@ -149,14 +177,20 @@ if strcmp(parameterEstimationOptions.model,'dynamic')
   end
   xsamplesfinal = [xsamplesnoisy(1:length(qdd),:), qdd];
   %usamples = usamples(1:length(qdd),:);
-  outputFrameNames = [outputFrameNames;'load_xdotdot';'load_zdotdot';'tensioner_angledotdot'];
+  outputFrameNamesDisk = [outputFrameNamesDisk;'load_xdotdot';'load_zdotdot'];
 else
   xsamplesfinal = xsamplesnoisy;
 end
 
 fprintf('Perform Parameter Estimation ...\n');
 tStart3 = tic;
-data = iddata(xsamplesfinal,[],Ts,'OutputName',outputFrameNames); %'InputName',r.getInputFrame.getCoordinateNames(),
+data = iddata(xsamplesfinal,[],Ts,'OutputName',outputFrameNamesDisk); %'InputName',r.getInputFrame.getCoordinateNames(),
+
+% now that it generated new data, save it
+  save('testingData.mat','data');
+else
+  load('testingData.mat');
+end
 [estimated_parameters,simerror] = parameterEstimation(r,data,parameterEstimationOptions);
 toc(tStart3)
 
@@ -187,7 +221,7 @@ for i=1:N
 end
 end
 
-function xtraj = diskOnTensionerDrop(obj)
+function xtraj = diskOnTensionerDrop(obj,timeToSim)
 
 x0 = Point(getStateFrame(obj));
 x0.load_x = 0;
@@ -195,7 +229,7 @@ x0.load_z = 3.99;
 x0.load_zdot = -2.5; %starting velocity
 x0 = resolveConstraints(obj,x0);
 
-xtraj = simulate(obj,[0 1],x0);
+xtraj = simulate(obj,[0 timeToSim],x0);
 
 end
 

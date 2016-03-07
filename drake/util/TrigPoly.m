@@ -59,13 +59,9 @@ classdef (InferiorClasses = {?msspoly}) TrigPoly
     end
 
     function p=getsym(obj)
-      qs = sym('q',[length(obj.q),1]);
-      ss = sym('s',[length(obj.s),1]);
-      cs = sym('c',[length(obj.c),1]);
-
-      qs = sym(qs,'real');
-      ss = sym(ss,'real');
-      cs = sym(cs,'real');
+      qs = sym('q',[length(obj.q),1],'real');
+      ss = sym('s',[length(obj.s),1],'real');
+      cs = sym('c',[length(obj.c),1],'real');
 
       p = msspoly2sym([obj.q;obj.s;obj.c],[qs;ss;cs],obj.p);
     end
