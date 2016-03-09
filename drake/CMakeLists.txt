@@ -111,6 +111,8 @@ elseif (MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4996") # disable sprintf security warning
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj") # after receiving RigidBodyTree.cpp : fatal error C1128: number of sections exceeded object file format limit: compile with /bigobj
+
+  add_definitions(-D_USE_MATH_DEFINES) # to get math constants on MSVC (see https://msdn.microsoft.com/en-us/library/4hwaceh6.aspx)
 endif()
 
 # set up matlab build
@@ -192,13 +194,13 @@ pods_install_pkg_config_file(drake-java
     REQUIRES ${drake_jar_requires}
     VERSION 0.0.1)
 
-pods_find_pkg_config(eigen3 3.2)
+pods_find_pkg_config(eigen3 3.2.92)
 
 if (eigen3_FOUND)
    pods_use_pkg_config_includes( eigen3 )
 else()
    # then use the traditional approach to finding Eigen3
-   find_package( Eigen3 3.2 )
+   find_package( Eigen3 3.2.92 )
    if (EIGEN3_FOUND)
       set(eigen3_FOUND 1)
       include_directories( ${EIGEN3_INCLUDE_DIR} )
@@ -224,7 +226,7 @@ add_subdirectory(bindings)
 include(cmake/matlab_pods.cmake)
 pods_configure_matlab_paths()
 
-get_relative_path("${CMAKE_INSTALL_PREFIX}/matlab" "${CMAKE_CURRENT_SOURCE_DIR}" relpath)
+file(RELATIVE_PATH relpath ${CMAKE_INSTALL_PREFIX}/matlab ${CMAKE_CURRENT_SOURCE_DIR})
 
 message(STATUS "Writing addpath_drake.m and rmpath_drake.m to ${CMAKE_INSTALL_PREFIX}/matlab")
 file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/addpath_drake.m
