@@ -275,8 +275,11 @@ if isDynamic || isEnergetic
   %end
   
   % Isolate parameters from error equations
+  fprintf('Running ID Params ...\n');
+  tic;
   [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(err),paramsSym); % polynomial lumped params
   % [lp, M, Mb] = linearParameters(getmsspoly(err),p); % monomial lumped params
+  toc;
   nlp = length(lp);
   lp_orig = double(subs(lp,paramsSym,p_orig));
   lumped_params = msspoly('lp',nlp);
@@ -296,10 +299,32 @@ if isDynamic || isEnergetic
     Mb_data = msubs(Mb,variables,data_variables)';
   end
 elseif strcmp(options.model,'simerr')
-  % Using MATLAB sym because need to represent rational functions
-  % Perhaps a better way?
-  [xdot,dxdot,ps,qs,qds,us,ts] = dynamicsSym(pobj,t,[qt;qd],u);
-  f = [xdot;dxdot];
+  if true
+    [xdot,dxdot,ps,qs,qds,us,ts] = dynamicsSym(pobj,t,[qt;qd],u);
+    f = [xdot;dxdot];
+    dfdx = matlabFunction(jacobian(f*ts,[qs;qds]),'Vars',[ps;qs;qds;us;ts]);
+    dfdp = matlabFunction(jacobian(f*ts,ps),'Vars',[ps;qs;qds;us;ts]);
+%     dfdx = @(pval,qval,qdval,uval,tval) dfdxMat(subsref(num2cell([pval;qval;qdval;uval;tval]'),struct('type','{}','subs',{{':'}})));
+%     dfdp = @(pval,qval,qdval,uval,tval) dfdpMat(subsref(num2cell([pval;qval;qdval;uval;tval]'),struct('type','{}','subs',{{':'}})));
+    nonlinfun = @(px) simerr(obj,xobs,u_data,px,t_data,options.C,dfdx,dfdp,'sym');
+  else
+    % Faster substitution method adopted from Michael Posa
+%     vars = [paramsSym,q,qd,u,t];
+    vars = [paramsSym;q;s;c;qd;u;t];
+    xvar = [q;qd];
+    A = B*u-C;
+    [Apows,Acoeffs] = decomp_ordered(getmsspoly(A),vars);
+    Adecomp = struct('msspoly',getmsspoly(A),'pows',Apows,'coeffs',Acoeffs,'vars',vars);
+    [Hpows,Hcoeffs] = decomp_ordered(getmsspoly(H),vars);
+    Hdecomp = struct('msspoly',getmsspoly(H),'pows',Hpows,'coeffs',Hcoeffs,'vars',vars);
+    
+    [dHxdecomp,dAxdecomp] = dHinvA(H,A,xvar,vars);
+    dfdx = @(pval,qval,qdval,uval,tval) dHinvAdxFun(pval,qval,qdval,uval,tval,Hdecomp,Adecomp,dHxdecomp,dAxdecomp,qd,xvar);
+    [dHpdecomp,dApdecomp] = dHinvA(H,A,paramsSym,vars);
+    dfdp = @(pval,qval,qdval,uval,tval) dHinvAdxFun(pval,qval,qdval,uval,tval,Hdecomp,Adecomp,dHpdecomp,dApdecomp,qd,paramsSym);
+    nonlinfun = @(px) simerr(obj,xobs,u_data,px,t_data,options.C,dfdx,dfdp);
+  end
+  
 end
 
 
@@ -317,9 +342,6 @@ prog=prog.addConstraint(BoundingBoxConstraint(pmin,pmax),1:np);
 nx = length(xobs(:,1));
 
 if strcmp(options.model,'simerr')
-  dfdx = matlabFunction(jacobian(f*ts,[qs;qds]),'Vars',[ps;qs;qds;us;ts]);
-  dfdp = matlabFunction(jacobian(f*ts,ps),'Vars',[ps;qs;qds;us;ts]);
-  nonlinfun = @(px) simerr(obj,xobs,u_data,px,t_data,options.C,dfdx,dfdp);
   prog=prog.addCost(FunctionHandleObjective(np,nonlinfun),1:np);
   prog=prog.setSolverOptions('snopt','IterationsLimit',50000);
   prog=prog.setSolverOptions('snopt','MajorIterationsLimit',50000);
@@ -392,9 +414,33 @@ end
 df = 2*(M_data*(msubs(lp,p,x))+Mb_data)'*M_data*dlpdp_val;
 end
 
+function dfdx = dHinvAdxFun(p_data,q_data,qd_data,u_data,t_data,H,A,dHdx,dAdx,qd,x)
+%
+% Uses the quotient/chain rule to calculate the derivative of Hinv*A w.r.t x
+% d(inv(H)*A)/dx = -inv(H)*dH/dx*inv(H)+inv(H)*dA/dx
+%
+  vars = A.vars;
+  in = [p_data;q_data;sin(q_data);cos(q_data);qd_data;u_data;t_data];
+  
+  Hval = double(mmsubs(H.msspoly,vars,in));
+  Hvalinv = pinv(Hval);
+  Aval = double(mmsubs(A.msspoly,vars,in));
+
+  dHinvAdx = zeros(length(q_data),length(x));
+  for i=1:length(x)
+    dAval = double(mmsubs(dAdx{i}.msspoly,vars,in));
+    dHval = double(mmsubs(dHdx{i}.msspoly,vars,in));
+    dHinvAdx(:,i) = -Hvalinv*(dHval*Hvalinv*Aval+dAval);
+  end
+  dqdx = diff(qd,x);
+  dqdxval = double(mmsubs(dqdx,vars,in));
+  dfdx = t_data*[dqdxval;dHinvAdx];
+end
+
 function [F,dF] = simerr(obj,xobs,utraj,p,t,C,varargin)
 newobj = obj.setParams(p);
 x0 = xobs(:,1);
+nq = length(x0)/2;
 error = false;
 try
   xtraj = computeTraj(newobj,x0,utraj,t);
@@ -415,12 +461,20 @@ if (nargout>1)
     dt = diff(t);
     N = length(dt);
     I = eye(length(x0));
-    args = num2cell([p;x0;utraj(:,1);dt(1)]');
-    dx = cell(1,N);dx{1} = dfdp(args{:});
+    dx = cell(1,N);
+    if length(varargin)>2 && strcmp(varargin{3},'sym')
+      args = num2cell([p;x0;utraj(:,1);dt(1)]'); dx{1} = dfdp(args{:});
+    else
+      dx{1} = dfdp(p,x0(1:nq),x0(nq+1:end),utraj(:,1),dt(1));
+    end
     dF = xdiff(:,2)'*C*dx{1};
     for i=2:(N)
-      args = num2cell([p;xtraj(:,i);utraj(:,i);dt(i)]');
-      dx{i} = (I+dfdx(args{:}))*dx{i-1}+dfdp(args{:});
+      if length(varargin)>2 && strcmp(varargin{3},'sym')
+        args = num2cell([p;xtraj(:,i);utraj(:,i);dt(i)]');dfdxi = dfdx(args{:});dfdpi = dfdp(args{:});
+      else
+        dfdxi = dfdx(p,xtraj(1:nq,i),xtraj(nq+1:end,i),utraj(:,i),dt(i)); dfdpi = dfdp(p,xtraj(1:nq,i),xtraj(nq+1:end,i),utraj(:,i),dt(i));
+      end
+      dx{i} = (I+dfdxi)*dx{i-1}+dfdpi;
       dF = dF + xdiff(:,i+1)'*C*dx{i};
     end
     dF = 2*dF;
