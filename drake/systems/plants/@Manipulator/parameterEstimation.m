@@ -89,6 +89,7 @@ if ~(strcmp(options.method,'nonlinprog') ||...
   error('Method not recognized')
 end
 
+fprintf('Initializing ...\n');
 %% Initialize
 if (getOutputFrame(obj)~=getStateFrame(obj))
   error('Only full-state feedback is implemented so far');
@@ -120,6 +121,7 @@ isDynamic = strcmp(options.model,'dynamic');
 isEnergetic = strcmp(options.model,'energetic');
 useMatlabSym = strcmp(options.symbolicClass,'sym');
 
+fprintf('Extracting data ...\n');
 %%   Step 1a: Extract data
 if (nargin>1)
   % populate A and b matrices from iddata
@@ -171,7 +173,7 @@ if(isPositionConstrainted)
   end
 end
 
-
+fprintf('Formulating error models ...\n');
 %%   Step 2: Formulate error models
 % Initialize Variables
 q=msspoly('q',nq);
@@ -276,10 +278,10 @@ if isDynamic || isEnergetic
   
   % Isolate parameters from error equations
   fprintf('Running ID Params ...\n');
-  tic;
+%   profile on
   [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(err),paramsSym); % polynomial lumped params
   % [lp, M, Mb] = linearParameters(getmsspoly(err),p); % monomial lumped params
-  toc;
+  
   nlp = length(lp);
   lp_orig = double(subs(lp,paramsSym,p_orig));
   lumped_params = msspoly('lp',nlp);
@@ -299,7 +301,9 @@ if isDynamic || isEnergetic
     Mb_data = msubs(Mb,variables,data_variables)';
   end
 elseif strcmp(options.model,'simerr')
-  if true
+  fprintf('creating simerror functions ...\n');
+  if false
+    % Use built-in Matlab symbolic
     [xdot,dxdot,ps,qs,qds,us,ts] = dynamicsSym(pobj,t,[qt;qd],u);
     f = [xdot;dxdot];
     dfdx = matlabFunction(jacobian(f*ts,[qs;qds]),'Vars',[ps;qs;qds;us;ts]);
@@ -324,10 +328,9 @@ elseif strcmp(options.model,'simerr')
     dfdp = @(pval,qval,qdval,uval,tval) dHinvAdxFun(pval,qval,qdval,uval,tval,Hdecomp,Adecomp,dHpdecomp,dApdecomp,qd,paramsSym);
     nonlinfun = @(px) simerr(obj,xobs,u_data,px,t_data,options.C,dfdx,dfdp);
   end
-  
 end
 
-
+fprintf('Running Nonlinear least squares ...\n');
 %%   Step 3: Nonlinear least-squares estimation
 % Nonlinear least-squares solver
 prog = NonlinearProgram(np);

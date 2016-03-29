@@ -3,12 +3,13 @@ function paramEst_test
 tmp = addpathTemporary(fullfile(pwd,'..'));
 
 parameterEstimationOptions.method = 'nonlinprog'; % nonlinear least squares
+% parameterEstimationOptions.symbolicClass = 'sym'; % use matlab syms
 parameterEstimationOptions.C = eye(4); % The symmetric positive definite cost matrix for simerr
 paramstd = 0.1; % Standard deviation of the parameter value percent error
 noisestd = sqrt([.00025, .00025, .00035, .00035]); % Noise standard deviation for theta1,theta2,theta1dot,theta2dot
 
 numTests = 20;
-models = {'simerr','dynamic','energetic'};
+models = {'dynamic','energetic','simerr'};
 % models = {'dynamic','energetic'};
 mlen = length(models);
 
@@ -18,7 +19,7 @@ p_true = double(rtrue.getParams);
 
 %% Test on swingup up data
 [utraj,xtraj] = swingUpTrajectory(rtrue);
-Ts = .001; breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
+Ts = .01; breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
 tsamples = T0:Ts:Tf;
 usamples = eval(utraj,tsamples)';
 xsamples = computeTraj(rtrue,eval(xtraj,T0),usamples',tsamples)'; % Produce state traj through forward euler method

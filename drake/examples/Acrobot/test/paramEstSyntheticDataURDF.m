@@ -21,7 +21,7 @@ delay = false;
 % 'dynamic'     = use dynamic model - requires qdd
 % 'energetic'   = use energetic model - doesn't require qdd
 % 'simerr'      = use simulation error - doesn't require qdd
-parameterEstimationOptions.model = 'dynamic';
+parameterEstimationOptions.model = 'simerr';
 
 % Parameter Estimation method
 % 'nonlinprog'  = nonlinear least squares (LS) to solve problem
