@@ -13,7 +13,7 @@ typecheck(pm,'msspoly');
 N = size(xs,2);
 n = size(p,2);
 
-if n == 0 || ~any(any(pows))
+if n == 0 || ~any(any(p))
     ps = repmat(double(pm),1,N);
     return;
 end

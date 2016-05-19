@@ -55,6 +55,6 @@ if n == 0 || ~any(any(pows))
 end
 q = zeros(length(p), size(v,2));
 for i = 1:size(v,2)
-  q(:,i) = coeffs*prod(repmat(v(:,i)',length(coeffs),1).^pows,2);
+  q(:,i) = coeffs*prod(repmat(v(:,i)',size(coeffs,2),1).^pows,2);
 end 
 end
