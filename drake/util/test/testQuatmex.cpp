@@ -1,7 +1,8 @@
+#include <mex.h>
+
 #include <tuple>
 #include "drake/util/drakeGeometryUtil.h"
 #include "drake/core/Gradient.h"
-#include "mex.h"
 using namespace Eigen;
 using namespace std;
 using namespace Drake;
@@ -9,8 +10,8 @@ using namespace Drake;
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs != 5) {
     mexErrMsgIdAndTxt("Drake:testQuatmex:BadInputs",
-                      "Usage [r,dr,e,ed,quat,dquat,q3,dq3,w,dw] = "
-                      "testQuatmex(q1,q2,axis,u,v)");
+                      "Usage [r, dr, e, ed, quat, dquat, q3, dq3, w, dw] = "
+                      "testQuatmex(q1, q2, axis, u, v)");
   }
   Vector4d q1;
   Vector4d q2;

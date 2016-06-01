@@ -2,6 +2,7 @@
 // Michael Kaess, June 2013
 
 #include <mex.h>
+
 #include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <vector>
@@ -11,9 +12,9 @@ using namespace Eigen;
 using namespace std;
 
 // Initialization:
-//   obj = ExpPlusPPTrajectoryEvalmex(breaks,K,A,alpha,gamma)
+//   obj = ExpPlusPPTrajectoryEvalmex(breaks, K, A, alpha, gamma)
 // Evaluation:
-//   [y,jj] = ExpPlusPPTrajectoryEvalmex(obj, t)
+//   [y, jj] = ExpPlusPPTrajectoryEvalmex(obj, t)
 //
 // t:      m      vector of evaluation points
 //
@@ -93,7 +94,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     plhs[0] = mxCreateNumericMatrix(1, 1, cid, mxREAL);
     memcpy(mxGetData(plhs[0]), &eval, sizeof(eval));
 
-    //    mexPrintf("constructor\n"); mexCallMATLAB(0,NULL,0,NULL,"drawnow");
+    //    mexPrintf("constructor\n"); mexCallMATLAB(0, NULL, 0, NULL,"drawnow");
 
   } else {
     // retrieve object
@@ -105,19 +106,20 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     memcpy(&eval, mxGetData(prhs[0]), sizeof(eval));
 
     if (nrhs == 1) {
-      //      mexPrintf("delete\n"); mexCallMATLAB(0,NULL,0,NULL,"drawnow");
+      //      mexPrintf("delete\n"); mexCallMATLAB(0, NULL, 0, NULL,"drawnow");
 
       // delete object
       if (eval) delete eval;
 
     } else {
-      //      mexPrintf("eval\n"); mexCallMATLAB(0,NULL,0,NULL,"drawnow");
+      //      mexPrintf("eval\n"); mexCallMATLAB(0, NULL, 0, NULL,"drawnow");
 
       // eval() function call
       if (nrhs != 2 || nlhs != 2) {
-        mexErrMsgIdAndTxt("Drake:ExpPlusPPTmex:WrongNumberOfInputs",
-                          "Usage obj = ExpPlusPPTmex(breaks,K,A,alpha,gamma) "
-                          "or [y,jj] = ExpPlusPPTmex(obj,t)");
+        mexErrMsgIdAndTxt(
+            "Drake:ExpPlusPPTmex:WrongNumberOfInputs",
+            "Usage obj = ExpPlusPPTmex(breaks, K, A, alpha, gamma) "
+            "or [y, jj] = ExpPlusPPTmex(obj, t)");
       }
 
       Map<VectorXd> t(mxGetPr(prhs[1]), mxGetNumberOfElements(prhs[1]));

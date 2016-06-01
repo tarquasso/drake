@@ -18,7 +18,7 @@ const Isometry3d& Element::getLocalTransform() const {
   return T_element_to_local;
 }
 
-const Shape Element::getShape() const { return geometry->getShape(); }
+Shape Element::getShape() const { return geometry->getShape(); }
 
 void Element::setGeometry(const Geometry& geometry) {
   this->geometry = std::unique_ptr<Geometry>(geometry.clone());
@@ -28,7 +28,7 @@ const Geometry& Element::getGeometry() const { return *geometry; }
 
 bool Element::hasGeometry() const { return geometry != nullptr; }
 
-void Element::getTerrainContactPoints(Eigen::Matrix3Xd& local_points) {
+void Element::getTerrainContactPoints(Eigen::Matrix3Xd& local_points) const {
   if (!hasGeometry()) {
     local_points = Eigen::Matrix3Xd();
     return;
@@ -38,6 +38,10 @@ void Element::getTerrainContactPoints(Eigen::Matrix3Xd& local_points) {
   geometry->getTerrainContactPoints(points);
 
   local_points = T_element_to_local * points;
+}
+
+void Element::SetLocalTransform(const Eigen::Isometry3d& T_element_to_local) {
+  this->T_element_to_local = T_element_to_local;
 }
 
 void Element::updateWorldTransform(const Eigen::Isometry3d& T_local_to_world) {

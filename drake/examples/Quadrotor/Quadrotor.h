@@ -1,5 +1,4 @@
-#ifndef _QUADROTOR_H_
-#define _QUADROTOR_H_
+#pragma once
 
 #include <iostream>
 #include <cmath>
@@ -21,10 +20,11 @@ class QuadrotorState {  // models the Drake::Vector concept
         zdot(0),
         rolldot(0),
         pitchdot(0),
-        yawdot(0){};
+        yawdot(0) {}
 
   template <typename Derived>
-  QuadrotorState(const Eigen::MatrixBase<Derived>& x)
+  QuadrotorState(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
       : x(x(0)),
         y(x(1)),
         z(x(2)),
@@ -36,7 +36,7 @@ class QuadrotorState {  // models the Drake::Vector concept
         zdot(x(8)),
         rolldot(x(9)),
         pitchdot(x(10)),
-        yawdot(x(11)){};
+        yawdot(x(11)) {}
 
   template <typename Derived>
   QuadrotorState& operator=(const Eigen::MatrixBase<Derived>& state) {
@@ -94,10 +94,12 @@ Eigen::Matrix<ScalarType, 12, 1> toEigen(
 template <typename ScalarType = double>
 class QuadrotorInput {
  public:
-  QuadrotorInput(void) : w1(0), w2(0), w3(0), w4(0){};
+  QuadrotorInput(void) : w1(0), w2(0), w3(0), w4(0) {}
+
   template <typename Derived>
-  QuadrotorInput(const Eigen::MatrixBase<Derived>& x)
-      : w1(x(0)), w2(x(1)), w3(x(2)), w4(x(3)){};
+  QuadrotorInput(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
+      : w1(x(0)), w2(x(1)), w3(x(2)), w4(x(3)) {}
 
   template <typename Derived>
   QuadrotorInput& operator=(const Eigen::MatrixBase<Derived>& input) {
@@ -139,12 +141,12 @@ class Quadrotor {
   template <typename ScalarType>
   using InputVector = QuadrotorInput<ScalarType>;
 
-  Quadrotor() : m(0.5), g(9.81), L(0.1750), I(Eigen::Matrix3d::Identity()) {
+  Quadrotor() : g(9.81), L(0.1750), m(0.5), I(Eigen::Matrix3d::Identity()) {
     I(0, 0) = 0.0023;
     I(1, 1) = 0.0023;
     I(2, 2) = 0.004;
   }
-  virtual ~Quadrotor(void){};
+  virtual ~Quadrotor(void) {}
 
   template <typename Scalar>
   QuadrotorState<Scalar> dynamics(const Scalar& t,
@@ -223,5 +225,3 @@ class Quadrotor {
   const double kf = 1;
   const double km = 0.0245;
 };
-
-#endif  // _QUADROTOR_H_

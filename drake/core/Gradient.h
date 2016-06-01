@@ -1,5 +1,4 @@
-#ifndef DRAKE_GRADIENT_H
-#define DRAKE_GRADIENT_H
+#pragma once
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -158,7 +157,7 @@ AutoDiffMatrixType<Derived, Nq> initializeAutoDiff(
   return ret;
 }
 
-// TODO begin: move to different location?
+// TODO(tkoolen) begin: move to different location?
 namespace internal {
 /** \brief Helper for totalSizeAtCompileTime function (recursive)
  */
@@ -202,7 +201,7 @@ Eigen::DenseIndex totalSizeAtRunTime(const Eigen::MatrixBase<Head> &head,
                                      const Tail &... tail) {
   return head.size() + totalSizeAtRunTime(tail...);
 }
-// TODO end: move to different location?
+// TODO(tkoolen) end: move to different location?
 
 namespace internal {
 /** \brief Helper for initializeAutoDiffTuple function (recursive)
@@ -275,5 +274,3 @@ initializeAutoDiffTuple(const Eigen::MatrixBase<Deriveds> &... args) {
   return ret;
 }
 }
-
-#endif  // DRAKE_GRADIENT_H

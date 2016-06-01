@@ -1,5 +1,5 @@
-#ifndef __DrakeShapesVisualElement_H__
-#define __DrakeShapesVisualElement_H__
+#pragma once
+
 #include <memory>
 
 #include <Eigen/Dense>
@@ -12,16 +12,16 @@
 namespace DrakeShapes {
 class DRAKESHAPES_EXPORT VisualElement : public Element {
  public:
-  VisualElement(const Eigen::Isometry3d& T_element_to_local)
+  explicit VisualElement(const Eigen::Isometry3d& T_element_to_local)
       : Element(T_element_to_local),
-        material(Eigen::Vector4d(0.7, 0.7, 0.7, 1)){};
+        material(Eigen::Vector4d(0.7, 0.7, 0.7, 1)) {}
 
   VisualElement(const Geometry& geometry,
                 const Eigen::Isometry3d& T_element_to_local,
                 const Eigen::Vector4d& material)
-      : Element(geometry, T_element_to_local), material(material){};
+      : Element(geometry, T_element_to_local), material(material) {}
 
-  virtual ~VisualElement(){};
+  virtual ~VisualElement() {}
 
   void setMaterial(const Eigen::Vector4d& material);
 
@@ -39,4 +39,3 @@ class DRAKESHAPES_EXPORT VisualElement : public Element {
 typedef std::vector<VisualElement, Eigen::aligned_allocator<VisualElement> >
     VectorOfVisualElements;
 }
-#endif

@@ -2,6 +2,7 @@
 // Michael Kaess, June 2013
 
 #include <mex.h>
+
 #include <Eigen/Dense>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <vector>
@@ -11,7 +12,7 @@ using namespace Eigen;
 using namespace std;
 
 // Initialization:
-//   obj = PPTmex(breaks,coefs,order,dims)
+//   obj = PPTmex(breaks, coefs, order, dims)
 // Evaluation:
 //   y = PPTmex(obj, 1, t)
 //
@@ -20,7 +21,7 @@ using namespace std;
 // breaks: n+1
 // coefs:  nxd1xd2 x p
 // order:  1       p
-// dims:   2       d1,d2
+// dims:   2       d1, d2
 //
 // y:      p
 
@@ -37,9 +38,9 @@ class PPTrajectory {
                int d2)
       : m_breaks(breaks),
         m_coefs(coefs),
-        m_order(order),
         m_d1(d1),
         m_d2(d2),
+        m_order(order),
         m_cached_idx(-1) {}
 
   int d1() { return m_d1; }
@@ -121,7 +122,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       if (nrhs < 2) {
         mexErrMsgIdAndTxt(
             "Drake:PPTmex:WrongNumberOfInputs",
-            "Usage obj = PPTmex(breaks,coefs,order,dims) or y = PPTmex(obj,t)");
+            "Usage obj = PPTmex(breaks, coefs, order, dims) "
+            "or y = PPTmex(obj, t)");
       }
 
       double *command = mxGetPr(prhs[1]);

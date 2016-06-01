@@ -1,3 +1,4 @@
+#pragma once
 
 #include <string>
 #include <vector>
@@ -11,28 +12,33 @@ namespace Drake {
  * @ingroup concepts
  * @{
  * @brief Describes a (potentially structured) data which can be operated on as
- *a (finite-dimensional) column vector
+ * a (finite-dimensional) column vector
  *
  * @nbsp
  *
- * | Valid Expressions (which must be implemented) |  |
- * ------------------|-------------------------------------------------------------|
- * | RowsAtCompileTime  | defined as a static constant int (or enum).  Can be
- *Eigen::Dynamic. |
- * | size_t size()      | only required if RowsAtCompileTime==Eigen::Dynamic |
- * | template<Derived> Vector(const Eigen::MatrixBase<Derived>&)  | constructor
- *taking an Eigen object |
- * | template<Derived> Vector& operator=(const Eigen::MatrixBase<Derived>&)   |
- *assignment operator from an Eigen object |
- * | Eigen::Matrix<ScalarType,RowsAtCompileTime,1> toEigen(const
- *Vector<ScalarType>&) | non-member namespace method which converts to the Eigen
- *type |
- *
+ * <table>
+ * <tr><th colspan="2"> Valid Expressions (which must be implemented)
+ * <tr><td> RowsAtCompileTime
+ *     <td> defined as a static constant int (or enum).  Can be
+ *          Eigen::Dynamic.
+ * <tr><td> size_t size()
+ *     <td> only required if RowsAtCompileTime==Eigen::Dynamic
+ * <tr><td> template<Derived> Vector(const Eigen::MatrixBase<Derived>&)
+ *     <td> constructor taking an Eigen object
+ * <tr><td><pre>
+ * template<Derived>
+ * Vector& operator=(const Eigen::MatrixBase<Derived>&)</pre>
+ *     <td> assignment operator from an Eigen object
+ * <tr><td><pre>
+ * Eigen::Matrix<ScalarType, RowsAtCompileTime, 1>
+ * toEigen(const Vector<ScalarType>&)</pre>
+ *     <td> non-member namespace method which converts to the Eigen type
+ * </table>
  * @}
  */
 
 /** EigenVector<Rows>::type<ScalarType>
- * @brief provides an alias for Eigen::Matrix<ScalarType,Rows,1> which is
+ * @brief provides an alias for Eigen::Matrix<ScalarType, Rows, 1> which is
  * templated on only a single argument (the ScalarType)
  * @concept{vector_concept}
  */
@@ -101,7 +107,7 @@ struct SizeDispatch<VecType,
  * @concept{vector_concept}
  *
  * @retval RowsAtCompileTime or the result of size() for dynamically sized
- *vectors
+ * vectors
  */
 template <typename VecType>
 std::size_t size(const VecType &vec) {
@@ -127,11 +133,11 @@ std::string getCoordinateName(const Vector &vec, unsigned int index) {
   std::ostream& operator<<(std::ostream& os, const Vector& vec)
   {
     for (int i=0; i<=size(vec); i++)
-      os << getCoordinateName(vec,i) << " = " << vec(i) << std::endl;
+      os << getCoordinateName(vec, i) << " = " << vec(i) << std::endl;
     return os;
   }
 */
-/** CombinedVector<ScalarType,Vector1,Vector2>
+/** CombinedVector<ScalarType, Vector1, Vector2>
  *
  * @brief produces a new vector type which is the columnwise composition of
  *vector1 and vector2
@@ -140,27 +146,27 @@ template <typename ScalarType, template <typename> class Vector1,
           template <typename> class Vector2>
 class CombinedVector {
  public:
-  CombinedVector(){};  // allow use of default constructors for vec1 and vec2,
+  CombinedVector() {}  // allow use of default constructors for vec1 and vec2,
                        // also
   CombinedVector(const Vector1<ScalarType> &first,
                  const Vector2<ScalarType> &second)
-      : vec1(first), vec2(second){};
+      : vec1(first), vec2(second) {}
 
   template <typename Derived>
-  CombinedVector(const Eigen::MatrixBase<Derived> &x)
+  explicit CombinedVector(const Eigen::MatrixBase<Derived> &x)
       : vec1(x.topRows(Vector1<ScalarType>::RowsAtCompileTime)),
         vec2(x.bottomRows(Vector2<ScalarType>::RowsAtCompileTime)) {
+    // TODO(RussTedrake): could handle cases where only one of the
+    // subvectors has dynamic size
     static_assert(RowsAtCompileTime != Eigen::Dynamic,
                   "Cannot determine sizes of subvectors because sizes are not "
-                  "known at compile time.");  // TODO: could handle cases where
-                                              // only one of the subvectors has
-                                              // dynamic size
-  };
+                  "known at compile time.");
+  }
 
   template <typename Derived1, typename Derived2>
   CombinedVector(const Eigen::MatrixBase<Derived1> &x1,
                  const Eigen::MatrixBase<Derived2> &x2)
-      : vec1(x1), vec2(x2){};
+      : vec1(x1), vec2(x2) {}
 
   template <typename Derived>
   CombinedVector &operator=(const Eigen::MatrixBase<Derived> &x) {
@@ -237,7 +243,7 @@ struct CombinedVectorHelper {
   static CombinedVector<ScalarType, Vector1, Vector2> combine(
       const Vector1<ScalarType> &vec1, const Vector2<ScalarType> &vec2) {
     return CombinedVector<ScalarType, Vector1, Vector2>(vec1, vec2);
-  };
+  }
 };
 
 template <template <typename> class Vector1, template <typename> class Vector2>
@@ -260,17 +266,18 @@ struct CombinedVectorHelper<Vector1, Vector2, true> {
   static Vector1<ScalarType> combine(const Vector1<ScalarType> &vec1,
                                      const Vector2<ScalarType> &vec2) {
     return vec1;
-  };
+  }
 };
 }
 
 /** CombinedVectorUtil
+
  * @brief provides logic to build combined vectors and access the first and
-second elements of the combined vector, handling the \
-case when the combined vector builder could have returned the original type
+ * second elements of the combined vector, handling the case when the
+ * combined vector builder could have returned the original type
  *
  * Uses template aliasing so that combining a vector with the NullVector simply
-returns the orginal vector type.
+ * returns the orginal vector type.
  */
 template <template <typename> class Vector1, template <typename> class Vector2,
           typename Vec1IsNull = void>
@@ -322,7 +329,7 @@ struct CombinedVectorUtil<
   static Vector2<ScalarType> combine(const Vector1<ScalarType> &vec1,
                                      const Vector2<ScalarType> &vec2) {
     return vec2;
-  };
+  }
 };
 
-};  // end namespace Drake
+};  // namespace Drake

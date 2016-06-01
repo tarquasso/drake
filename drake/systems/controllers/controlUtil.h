@@ -1,5 +1,4 @@
-#ifndef _CONTROL_UTIL_H_
-#define _CONTROL_UTIL_H_
+#pragma once
 
 #include <math.h>
 #include <set>
@@ -128,4 +127,3 @@ struct JointNames {
 DRAKECONTROLUTIL_EXPORT void getRobotJointIndexMap(
     JointNames *joint_names, RobotJointIndexMap *joint_map);
 
-#endif

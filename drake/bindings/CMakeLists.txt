@@ -1,7 +1,8 @@
-if (NOT WIN32)
+if(NOT WIN32)
   add_subdirectory(swig)
-  if (PYTHON_EXECUTABLE)
+  if(PYTHON_EXECUTABLE)
     add_subdirectory(python)
   endif()
 endif()
 
+add_subdirectory(matlab/test)

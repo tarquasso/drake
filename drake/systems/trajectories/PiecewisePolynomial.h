@@ -1,5 +1,4 @@
-#ifndef DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEPOLYNOMIAL_H_
-#define DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEPOLYNOMIAL_H_
+#pragma once
 
 #include <Eigen/Core>
 #include "drake/systems/trajectories/PiecewisePolynomialBase.h"
@@ -25,14 +24,14 @@ class DRAKETRAJECTORIES_EXPORT PiecewisePolynomial
       polynomials;  // a PolynomialMatrix for each piece
 
  public:
-  virtual ~PiecewisePolynomial(){};
+  virtual ~PiecewisePolynomial() {}
 
   // default constructor; just leaves segment_times and polynomials empty
   PiecewisePolynomial();
 
   // single segment and/or constant value constructor
   template <typename Derived>
-  PiecewisePolynomial(const Eigen::MatrixBase<Derived>& value)
+  explicit PiecewisePolynomial(const Eigen::MatrixBase<Derived>& value)
       : PiecewisePolynomialBase(std::vector<double>(
             {{0.0, std::numeric_limits<double>::infinity()}})) {
     polynomials.push_back(value.template cast<PolynomialType>());
@@ -109,5 +108,3 @@ class DRAKETRAJECTORIES_EXPORT PiecewisePolynomial
   double segmentValueAtGlobalAbscissa(int segment_index, double t,
                                       Eigen::Index row, Eigen::Index col) const;
 };
-
-#endif /* DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEPOLYNOMIAL_H_ */

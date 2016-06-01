@@ -1,5 +1,4 @@
-#ifndef DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEFUNCTION_H_
-#define DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEFUNCTION_H_
+#pragma once
 
 #include <Eigen/Core>
 #include <vector>
@@ -11,7 +10,7 @@ class DRAKETRAJECTORIES_EXPORT PiecewiseFunction {
   std::vector<double> segment_times;
 
  public:
-  PiecewiseFunction(std::vector<double> const& segment_times);
+  explicit PiecewiseFunction(std::vector<double> const& segment_times);
 
   virtual ~PiecewiseFunction();
 
@@ -47,5 +46,3 @@ class DRAKETRAJECTORIES_EXPORT PiecewiseFunction {
 
   PiecewiseFunction();
 };
-
-#endif /* DRAKE_SYSTEMS_TRAJECTORIES_PIECEWISEFUNCTION_H_ */

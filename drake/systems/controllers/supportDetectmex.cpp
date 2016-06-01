@@ -12,7 +12,7 @@ struct SupportDetectData {
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs < 1)
     mexErrMsgTxt(
-        "usage: ptr = supportDetectmex(0,robot_obj,...); "
+        "usage: ptr = supportDetectmex(0, robot_obj,...); "
         "alpha=supportDetectmex(ptr,...,...)");
   if (nlhs < 1) mexErrMsgTxt("take at least one output... please.");
 
@@ -60,8 +60,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                       "the first argument should be the ptr");
   memcpy(&pdata, mxGetData(prhs[0]), sizeof(pdata));
 
-  int nq = pdata->r->num_positions;
-  int nv = pdata->r->num_velocities;
+  int nq = pdata->r->number_of_positions();
+  int nv = pdata->r->number_of_velocities();
 
   int narg = 1;
   double* q = mxGetPr(prhs[narg++]);

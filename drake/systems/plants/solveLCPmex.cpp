@@ -1,9 +1,10 @@
-#include "mex.h"
+#include <mex.h>
+
+#include <cmath>
 #include <iostream>
 #include "drake/util/drakeMexUtil.h"
 #include "drake/util/MexWrapper.h"
 #include "drake/systems/plants/RigidBodyTree.h"
-#include "math.h"
 #include "drake/solvers/fastQP.h"
 #include <sstream>
 #include "rigidBodyTreeMexConversions.h"
@@ -194,8 +195,8 @@ bool callFastQP(MatrixBase<DerivedM> const& M, MatrixBase<Derivedw> const& w,
   return true;
 }
 
-//[z, Mvn, wvn] = setupLCPmex(mex_model_ptr, cache_ptr, u, phiC, n, D, h,
-// z_inactive_guess_tol)
+// [z, Mvn, wvn] = setupLCPmex(mex_model_ptr, cache_ptr, u, phiC, n, D, h,
+//   z_inactive_guess_tol)
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nlhs != 5 || nrhs != 13) {
     mexErrMsgIdAndTxt("Drake:setupLCPmex:InvalidUsage",
@@ -213,8 +214,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
       fromMex(prhs[arg_num++], static_cast<KinematicsCache<double>*>(nullptr));
   cache.checkCachedKinematicsSettings(true, true, "solveLCPmex");
 
-  const int nq = model->num_positions;
-  const int nv = model->num_velocities;
+  const int nq = model->number_of_positions();
+  const int nv = model->number_of_velocities();
 
   // input mappings
   const mxArray* u_array = prhs[arg_num++];
@@ -326,7 +327,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     Mvn = H_cholesky.solve(J.transpose());
 
     // solve LCP problem
-    // TODO: call path from C++ (currently only 32-bit C libraries available)
+    // TODO(psiorx): call path from C++ (currently only 32-bit C libraries
+    // available)
     mxArray* mxw = mxCreateDoubleMatrix(lcp_size, 1, mxREAL);
     mxArray* mxlb = mxCreateDoubleMatrix(lcp_size, 1, mxREAL);
     mxArray* mxub = mxCreateDoubleMatrix(lcp_size, 1, mxREAL);
@@ -351,7 +353,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         M.block(nL + nP + nC + mC * nC, nL + nP + nC + nC * i, nC, nC) =
             -MatrixXd::Identity(nC, nC);
       }
-      double mu = 1.0;  // TODO: pull this from contactConstraints
+      double mu = 1.0;  // TODO(psiorx): pull this from contactConstraints
       M.block(nL + nP + nC + mC * nC, nL + nP, nC, nC) =
           mu * MatrixXd::Identity(nC, nC);
     }

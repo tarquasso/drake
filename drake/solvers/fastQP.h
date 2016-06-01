@@ -1,6 +1,5 @@
+#pragma once
 
-#ifndef __FAST_QP__
-#define __FAST_QP__
 #include <Eigen/Dense>
 #include <vector>
 #include <set>
@@ -34,5 +33,3 @@ Eigen::MatrixBase<tB>& f, const Eigen::MatrixBase<tC>& Aeq, const
 Eigen::MatrixBase<tD>& beq, const Eigen::MatrixBase<tE>& Ain, const
 Eigen::MatrixBase<tF>& bin, std::set<int>& active, Eigen::MatrixBase<tG>& x);
 */
-
-#endif

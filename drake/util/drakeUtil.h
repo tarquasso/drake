@@ -1,12 +1,11 @@
+#pragma once
+
 /*
  * drakeUtil.h
  *
  *  Created on: Jun 19, 2013
  *      Author: russt
  */
-
-#ifndef DRAKE_UTIL_H_
-#define DRAKE_UTIL_H_
 
 #include <stdexcept>
 #include <vector>
@@ -182,5 +181,3 @@ void lqr(Eigen::MatrixBase<DerivedA> const& A,
   care(A, B, Q, R, S);
   K = R_cholesky.solve(B.transpose() * S);
 }
-
-#endif /* DRAKE_UTIL_H_ */

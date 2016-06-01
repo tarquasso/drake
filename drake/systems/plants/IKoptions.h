@@ -1,5 +1,5 @@
-#ifndef __IKOPTIONS_H__
-#define __IKOPTIONS_H__
+#pragma once
+
 #include <Eigen/Dense>
 #include "drake/drakeIKoptions_export.h"
 
@@ -32,7 +32,7 @@ class DRAKEIKOPTIONS_EXPORT IKoptions {
   void setDefaultParams(RigidBodyTree *robot);
 
  public:
-  IKoptions(RigidBodyTree *robot);
+  explicit IKoptions(RigidBodyTree *robot);
   IKoptions(const IKoptions &rhs);
   ~IKoptions(void);
   RigidBodyTree *getRobotPtr() const;
@@ -68,4 +68,3 @@ class DRAKEIKOPTIONS_EXPORT IKoptions {
   void getqd0(Eigen::VectorXd &lb, Eigen::VectorXd &ub) const;
   void getqdf(Eigen::VectorXd &lb, Eigen::VectorXd &ub) const;
 };
-#endif

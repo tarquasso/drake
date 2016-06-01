@@ -1,9 +1,11 @@
 /*
  * A c++ version of @RigidBodyTree/approximateIK.m
  */
+
+#include <mex.h>
+
 #include <math.h>
 #include <set>
-#include <mex.h>
 #include <Eigen/Dense>
 #include "drake/systems/plants/RigidBodyTree.h"
 #include <iostream>
@@ -17,7 +19,7 @@
 #define USE_EIQUADPROG_BACKUP 1
 
 #if USE_EIQUADPROG_BACKUP
-#include "eiquadprog.hpp"
+#include "drake/systems/plants/eiquadprog.h"
 #endif
 
 #define MAX_CONSTRS 1000
@@ -54,13 +56,13 @@ using namespace std;
 
 /**
  * Use Frank's fastQP code (mexed)
- * [q,info] = approximateIKEIQPmex(objgetMexModelPtr, q0, q_nom, Q, varargin)
+ * [q, info] = approximateIKEIQPmex(objgetMexModelPtr, q0, q_nom, Q, varargin)
  * info = 0 on success, 1 on failure
  **/
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs < 4) {
     mexErrMsgIdAndTxt("Drake:approximateIKmex:NotEnoughInputs",
-                      "Usage approximateIKmex(model_ptr,q0,q_nom,Q,...)");
+                      "Usage approximateIKmex(model_ptr, q0, q_nom, Q,...)");
   }
 
   if (nlhs < 1) return;
@@ -68,7 +70,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   // first get the model_ptr back from matlab
   RigidBodyTree *model = (RigidBodyTree *)getDrakeMexPointer(prhs[0]);
 
-  int i, j, error, nq = model->num_positions;
+  int i, j, error, nq = model->number_of_positions();
 
   static RigidBodyTree *lastModel = NULL;
   static int lastNumJointLimits = 0;

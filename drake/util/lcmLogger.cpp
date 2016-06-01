@@ -8,7 +8,7 @@
 
 #define S_FUNCTION_NAME lcmLogger
 #define S_FUNCTION_LEVEL 2
-#include "simstruc.h"
+#include <simstruc.h>
 
 #include <lcm/lcm.h>
 
@@ -77,7 +77,7 @@ static void message_handler(const lcm_recv_buf_t *rbuf, const char *channel,
   memcpy(mxGetData(m.data), rbuf->data, rbuf->data_size);
   mexMakeArrayPersistent(m.data);
 
-  //  mexPrintf("lcm log: %s at %f\n",channel,m.simtime);
+  //  mexPrintf("lcm log: %s at %f\n", channel, m.simtime);
   message_log.push_back(m);
 }
 
@@ -144,7 +144,7 @@ static void mdlTerminate(SimStruct *S) {
   char *log_variable_name = mxArrayToString(ssGetSFcnParam(S, 1));
 
   //  mexPrintf("Writing LCM log with %d records to
-  //  %s\n",message_log.size(),log_variable_name);
+  //  %s\n", message_log.size(), log_variable_name);
 
   const char *fieldnames[] = {"simtime", "channel", "data"};
 
@@ -165,10 +165,9 @@ static void mdlTerminate(SimStruct *S) {
   mxFree(log_variable_name);
 }
 
-#ifdef MATLAB_MEX_FILE /* Is this file being compiled as a \ \
-                          MEX-file? */
-#include "simulink.c"  /* MEX-file interface mechanism */
+#ifdef MATLAB_MEX_FILE  // Is this file being compiled as a MEX-file?
+#include "simulink.c"   // MEX-file interface mechanism
 #else
-#include "cg_sfun.h" /* Code generation registration
-                             function */
+// NOLINTNEXTLINE(build/include)
+#include "cg_sfun.h"    // Code generation registration function
 #endif

@@ -1,14 +1,22 @@
 
 #include "RigidBody.h"
+
 #include <stdexcept>
 
-using namespace std;
-using namespace Eigen;
+using Eigen::Isometry3d;
+using Eigen::Matrix;
+using Eigen::Vector3d;
+
+using std::ostream;
+using std::runtime_error;
+using std::string;
+using std::stringstream;
+using std::vector;
 
 RigidBody::RigidBody()
-    : parent(nullptr),
-      collision_filter_group(DrakeCollision::DEFAULT_GROUP),
-      collision_filter_ignores(DrakeCollision::NONE_MASK) {
+    : collision_filter_group(DrakeCollision::DEFAULT_GROUP),
+      collision_filter_ignores(DrakeCollision::NONE_MASK),
+      parent(nullptr) {
   robotnum = 0;
   position_num_start = 0;
   velocity_num_start = 0;
@@ -18,6 +26,10 @@ RigidBody::RigidBody()
   I << Matrix<double, TWIST_SIZE, TWIST_SIZE>::Zero();
 }
 
+const std::string& RigidBody::name() const { return name_; }
+
+const std::string& RigidBody::model_name() const { return model_name_; }
+
 void RigidBody::setJoint(std::unique_ptr<DrakeJoint> new_joint) {
   this->joint = move(new_joint);
 }
@@ -26,7 +38,8 @@ const DrakeJoint& RigidBody::getJoint() const {
   if (joint) {
     return (*joint);
   } else {
-    throw runtime_error("Joint is not initialized");
+    throw runtime_error("ERROR: RigidBody::getJoint(): Rigid body \"" + name_
+      + "\" in model " + model_name_ + " does not have a joint!");
   }
 }
 
@@ -69,48 +82,58 @@ bool RigidBody::appendCollisionElementIdsFromThisBody(
   return true;
 }
 
+void RigidBody::ApplyTransformToJointFrame(
+    const Eigen::Isometry3d& transform_body_to_joint) {
+  I = transformSpatialInertia(transform_body_to_joint, I);
+  for (auto& v : visual_elements) {
+    v.SetLocalTransform(transform_body_to_joint * v.getLocalTransform());
+  }
+}
+
 RigidBody::CollisionElement::CollisionElement(const CollisionElement& other)
-    : DrakeCollision::Element(other), body(other.getBody()) {}
+    : DrakeCollision::Element(other), body(other.body) {}
 
 RigidBody::CollisionElement::CollisionElement(
-    const Isometry3d& T_element_to_link, std::shared_ptr<RigidBody> body)
+    const Isometry3d& T_element_to_link, const RigidBody* const body)
     : DrakeCollision::Element(T_element_to_link), body(body) {}
 
 RigidBody::CollisionElement::CollisionElement(
     const DrakeShapes::Geometry& geometry, const Isometry3d& T_element_to_link,
-    std::shared_ptr<RigidBody> body)
+    const RigidBody* const body)
     : DrakeCollision::Element(geometry, T_element_to_link), body(body) {}
 
 RigidBody::CollisionElement* RigidBody::CollisionElement::clone() const {
   return new CollisionElement(*this);
 }
 
-const std::shared_ptr<RigidBody>& RigidBody::CollisionElement::getBody() const {
-  return this->body;
-}
+const RigidBody& RigidBody::CollisionElement::getBody() const { return *body; }
 
-bool RigidBody::CollisionElement::collidesWith(
+bool RigidBody::CollisionElement::CollidesWith(
     const DrakeCollision::Element* other) const {
-  // DEBUG
-  // cout << "RigidBody::CollisionElement::collidesWith: START" << endl;
-  // END_DEBUG
   auto other_rb = dynamic_cast<const RigidBody::CollisionElement*>(other);
   bool collides = true;
   if (other_rb != nullptr) {
-    collides = this->body->collidesWith(other_rb->body);
-    // DEBUG
-    // cout << "RigidBody::CollisionElement::collidesWith:" << endl;
-    // cout << "  " << this->body->linkname << " & " <<
-    // other_rb->body->linkname;
-    // cout << ": collides = " << collides << endl;
-    // END_DEBUG
+    collides = this->body->CollidesWith(*other_rb->body);
   }
   return collides;
 }
 
 ostream& operator<<(ostream& out, const RigidBody& b) {
-  std::string joint_name =
+  std::string parent_joint_name =
       b.hasParent() ? b.getJoint().getName() : "no parent joint";
-  out << "RigidBody(" << b.linkname << "," << joint_name << ")";
+
+  std::stringstream collision_element_str;
+  collision_element_str << "[";
+  for (size_t ii = 0; ii < b.collision_element_ids.size(); ii++) {
+    collision_element_str << b.collision_element_ids[ii];
+    if (ii < b.collision_element_ids.size() - 1) collision_element_str << ", ";
+  }
+  collision_element_str << "]";
+
+  out << "RigidBody\n"
+      << "  - link name: " << b.name_ << "\n"
+      << "  - parent joint: " << parent_joint_name << "\n"
+      << "  - Collision elements IDs: " << collision_element_str.str();
+
   return out;
 }

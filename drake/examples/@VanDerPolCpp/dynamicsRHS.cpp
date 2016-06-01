@@ -1,4 +1,5 @@
-#include "mex.h"
+#include <mex.h>
+
 #include <Eigen/Dense>
 #include <cmath>
 #include <iostream>
@@ -29,7 +30,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     dynamicsRHS(x, xdot);
     //    cout << xdot << endl;
     plhs[0] = eigenToMSSPoly<2, 1>(xdot);
-    //    plhs[0] = mxCreateDoubleMatrix(2,1,mxREAL);
+    //    plhs[0] = mxCreateDoubleMatrix(2, 1, mxREAL);
   } else {
     mexErrMsgIdAndTxt(
         "Drake:VanDerPolCpp:UnknownType",

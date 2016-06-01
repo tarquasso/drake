@@ -23,7 +23,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs < 5)
     mexErrMsgTxt(
         "usage: "
-        "alpha=QPControllermex(ptr,t,x,qp_input,contact_sensor,foot_force_"
+        "alpha=QPControllermex(ptr, t, x, qp_input, contact_sensor, foot_force_"
         "torque_measurements)");
   if (nlhs < 1) mexErrMsgTxt("take at least one output... please.");
 
@@ -38,8 +38,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   double t = mxGetScalar(prhs[narg++]);
 
   // x
-  int nq = controller->getRobot().num_positions;
-  int nv = controller->getRobot().num_velocities;
+  int nq = controller->getRobot().number_of_positions();
+  int nv = controller->getRobot().number_of_velocities();
   if (mxGetNumberOfElements(prhs[narg]) != (nq + nv))
     mexErrMsgTxt("size of x should be nq + nv\n");
   if (nq != nv) mexErrMsgTxt("still assume nv==nq");

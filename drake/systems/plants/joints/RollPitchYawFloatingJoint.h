@@ -1,5 +1,4 @@
-#ifndef ROLLPITCHYAWFLOATINGJOINT_H_
-#define ROLLPITCHYAWFLOATINGJOINT_H_
+#pragma once
 
 #include "DrakeJointImpl.h"
 
@@ -14,9 +13,9 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
  public:
   RollPitchYawFloatingJoint(const std::string &name,
                             const Eigen::Isometry3d &transform_to_parent_body)
-      : DrakeJointImpl(*this, name, transform_to_parent_body, 6, 6){};
+      : DrakeJointImpl(*this, name, transform_to_parent_body, 6, 6) {}
 
-  virtual ~RollPitchYawFloatingJoint(){};
+  virtual ~RollPitchYawFloatingJoint() {}
 
   template <typename DerivedQ>
   Eigen::Transform<typename DerivedQ::Scalar, 3, Eigen::Isometry>
@@ -28,7 +27,7 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
     ret.translation() = pos;
     ret.makeAffine();
     return ret;
-  };
+  }
 
   template <typename DerivedQ, typename DerivedMS>
   void motionSubspace(const Eigen::MatrixBase<DerivedQ> &q,
@@ -82,7 +81,7 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
           0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
     }
-  };
+  }
 
   template <typename DerivedQ, typename DerivedV>
   void motionSubspaceDotTimesV(
@@ -212,7 +211,7 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
           -xd * (cr * cy + sp * sr * sy) - yd * (cr * sy - cy * sp * sr),
           xd * (cy * sr - cr * sp * sy) + yd * (sr * sy + cr * cy * sp);
     }
-  };
+  }
 
   template <typename DerivedQ>
   void qdot2v(const Eigen::MatrixBase<DerivedQ> &q,
@@ -227,7 +226,7 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
     if (dqdot_to_v) {
       dqdot_to_v->setZero(qdot_to_v.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedQ>
   void v2qdot(const Eigen::MatrixBase<DerivedQ> &q,
@@ -242,7 +241,7 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
     if (dv_to_qdot) {
       dv_to_qdot->setZero(v_to_qdot.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedV>
   Eigen::Matrix<typename DerivedV::Scalar, Eigen::Dynamic, 1> frictionTorque(
@@ -251,14 +250,12 @@ class DRAKEJOINTS_EXPORT RollPitchYawFloatingJoint
         getNumVelocities(), 1);
   }
 
-  virtual bool isFloating() const override { return true; }
-  virtual Eigen::VectorXd zeroConfiguration() const override;
-  virtual Eigen::VectorXd randomConfiguration(
+  bool isFloating() const override { return true; }
+  Eigen::VectorXd zeroConfiguration() const override;
+  Eigen::VectorXd randomConfiguration(
       std::default_random_engine &generator) const override;
-  virtual std::string getPositionName(int index) const override;
+  std::string getPositionName(int index) const override;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
-
-#endif /* ROLLPITCHYAWFLOATINGJOINT_H_ */

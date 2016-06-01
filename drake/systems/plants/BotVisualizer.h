@@ -1,5 +1,4 @@
-#ifndef DRAKE_BOTVISUALIZER_H
-#define DRAKE_BOTVISUALIZER_H
+#pragma once
 
 #include <lcm/lcm-cpp.hpp>
 #include <Eigen/Dense>
@@ -34,13 +33,13 @@ class BotVisualizer {
   template <typename ScalarType>
   using InputVector = RobotStateVector<ScalarType>;
 
-  BotVisualizer(const std::shared_ptr<lcm::LCM> &_lcm,
-                const std::shared_ptr<RigidBodyTree> &tree)
+  BotVisualizer(std::shared_ptr<lcm::LCM> _lcm,
+                std::shared_ptr<RigidBodyTree> tree)
       : tree(tree), lcm(_lcm) {
     init();
   }
 
-  BotVisualizer(const std::shared_ptr<lcm::LCM> &_lcm,
+  BotVisualizer(std::shared_ptr<lcm::LCM> _lcm,
                 const std::string &urdf_filename,
                 const DrakeJoint::FloatingBaseType floating_base_type)
       : tree(new RigidBodyTree(urdf_filename, floating_base_type)), lcm(_lcm) {
@@ -53,7 +52,7 @@ class BotVisualizer {
     draw_msg.num_links = tree->bodies.size();
     std::vector<float> position = {0, 0, 0}, quaternion = {0, 0, 0, 1};
     for (const auto &body : tree->bodies) {
-      draw_msg.link_name.push_back(body->linkname);
+      draw_msg.link_name.push_back(body->name_);
       draw_msg.robot_num.push_back(body->robotnum);
       draw_msg.position.push_back(position);
       draw_msg.quaternion.push_back(quaternion);
@@ -65,7 +64,7 @@ class BotVisualizer {
     vr.num_links = tree->bodies.size();
     for (const auto &body : tree->bodies) {
       drake::lcmt_viewer_link_data link;
-      link.name = body->linkname;
+      link.name = body->name_;
       link.robot_num = body->robotnum;
       link.num_geom = body->visual_elements.size();
       for (const auto &v : body->visual_elements) {
@@ -104,10 +103,13 @@ class BotVisualizer {
             gdata.num_float_data = 1;
             auto m = dynamic_cast<const DrakeShapes::Mesh &>(geometry);
             gdata.float_data.push_back(static_cast<float>(m.scale));
-            gdata.string_data = m.resolved_filename;  // looks like this could
-                                                      // be empty, but it is
-                                                      // what's used in the get
-                                                      // mesh points...
+
+            if (m.filename.find("package://") == 0) {
+              gdata.string_data = m.filename;
+            } else {
+              gdata.string_data = m.resolved_filename;
+            }
+
             break;
           }
           case DrakeShapes::CAPSULE: {
@@ -144,14 +146,14 @@ class BotVisualizer {
   StateVector<double> dynamics(const double &t, const StateVector<double> &x,
                                const InputVector<double> &u) const {
     return StateVector<double>();
-  };
+  }
 
   OutputVector<double> output(const double &t, const StateVector<double> &x,
                               const InputVector<double> &u) const {
     draw_msg.timestamp = static_cast<int64_t>(t * 1000.0);
 
     auto uvec = toEigen(u);
-    auto q = uvec.head(tree->num_positions);
+    auto q = uvec.head(tree->number_of_positions());
     KinematicsCache<double> cache = tree->doKinematics(q);
 
     int i, j;
@@ -181,5 +183,3 @@ class BotVisualizer {
 };
 
 }  // end namespace Drake
-
-#endif  // DRAKE_BOTVISUALIZER_H

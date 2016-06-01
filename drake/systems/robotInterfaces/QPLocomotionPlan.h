@@ -1,5 +1,4 @@
-#ifndef SYSTEMS_ROBOTINTERFACES_QPLOCOMOTIONPLAN_H_
-#define SYSTEMS_ROBOTINTERFACES_QPLOCOMOTIONPLAN_H_
+#pragma once
 
 #include <vector>
 #include <map>
@@ -16,9 +15,9 @@
 #include "drake/systems/controllers/zmpUtil.h"
 
 class QuadraticLyapunovFunction {
-  // TODO: move into its own file
-  // TODO: make part of a Lyapunov function class hierarchy
-  // TODO: more functionality
+  // TODO(tkoolen): move into its own file
+  // TODO(tkoolen): make part of a Lyapunov function class hierarchy
+  // TODO(tkoolen): more functionality
  private:
   Eigen::MatrixXd S;
   ExponentialPlusPiecewisePolynomial<double> s1;
@@ -41,12 +40,13 @@ class QuadraticLyapunovFunction {
 };
 
 struct RigidBodySupportStateElement {
-  // TODO: turn this into a class with more functionality
-  // TODO: consolidate with SupportStateElement?
-  int body;  // TODO: should probably be a RigidBody smart pointer
+  // TODO(tkoolen): turn this into a class with more functionality
+  // TODO(tkoolen): consolidate with SupportStateElement?
+  int body;  // TODO(tkoolen): should probably be a RigidBody smart pointer
   Eigen::Matrix3Xd contact_points;
   bool use_contact_surface;
-  Eigen::Vector4d support_surface;  // TODO: should probably be a different type
+  // TODO(tkoolen): should probably be a different type
+  Eigen::Vector4d support_surface;
 };
 
 typedef std::vector<RigidBodySupportStateElement> RigidBodySupportState;
@@ -67,7 +67,7 @@ struct KneeSettings {
 };
 
 struct QPLocomotionPlanSettings {
-  QPLocomotionPlanSettings() : min_foot_shift_delay(0.1){};
+  QPLocomotionPlanSettings() : min_foot_shift_delay(0.1) {}
 
   double duration;
   std::vector<RigidBodySupportState> supports;
@@ -153,7 +153,7 @@ struct QPLocomotionPlanSettings {
 
 class QPLocomotionPlan {
  private:
-  RigidBodyTree& robot;  // TODO: const correctness
+  RigidBodyTree& robot;  // TODO(tkoolen): const correctness
   QPLocomotionPlanSettings settings;
   const std::map<Side, int> foot_body_ids;
   const std::map<Side, int> knee_indices;
@@ -180,7 +180,7 @@ class QPLocomotionPlan {
    * To allow the controller to use that support only if it thinks the body is
    * in contact with the terrain, try KINEMATIC_OR_SENSED
    */
-  const static std::map<SupportLogicType, std::vector<bool> >
+  static const std::map<SupportLogicType, std::vector<bool> >
       support_logic_maps;
 
  public:
@@ -266,5 +266,3 @@ class QPLocomotionPlan {
   static const std::map<Side, int> createJointIndicesMap(
       RigidBodyTree& robot, const std::map<Side, std::string>& foot_body_ids);
 };
-
-#endif /* SYSTEMS_ROBOTINTERFACES_QPLOCOMOTIONPLAN_H_ */

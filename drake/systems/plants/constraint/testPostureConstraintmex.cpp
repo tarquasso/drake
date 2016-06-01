@@ -1,10 +1,11 @@
-#include "mex.h"
+#include <mex.h>
+
 #include "drake/systems/plants/constraint/RigidBodyConstraint.h"
 #include "drake/util/drakeMexUtil.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 #include <cstring>
 /*
- * [lower_bound,upper_bound] = testPostureConstraintmex(postureConstraint_ptr,t)
+ * [lower_bound, upper_bound] = testPostureConstraintmex(postureConstraint_ptr, t)
  * @param postureConstraint_ptr        A pointer to a PostureConstraint object
  * @param t                            A double scalar, the time to evaluate the
  * lower and upper bounds, This is optional if the constraint is time-invariant
@@ -14,7 +15,7 @@
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs != 2 && nrhs != 1) {
     mexErrMsgIdAndTxt("Drake:testPostureConstraintmex:BadInputs",
-                      "Usage [lb,ub] = testPostureConstraintmex(pc_ptr,t)");
+                      "Usage [lb, ub] = testPostureConstraintmex(pc_ptr, t)");
   }
   double t;
   double* t_ptr;
@@ -25,7 +26,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     t_ptr = &t;
   }
   PostureConstraint* pc = (PostureConstraint*)getDrakeMexPointer(prhs[0]);
-  int nq = pc->getRobotPointer()->num_positions;
+  int nq = pc->getRobotPointer()->number_of_positions();
   Eigen::VectorXd lb, ub;
   pc->bounds(t_ptr, lb, ub);
   plhs[0] = mxCreateDoubleMatrix(nq, 1, mxREAL);

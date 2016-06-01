@@ -1,13 +1,14 @@
 #include "InstantaneousQPController.h"
-#include "controlUtil.h"
+#include <lcm/lcm-cpp.hpp>
 #include <map>
 #include <memory>
-#include <lcm/lcm-cpp.hpp>
+#include "drake/Path.h"
+#include "drake/solvers/fastQP.h"
+#include "drake/systems/controllers/controlUtil.h"
+#include "drake/util/eigen_matrix_compare.h"
 #include "drake/util/lcmUtil.h"
 #include "drake/util/testUtil.h"
 #include "drake/util/yaml/yamlUtil.h"
-#include "drake/solvers/fastQP.h"
-#include "drake/Path.h"
 #include "lcmtypes/drake/lcmt_zmp_com_observer_state.hpp"
 
 const double REG = 1e-8;
@@ -16,6 +17,7 @@ const bool CHECK_CENTROIDAL_MOMENTUM_RATE_MATCHES_TOTAL_WRENCH = false;
 const bool PUBLISH_ZMP_COM_OBSERVER_STATE = true;
 
 using namespace Eigen;
+using drake::util::MatrixCompareType;
 
 #define LEG_INTEGRATOR_DEACTIVATION_MARGIN 0.07
 
@@ -24,7 +26,7 @@ using namespace Eigen;
 void InstantaneousQPController::initialize() {
   body_or_frame_name_to_id = computeBodyOrFrameNameToIdMap(*(this->robot));
 
-  int nq = robot->num_positions;
+  int nq = robot->number_of_positions();
   int nu = static_cast<int>(robot->actuators.size());
 
   umin.resize(nu);
@@ -78,9 +80,9 @@ void InstantaneousQPController::initialize() {
 
   controller_state.t_prev = 0;
   controller_state.vref_integrator_state =
-      Eigen::VectorXd::Zero(robot->num_velocities);
+      Eigen::VectorXd::Zero(robot->number_of_velocities());
   controller_state.q_integrator_state =
-      Eigen::VectorXd::Zero(robot->num_positions);
+      Eigen::VectorXd::Zero(robot->number_of_positions());
   controller_state.foot_contact_prev[0] = false;
   controller_state.foot_contact_prev[1] = false;
   controller_state.num_active_contact_pts = 0;
@@ -141,11 +143,11 @@ PIDOutput InstantaneousQPController::wholeBodyPID(
   // accelerations and reference posture
   PIDOutput out;
   double dt = 0;
-  int nq = robot->num_positions;
+  int nq = robot->number_of_positions();
   assert(q.size() == nq);
-  assert(qd.size() == robot->num_velocities);
+  assert(qd.size() == robot->number_of_velocities());
   assert(q_des.size() == params.integrator.gains.size());
-  if (nq != robot->num_velocities) {
+  if (nq != robot->number_of_velocities()) {
     throw std::runtime_error(
         "this function will need to be rewritten when num_pos != num_vel");
   }
@@ -193,7 +195,7 @@ VectorXd InstantaneousQPController::velocityReference(
   // Integrate expected accelerations to determine a target feed-forward
   // velocity, which we can pass in to Atlas
   int i;
-  assert(qdd.size() == robot->num_velocities);
+  assert(qdd.size() == robot->number_of_velocities());
 
   double dt = 0;
   if (controller_state.t_prev != 0) {
@@ -282,7 +284,8 @@ InstantaneousQPController::loadAvailableSupports(
   // Parse a qp_input LCM message to extract its available supports as a vector
   // of SupportStateElements
   std::vector<SupportStateElement,
-              Eigen::aligned_allocator<SupportStateElement>> available_supports;
+              Eigen::aligned_allocator<SupportStateElement>>
+      available_supports;
   available_supports.resize(qp_input.num_support_data);
   for (int i = 0; i < qp_input.num_support_data; i++) {
     available_supports[i].body_idx =
@@ -560,14 +563,18 @@ void checkCentroidalMomentumMatchesTotalWrench(
   Vector6d momentum_rate_of_change =
       world_momentum_matrix * qdd + world_momentum_matrix_dot_times_v;
 
-  valuecheckMatrix(total_wrench_in_world, momentum_rate_of_change, 1e-6);
+  std::string explanation;
+  if (!CompareMatrices(total_wrench_in_world, momentum_rate_of_change, 1e-6,
+                       MatrixCompareType::absolute, &explanation)) {
+    throw std::runtime_error("Drake:ValueCheck ERROR:" + explanation);
+  }
 }
 
 std::unordered_map<std::string, int> computeBodyOrFrameNameToIdMap(
     const RigidBodyTree& robot) {
   auto id_map = std::unordered_map<std::string, int>();
   for (auto it = robot.bodies.begin(); it != robot.bodies.end(); ++it) {
-    id_map[(*it)->linkname] = it - robot.bodies.begin();
+    id_map[(*it)->name_] = it - robot.bodies.begin();
   }
 
   for (auto it = robot.frames.begin(); it != robot.frames.end(); ++it) {
@@ -615,7 +622,7 @@ int InstantaneousQPController::setupAndSolveQP(
   // mexPrintf("Kp_accel: %f, ", params.Kp_accel);
 
   int nu = robot->B.cols();
-  int nq = robot->num_positions;
+  int nq = robot->number_of_positions();
 
   // zmp_data
   Map<const Matrix<double, 4, 4, RowMajor>> A_ls(&qp_input.zmp_data.A[0][0]);
@@ -636,10 +643,10 @@ int InstantaneousQPController::setupAndSolveQP(
               Eigen::aligned_allocator<SupportStateElement>>
       available_supports = loadAvailableSupports(qp_input);
   std::vector<SupportStateElement,
-              Eigen::aligned_allocator<SupportStateElement>> active_supports =
-      getActiveSupports(*robot, robot_state.q, robot_state.qd,
-                        available_supports, contact_detected,
-                        params.contact_threshold);
+              Eigen::aligned_allocator<SupportStateElement>>
+      active_supports = getActiveSupports(*robot, robot_state.q, robot_state.qd,
+                                          available_supports, contact_detected,
+                                          params.contact_threshold);
 
   // // whole_body_data
   if (qp_input.whole_body_data.num_positions != nq)
@@ -733,14 +740,16 @@ int InstantaneousQPController::setupAndSolveQP(
     Vector6d body_Kp;
     body_Kp.head<3>() =
         (params.body_motion[true_body_id0].Kp.head<3>().array() *
-         xyz_kp_multiplier.array()).matrix();
+         xyz_kp_multiplier.array())
+            .matrix();
     body_Kp.tail<3>() =
         params.body_motion[true_body_id0].Kp.tail<3>() * expmap_kp_multiplier;
     Vector6d body_Kd;
     body_Kd.head<3>() =
         (params.body_motion[true_body_id0].Kd.head<3>().array() *
          xyz_damping_ratio_multiplier.array() *
-         xyz_kp_multiplier.array().sqrt()).matrix();
+         xyz_kp_multiplier.array().sqrt())
+            .matrix();
     body_Kd.tail<3>() = params.body_motion[true_body_id0].Kd.tail<3>() *
                         sqrt(expmap_kp_multiplier) *
                         expmap_damping_ratio_multiplier;
@@ -858,7 +867,7 @@ int InstantaneousQPController::setupAndSolveQP(
   MatrixXd D_float(6, JB.cols()), D_act(nu, JB.cols());
   if (nc > 0) {
     if (x0.size() == 6) {
-      // x,y,z com
+      // x, y, z com
       xlimp.resize(6);
       xlimp.topRows(3) = xcom;
       xlimp.bottomRows(3) = xcomdot;
@@ -879,7 +888,7 @@ int InstantaneousQPController::setupAndSolveQP(
   Vector3d kdot_des;
   if (include_angular_momentum) {
     VectorXd k = Ak * robot_state.qd;
-    kdot_des = -params.Kp_ang * k;  // TODO: parameterize
+    kdot_des = -params.Kp_ang * k;  // TODO(rdeits): parameterize
   }
 
   //----------------------------------------------------------------------
@@ -963,7 +972,7 @@ int InstantaneousQPController::setupAndSolveQP(
 
         if (qp_input.body_motion_data[i].in_floating_base_nullspace) {
           Jb.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
-          // Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+          // Jbdot.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
         }
         for (int j = 0; j < 6; j++) {
           if (!std::isnan(desired_body_accelerations[i].body_vdot(j))) {
@@ -1014,13 +1023,13 @@ int InstantaneousQPController::setupAndSolveQP(
 
     if (qp_input.body_motion_data[i].in_floating_base_nullspace) {
       Jb.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
-      // Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+      // Jbdot.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
     }
-    Ain.block(constraint_start_index, 0, 6, robot->num_positions) = Jb;
+    Ain.block(constraint_start_index, 0, 6, robot->number_of_positions()) = Jb;
     bin.segment(constraint_start_index, 6) =
         -Jbdotv + desired_body_accelerations[i].accel_bounds.max;
     constraint_start_index += 6;
-    Ain.block(constraint_start_index, 0, 6, robot->num_positions) = -Jb;
+    Ain.block(constraint_start_index, 0, 6, robot->number_of_positions()) = -Jb;
     bin.segment(constraint_start_index, 6) =
         Jbdotv - desired_body_accelerations[i].accel_bounds.min;
     constraint_start_index += 6;
@@ -1037,7 +1046,7 @@ int InstantaneousQPController::setupAndSolveQP(
   GRBmodel* model = nullptr;
   int info = -1;
 
-  // set obj,lb,up
+  // set obj, lb, up
   VectorXd lb(nparams), ub(nparams);
   lb.head(nq) = qdd_lb;
   ub.head(nq) = qdd_ub;
@@ -1070,7 +1079,7 @@ int InstantaneousQPController::setupAndSolveQP(
       desired_body_accelerations.size() > 0 && max_body_accel_weight > 1e-10;
   if (use_fast_qp > 0 && !include_angular_momentum &&
       !include_body_accel_cost_terms) {
-    // TODO: update to include angular momentum, body accel objectives.
+    // TODO(rdeits): update to include angular momentum, body accel objectives.
 
     //    We want Hqp inverse, which I can compute efficiently using the
     //    matrix inversion lemma (see wikipedia):
@@ -1109,7 +1118,7 @@ int InstantaneousQPController::setupAndSolveQP(
     if (nc > 0) {
       QBlkDiag[1] = &Qnfdiag;
       QBlkDiag[2] = &Qneps;  // quadratic slack var cost,
-                             // Q(nparams-neps:end,nparams-neps:end)=eye(neps)
+                             // Q(nparams-neps:end, nparams-neps:end)=eye(neps)
     }
 
     MatrixXd Ain_lb_ub(n_ineq + 2 * nparams, nparams);
@@ -1164,7 +1173,7 @@ int InstantaneousQPController::setupAndSolveQP(
 
           if (qp_input.body_motion_data[i].in_floating_base_nullspace) {
             Jb.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
-            // Jbdot.block(0,0,6,6) = MatrixXd::Zero(6,6);
+            // Jbdot.block(0, 0, 6, 6) = MatrixXd::Zero(6, 6);
           }
           for (int j = 0; j < 6; j++) {
             if (!std::isnan(desired_body_accelerations[i].body_vdot[j])) {
@@ -1189,7 +1198,7 @@ int InstantaneousQPController::setupAndSolveQP(
     if (nc > 0) {
       QBlkDiag[1] = &Qnfdiag;
       QBlkDiag[2] = &Qneps;  // quadratic slack var cost,
-                             // Q(nparams-neps:end,nparams-neps:end)=eye(neps)
+                             // Q(nparams-neps:end, nparams-neps:end)=eye(neps)
     }
 
     MatrixXd Ain_lb_ub(n_ineq + 2 * nparams, nparams);
@@ -1305,4 +1314,4 @@ int InstantaneousQPController::setupAndSolveQP(
   //  GRBfreeenv(env);
 
   return info;
-}
+}  // NOLINT(readability/fn_size)

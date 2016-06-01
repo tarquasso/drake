@@ -1,5 +1,4 @@
-#ifndef DRAKE_SOLVERS_QPSPLINE_SPLINEGENERATION_H_
-#define DRAKE_SOLVERS_QPSPLINE_SPLINEGENERATION_H_
+#pragma once
 
 #include "SplineInformation.h"
 #include "drake/systems/trajectories/PiecewisePolynomial.h"
@@ -9,7 +8,7 @@
 class ConstraintMatrixSingularError : public std::runtime_error {
  public:
   ConstraintMatrixSingularError()
-      : runtime_error("Constraint matrix is singular!"){};
+      : runtime_error("Constraint matrix is singular!"){}
 };
 
 DRAKESPLINEGENERATION_EXPORT PiecewisePolynomial<double> generateSpline(
@@ -18,5 +17,3 @@ DRAKESPLINEGENERATION_EXPORT PiecewisePolynomial<double> generateSpline(
 DRAKESPLINEGENERATION_EXPORT PiecewisePolynomial<double> nWaypointCubicSpline(
     const std::vector<double>& segment_times, double x0, double xd0, double xf,
     double xdf, const Eigen::Ref<const Eigen::VectorXd>& xi);
-
-#endif /* DRAKE_SOLVERS_QPSPLINE_SPLINEGENERATION_H_ */

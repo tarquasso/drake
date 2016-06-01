@@ -1,5 +1,4 @@
-#ifndef _ACROBOT_H_
-#define _ACROBOT_H_
+#pragma once
 
 #include <iostream>
 #include <cmath>
@@ -11,12 +10,14 @@ template <typename ScalarType = double>
 class AcrobotState {  // models the Drake::Vector concept
  public:
   typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "AcrobotState"; };
+  static std::string channel() { return "AcrobotState"; }
 
-  AcrobotState(void) : shoulder(0), elbow(0), shoulder_dot(0), elbow_dot(0){};
+  AcrobotState(void) : shoulder(0), elbow(0), shoulder_dot(0), elbow_dot(0) {}
+
   template <typename Derived>
-  AcrobotState(const Eigen::MatrixBase<Derived>& x)
-      : shoulder(x(0)), elbow(x(1)), shoulder_dot(x(2)), elbow_dot(x(3)){};
+  AcrobotState(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
+      : shoulder(x(0)), elbow(x(1)), shoulder_dot(x(2)), elbow_dot(x(3)) {}
 
   template <typename Derived>
   AcrobotState& operator=(const Eigen::MatrixBase<Derived>& x) {
@@ -46,9 +47,9 @@ class AcrobotState {  // models the Drake::Vector concept
     Eigen::Matrix<ScalarType, 4, 1> x;
     x << vec.shoulder, vec.elbow, vec.shoulder_dot, vec.elbow_dot;
     return x;
-  };
+  }
 
-  const static int RowsAtCompileTime = 4;
+  static const int RowsAtCompileTime = 4;
 
   ScalarType shoulder, elbow, shoulder_dot, elbow_dot;
 };
@@ -57,12 +58,14 @@ template <typename ScalarType = double>
 class AcrobotInput {
  public:
   typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "AcrobotInput"; };
+  static std::string channel() { return "AcrobotInput"; }
 
-  AcrobotInput(void) : tau(0){};
+  AcrobotInput(void) : tau(0) {}
+
   template <typename Derived>
-  AcrobotInput(const Eigen::MatrixBase<Derived>& x)
-      : tau(x(0)){};
+  AcrobotInput(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
+      : tau(x(0)) {}
 
   template <typename Derived>
   AcrobotInput& operator=(const Eigen::MatrixBase<Derived>& x) {
@@ -75,7 +78,7 @@ class AcrobotInput {
     return os;
   }
 
-  const static int RowsAtCompileTime = 1;
+  static const int RowsAtCompileTime = 1;
 
   ScalarType tau;
 };
@@ -85,7 +88,7 @@ Eigen::Matrix<ScalarType, 1, 1> toEigen(const AcrobotInput<ScalarType>& vec) {
   Eigen::Matrix<ScalarType, 1, 1> x;
   x << vec.tau;
   return x;
-};
+}
 
 class Acrobot {
  public:
@@ -109,7 +112,7 @@ class Acrobot {
         b2(0.1),  // kg m^2 /s
         g(9.81)   // m/s^2
   {}
-  virtual ~Acrobot(void){};
+  virtual ~Acrobot(void) {}
 
   template <typename ScalarType>
   void manipulatorDynamics(const AcrobotState<ScalarType>& x,
@@ -177,5 +180,3 @@ class Acrobot {
   double m1, m2, l1, l2, lc1, lc2, Ic1, Ic2, b1, b2,
       g;  // parameters (initialized in the constructor)
 };
-
-#endif  // _ACROBOT_H_

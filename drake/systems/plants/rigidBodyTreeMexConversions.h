@@ -1,5 +1,4 @@
-#ifndef DRAKE_RIGIDBODYTREEMEXCONVERSIONS_H
-#define DRAKE_RIGIDBODYTREEMEXCONVERSIONS_H
+#pragma once
 
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "KinematicsCache.h"
@@ -72,7 +71,7 @@ KinematicsCache<Scalar> &fromMexUnsafe(const mxArray *mex,
 // set<int>: not of sufficient quality yet
 bool isConvertibleFromMex(const mxArray *source, std::set<int> *,
                           std::ostream *log) NOEXCEPT {
-  return true;  // TODO: improve
+  return true;  // TODO(tkoolen): improve
 }
 
 std::set<int> fromMexUnsafe(const mxArray *source, std::set<int> *) {
@@ -99,5 +98,3 @@ void toMex(const KinematicPath &path, mxArray *dest[], int nlhs) {
     dest[2] = stdVectorToMatlab(path.joint_direction_signs);
   }
 }
-
-#endif  // DRAKE_RIGIDBODYTREEMEXCONVERSIONS_H

@@ -1,5 +1,4 @@
-#ifndef DRAKE_DRAKEJOINTIMPL_H
-#define DRAKE_DRAKEJOINTIMPL_H
+#pragma once
 
 #include "drake/systems/plants/joints/DrakeJoint.h"
 
@@ -9,7 +8,7 @@
       const override {                                                       \
     return derived.jointTransform(q);                                        \
   };                                                                         \
-  virtual void motionSubspace(                                               \
+  void motionSubspace(                                                       \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &q,   \
       Eigen::Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic, 0, TWIST_SIZE,       \
                     MAX_NUM_VELOCITIES> &motion_subspace,                    \
@@ -17,7 +16,7 @@
           dmotion_subspace = nullptr) const override {                       \
     derived.motionSubspace(q, motion_subspace, dmotion_subspace);            \
   };                                                                         \
-  virtual void motionSubspaceDotTimesV(                                      \
+  void motionSubspaceDotTimesV(                                              \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &q,   \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &v,   \
       Eigen::Matrix<Scalar, 6, 1> &motion_subspace_dot_times_v,              \
@@ -29,7 +28,7 @@
                                     dmotion_subspace_dot_times_vdq,          \
                                     dmotion_subspace_dot_times_vdv);         \
   };                                                                         \
-  virtual void qdot2v(                                                       \
+  void qdot2v(                                                               \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &q,   \
       Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,               \
                     MAX_NUM_VELOCITIES, MAX_NUM_POSITIONS> &qdot_to_v,       \
@@ -37,7 +36,7 @@
       const override {                                                       \
     derived.qdot2v(q, qdot_to_v, dqdot_to_v);                                \
   };                                                                         \
-  virtual void v2qdot(                                                       \
+  void v2qdot(                                                               \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &q,   \
       Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,               \
                     MAX_NUM_POSITIONS, MAX_NUM_VELOCITIES> &v_to_qdot,       \
@@ -45,7 +44,7 @@
       const override {                                                       \
     derived.v2qdot(q, v_to_qdot, dv_to_qdot);                                \
   };                                                                         \
-  virtual Eigen::Matrix<Scalar, Eigen::Dynamic, 1> frictionTorque(           \
+  Eigen::Matrix<Scalar, Eigen::Dynamic, 1> frictionTorque(                   \
       const Eigen::Ref<const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>> &v)   \
       const override {                                                       \
     return derived.frictionTorque(v);                                        \
@@ -62,8 +61,8 @@ class DrakeJointImpl : public DrakeJoint {
                  int num_positions, int num_velocities)
       : DrakeJoint(name, transform_to_parent_body, num_positions,
                    num_velocities),
-        derived(_derived){};
-  virtual ~DrakeJointImpl(){};
+        derived(_derived) {}
+  virtual ~DrakeJointImpl() {}
 
   POSITION_AND_VELOCITY_DEPENDENT_METHODS_IMPL(double)
   POSITION_AND_VELOCITY_DEPENDENT_METHODS_IMPL(DrakeJoint::AutoDiffFixedMaxSize)
@@ -83,5 +82,3 @@ template <typename T>
 int sign(T val) {
   return (T(0) < val) - (val < T(0));
 }
-
-#endif  // DRAKE_DRAKEJOINTIMPL_H

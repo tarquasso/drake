@@ -1,5 +1,4 @@
-#ifndef QUATERNIONFLOATINGJOINT_H_
-#define QUATERNIONFLOATINGJOINT_H_
+#pragma once
 
 #include "DrakeJointImpl.h"
 #include "drake/util/drakeGeometryUtil.h"
@@ -14,9 +13,9 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
  public:
   QuaternionFloatingJoint(const std::string &name,
                           const Eigen::Isometry3d &transform_to_parent_body)
-      : DrakeJointImpl(*this, name, transform_to_parent_body, 7, 6){};
+      : DrakeJointImpl(*this, name, transform_to_parent_body, 7, 6) {}
 
-  virtual ~QuaternionFloatingJoint(){};
+  virtual ~QuaternionFloatingJoint() {}
 
   template <typename DerivedQ>
   Eigen::Transform<typename DerivedQ::Scalar, 3, Eigen::Isometry>
@@ -26,7 +25,7 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
     ret.translation() << q[0], q[1], q[2];
     ret.makeAffine();
     return ret;
-  };
+  }
 
   template <typename DerivedQ, typename DerivedMS>
   void motionSubspace(const Eigen::MatrixBase<DerivedQ> &q,
@@ -37,7 +36,7 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
     if (dmotion_subspace) {
       dmotion_subspace->setZero(motion_subspace.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedQ, typename DerivedV>
   void motionSubspaceDotTimesV(
@@ -60,7 +59,7 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
       dmotion_subspace_dot_times_vdv->setZero(
           motion_subspace_dot_times_v.size(), getNumVelocities());
     }
-  };
+  }
 
   template <typename DerivedQ>
   void qdot2v(const Eigen::MatrixBase<DerivedQ> &q,
@@ -88,7 +87,7 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
         RTransposeM * dquattildedquat;
     qdot_to_v.template block<3, 3>(3, 0) = R.transpose();
     qdot_to_v.template block<3, 4>(3, 3).setZero();
-  };
+  }
 
   template <typename DerivedQ>
   void v2qdot(const Eigen::MatrixBase<DerivedQ> &q,
@@ -126,7 +125,7 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
     v_to_qdot.template block<3, 3>(0, 3) = R;
     v_to_qdot.template block<4, 3>(3, 0).noalias() = M * R;
     v_to_qdot.template block<4, 3>(3, 3).setZero();
-  };
+  }
 
   template <typename DerivedV>
   Eigen::Matrix<typename DerivedV::Scalar, Eigen::Dynamic, 1> frictionTorque(
@@ -135,15 +134,13 @@ class DRAKEJOINTS_EXPORT QuaternionFloatingJoint
         getNumVelocities(), 1);
   }
 
-  virtual bool isFloating() const override { return true; };
-  virtual std::string getPositionName(int index) const override;
-  virtual std::string getVelocityName(int index) const override;
-  virtual Eigen::VectorXd zeroConfiguration() const override;
-  virtual Eigen::VectorXd randomConfiguration(
+  bool isFloating() const override { return true; };
+  std::string getPositionName(int index) const override;
+  std::string getVelocityName(int index) const override;
+  Eigen::VectorXd zeroConfiguration() const override;
+  Eigen::VectorXd randomConfiguration(
       std::default_random_engine &generator) const override;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
-
-#endif /* QUATERNIONFLOATINGJOINT_H_ */

@@ -1,8 +1,9 @@
-#include "mex.h"
+#include <mex.h>
+
+#include <cmath>
 #include <iostream>
 #include "drake/util/drakeMexUtil.h"
 #include "drake/systems/plants/RigidBodyTree.h"
-#include "math.h"
 #include "rigidBodyTreeMexConversions.h"
 
 using namespace Eigen;
@@ -33,7 +34,7 @@ void smoothDistancePenalty(double& c, MatrixXd& dc, RigidBodyTree* robot,
   MatrixXd ddist_dq, dscaled_dist_ddist, dpairwise_costs_dscaled_dist;
 
   int num_pts = static_cast<int>(xA.cols());
-  ddist_dq = MatrixXd::Zero(num_pts, robot->num_positions);
+  ddist_dq = MatrixXd::Zero(num_pts, robot->number_of_positions());
 
   // Scale distance
   int nd = static_cast<int>(dist.size());
@@ -104,7 +105,7 @@ void smoothDistancePenalty(double& c, MatrixXd& dc, RigidBodyTree* robot,
       // END_DEBUG
       ddist_dq.row(orig_idx_of_pt_on_bodyA.at(k).at(l)) +=
           normal.col(orig_idx_of_pt_on_bodyA.at(k).at(l)).transpose() *
-          J_k.block(3 * l, 0, 3, robot->num_positions);
+          J_k.block(3 * l, 0, 3, robot->number_of_positions());
     }
     for (; l < numA + numB; ++l) {
       // DEBUG
@@ -113,13 +114,13 @@ void smoothDistancePenalty(double& c, MatrixXd& dc, RigidBodyTree* robot,
       // END_DEBUG
       ddist_dq.row(orig_idx_of_pt_on_bodyB.at(k).at(l - numA)) +=
           -normal.col(orig_idx_of_pt_on_bodyB.at(k).at(l - numA)).transpose() *
-          J_k.block(3 * l, 0, 3, robot->num_positions);
+          J_k.block(3 * l, 0, 3, robot->number_of_positions());
     }
   }
   MatrixXd dcost_dscaled_dist(dpairwise_costs_dscaled_dist.colwise().sum());
   c = pairwise_costs.sum();
   dc = dcost_dscaled_dist * dscaled_dist_ddist * ddist_dq;
-};
+}
 
 /*
  * mex interface for evaluating a smooth-penalty on violations of a

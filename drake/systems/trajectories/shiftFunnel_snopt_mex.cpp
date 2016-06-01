@@ -20,9 +20,10 @@
 
 // Mex stuff
 #include <mex.h>
-#include <blas.h>
-#include <math.h>
 #include <matrix.h>
+#include <blas.h>
+
+#include <math.h>
 #include "drake/util/drakeMexUtil.h"
 #include <memory>
 #include <algorithm>
@@ -31,7 +32,6 @@
 namespace snopt {
 #include "snopt.hh"
 #include "snfilewrapper.hh"
-//#include "snoptProblem.hh"
 }
 
 // Internal access to bullet
@@ -84,17 +84,15 @@ const int DEFAULT_LENCW = 500;
 /* Constraint to make sure current state is in inlet of shifted funnel
  */
 double containmentConstraint(snopt::doublereal x_shift[],
-                             double *containment_grad)
-
-{
+                             double *containment_grad) {
   // Initialize some variables
   mxArray *x0 =
       mxGetField(funnelLibrary, funnelIdx, "x0");  // all points on trajectory
 
   double *dx0 = mxGetPrSafe(x0);
 
-  long int dim = 12;
-  long int dimx0 = mxGetM(x0);
+  long int dim = 12;  // NOLINT(runtime/int)
+  long int dimx0 = mxGetM(x0);  // NOLINT(runtime/int)
 
   // Check that we got the right dimensions
   if (dim > 1) {
@@ -109,7 +107,7 @@ double containmentConstraint(snopt::doublereal x_shift[],
   mxArray *pS0 = mxGetField(funnelLibrary, funnelIdx, "S0");
   double *S0 = mxGetPrSafe(pS0);
 
-  // Get x - x0(:,1) (but zero out x,y,z)
+  // Get x - x0(:, 1) (but zero out x, y, z)
   mxArray *xrel = mxCreateDoubleMatrix(dim, 1, mxREAL);
   double *dxrel = mxGetPrSafe(xrel);
 
@@ -126,7 +124,7 @@ double containmentConstraint(snopt::doublereal x_shift[],
   // Now compute xrel'*S0*xrel using lapack
   // First do S0*xrel
   double one = 1.0, zero = 0.0;  // Seriously?
-  long int ione = 1;
+  long int ione = 1;  // NOLINT(runtime/int)
   mxArray *S0xrel = mxCreateDoubleMatrix(dim, 1, mxREAL);
   double *dS0xrel = mxGetPrSafe(S0xrel);
   char chn[] = "N";
@@ -253,7 +251,7 @@ bool penetrationCost(snopt::doublereal x[], double *min_dist,
   bool collFree = true;
 
   // For each time sample, we need to check if we are collision free
-  // mxArray *collisions = mxCreateLogicalMatrix(numObs,N);
+  // mxArray *collisions = mxCreateLogicalMatrix(numObs, N);
 
   for (int k = 0; k < N; k++) {
     // Get pointer to cholesky factorization of S at this time
@@ -283,8 +281,8 @@ bool penetrationCost(snopt::doublereal x[], double *min_dist,
         // Multiply normal_vec by cSk to get it back in the correct coordinate
         // frame (i.e., normal_vec'*cSk)
         double one = 1.0, zero = 0.0;  // Seriously?
-        long int ione = 1;
-        long int dim = 3;
+        long int ione = 1;  // NOLINT(runtime/int)
+        long int dim = 3;  // NOLINT(runtime/int)
         char chn[] = "N";
         dgemm(chn, chn, &ione, &dim, &dim, &one, mxGetPrSafe(normal_vec), &ione,
               mxGetPrSafe(cSk), &dim, &zero, normal_vec_transformed, &ione);
@@ -319,7 +317,7 @@ int snopt_userfun(snopt::integer *Status, snopt::integer *n,
   // far out. The decision variable is the amount to shift the funnel by
   // (and NOT the shiftED position of the funnel).
   //
-  // The triples (g(k),iGfun(k),jGvar(k)), k = 1:neG, define
+  // The triples (g(k), iGfun(k), jGvar(k)), k = 1:neG, define
   // the sparsity pattern and values of the nonlinear elements
   // of the Jacobian.
   //==================================================================
@@ -369,7 +367,7 @@ bool shiftFunnel(int funnelIdx, const mxArray *funnelLibrary,
                  const mxArray *obstacles, mwSize numObs, double *min_dist,
                  double *x_opt) {
   // Number of decision variables (3 in our case: we're searching for shifted
-  // x,y,z)
+  // x, y, z)
   snopt::integer nx = 3;
 
   // Number of rows of user constraint function (2 in our case).
@@ -535,8 +533,7 @@ bool shiftFunnel(int funnelIdx, const mxArray *funnelLibrary,
   // Set min distance
   *min_dist = min_dist_snopt;
 
-  if (*min_dist > 1.0)  // Collision free
-  {
+  if (*min_dist > 1.0) {  // Collision free
     delete[] F;
     return true;
   } else {

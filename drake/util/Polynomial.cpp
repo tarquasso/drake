@@ -1,4 +1,7 @@
 #include "drake/util/Polynomial.h"
+
+#include <cstring>
+#include <set>
 #include <stdexcept>
 
 using namespace std;
@@ -6,7 +9,7 @@ using namespace Eigen;
 
 template <typename CoefficientType>
 bool Polynomial<CoefficientType>::Monomial::hasSameExponents(
-    const Monomial& other) {
+    const Monomial& other) const {
   if (terms.size() != other.terms.size()) return false;
 
   for (typename vector<Term>::const_iterator iter = terms.begin();
@@ -101,8 +104,40 @@ template <typename CoefficientType>
 int Polynomial<CoefficientType>::Monomial::getDegree() const {
   if (terms.empty()) return 0;
   int degree = terms[0].power;
-  for (int i = 1; i < terms.size(); i++) degree *= terms[i].power;
+  for (size_t i = 1; i < terms.size(); i++) degree *= terms[i].power;
   return degree;
+}
+
+template <typename CoefficientType>
+int Polynomial<CoefficientType>::Monomial::getDegreeOf(VarType v) const {
+  for (const Term& term : terms) {
+    if (term.var == v) {
+      return term.power;
+    }
+  }
+  return 0;
+}
+
+template <typename CoefficientType>
+typename Polynomial<CoefficientType>::Monomial
+Polynomial<CoefficientType>::Monomial::factor(const Monomial& divisor) const {
+  Monomial error, result;
+  error.coefficient = 0;
+  result.coefficient = coefficient / divisor.coefficient;
+  for (const Term& term : terms) {
+    const PowerType divisor_power = divisor.getDegreeOf(term.var);
+    if (term.power < divisor_power) { return error; }
+    Term new_term;
+    new_term.var = term.var;
+    new_term.power = term.power - divisor_power;
+    if (new_term.power > 0) {
+      result.terms.push_back(new_term);
+    }
+  }
+  for (const Term& divisor_term : divisor.terms) {
+    if (!getDegreeOf(divisor_term.var)) { return error; }
+  }
+  return result;
 }
 
 template <typename CoefficientType>
@@ -151,6 +186,38 @@ Polynomial<CoefficientType>::getCoefficients() const {
       coefficients[iter->terms[0].power] = iter->coefficient;
   }
   return coefficients;
+}
+
+template <typename CoefficientType>
+std::set<typename Polynomial<CoefficientType>::VarType>
+Polynomial<CoefficientType>::getVariables() const {
+  std::set<Polynomial<CoefficientType>::VarType> vars;
+  for (const Monomial& monomial : monomials) {
+    for (const Term& term : monomial.terms) {
+      vars.insert(term.var);
+    }
+  }
+  return vars;
+}
+
+template <typename CoefficientType>
+Polynomial<CoefficientType> Polynomial<CoefficientType>::evaluatePartial(
+    const std::map<VarType, CoefficientType>& var_values) const {
+  std::vector<Monomial> new_monomials;
+  for (const Monomial& monomial : monomials) {
+    CoefficientType new_coefficient = monomial.coefficient;
+    std::vector<Term> new_terms;
+    for (const Term& term : monomial.terms) {
+      if (var_values.count(term.var)) {
+        new_coefficient *= std::pow(var_values.at(term.var), term.power);
+      } else {
+        new_terms.push_back(term);
+      }
+    }
+    Monomial new_monomial = {new_coefficient, new_terms};
+    new_monomials.push_back(new_monomial);
+  }
+  return Polynomial(new_monomials.begin(), new_monomials.end());
 }
 
 template <typename CoefficientType>
@@ -227,6 +294,19 @@ Polynomial<CoefficientType> Polynomial<CoefficientType>::integral(
 }
 
 template <typename CoefficientType>
+bool Polynomial<CoefficientType>::operator==(
+    const Polynomial<CoefficientType>& other) const {
+  // Comparison of unsorted vectors is faster copying them into std::set
+  // btrees rather than using std::is_permutation().
+  // TODO(#2216) switch from multiset to set for further performance gains.
+  const std::multiset<Monomial> this_monomials(monomials.begin(),
+                                               monomials.end());
+  const std::multiset<Monomial> other_monomials(other.monomials.begin(),
+                                                other.monomials.end());
+  return this_monomials == other_monomials;
+}
+
+template <typename CoefficientType>
 Polynomial<CoefficientType>& Polynomial<CoefficientType>::operator+=(
     const Polynomial<CoefficientType>& other) {
   for (typename vector<Monomial>::const_iterator iter = other.monomials.begin();
@@ -262,9 +342,9 @@ Polynomial<CoefficientType>& Polynomial<CoefficientType>::operator*=(
       Monomial m;
       m.coefficient = iter->coefficient * other_iter->coefficient;
       m.terms = iter->terms;
-      for (int i = 0; i < other_iter->terms.size(); i++) {
+      for (size_t i = 0; i < other_iter->terms.size(); i++) {
         bool new_var = true;
-        for (int j = 0; j < m.terms.size(); j++) {
+        for (size_t j = 0; j < m.terms.size(); j++) {
           if (m.terms[j].var == other_iter->terms[i].var) {
             m.terms[j].power += other_iter->terms[i].power;
             new_var = false;
@@ -420,17 +500,17 @@ bool Polynomial<CoefficientType>::isApprox(const Polynomial& other,
   return getCoefficients().isApprox(other.getCoefficients(), tol);
 }
 
-const string name_chars = "@#_.abcdefghijklmnopqrstuvwxyz";
-const unsigned int num_name_chars = 30;  // length of the string above
-const unsigned int name_length = 4;
-const unsigned int max_name_part = 923521;  // (num_name_chars+1)^name_length;
+const char kNameChars[] = "@#_.abcdefghijklmnopqrstuvwxyz";
+const unsigned int kNumNameChars = sizeof(kNameChars) - 1;
+const unsigned int kNameLength = 4;
+const unsigned int kMaxNamePart = 923521;  // (kNumNameChars+1)^kNameLength;
 
 template <typename CoefficientType>
 bool Polynomial<CoefficientType>::isValidVariableName(const string name) {
   size_t len = name.length();
   if (len < 1) return false;
-  for (int i = 0; i < len; i++)
-    if (name_chars.find(name[i]) == string::npos) return false;
+  for (size_t i = 0; i < len; i++)
+    if (!strchr(kNameChars, name[i])) return false;
   return true;
 }
 
@@ -438,45 +518,50 @@ template <typename CoefficientType>
 typename Polynomial<CoefficientType>::VarType
 Polynomial<CoefficientType>::variableNameToId(const string name,
                                               const unsigned int m) {
-  unsigned int exponent = 1;
+  unsigned int multiplier = 1;
   VarType name_part = 0;
   for (int i = (int)name.size() - 1; i >= 0; i--) {
-    exponent *= num_name_chars + 1;
-    name_part += ((VarType)name_chars.find(name[i]) + 1) * exponent;
+    VarType offset = static_cast<VarType>(
+        strchr(kNameChars, name[i]) - kNameChars);
+    name_part += (offset + 1) * multiplier;
+    multiplier *= kNumNameChars + 1;
   }
-  const VarType maxId = std::numeric_limits<VarType>::max() / 2 / max_name_part;
+  if (name_part > kMaxNamePart) throw runtime_error("name exceeds max allowed");
+  const VarType maxId = std::numeric_limits<VarType>::max() / 2 / kMaxNamePart;
   if (m > maxId) throw runtime_error("name exceeds max ID");
   if (m < 1) throw runtime_error("m must be >0");
-  return (VarType)2 * (name_part + max_name_part * (m - 1));
+  return (VarType)2 * (name_part + kMaxNamePart * (m - 1));
 }
 
 template <typename CoefficientType>
 string Polynomial<CoefficientType>::idToVariableName(const VarType id) {
-  VarType name_part = (id / 2) % max_name_part;  // id/2 to be compatible w/
-                                                 // msspoly, even though I'm not
-                                                 // doing the trig support here
+  VarType name_part = (id / 2) % kMaxNamePart;  // id/2 to be compatible w/
+                                                // msspoly, even though I'm not
+                                                // doing the trig support here
 
-  unsigned int m = id / 2 / max_name_part;
-  unsigned int exponent = (unsigned int)std::pow((double)(num_name_chars + 1),
-                                                 (int)(name_length - 1));
-  char name[name_length + 1];
+  unsigned int m = id / 2 / kMaxNamePart;
+  unsigned int multiplier = (unsigned int)std::pow((double)(kNumNameChars + 1),
+                                                   (int)(kNameLength - 1));
+  char name[kNameLength + 1];
   int j = 0;
-  for (int i = 0; i < name_length; i++) {
-    unsigned int name_ind = (name_part / exponent) % (num_name_chars + 1);
-    if (name_ind > 0) name[j++] = name_chars[name_ind - 1];
-    exponent /= num_name_chars + 1;
+  for (int i = 0; i < kNameLength; i++) {
+    unsigned int name_ind = (name_part / multiplier) % (kNumNameChars + 1);
+    if (name_ind > 0) name[j++] = kNameChars[name_ind - 1];
+    multiplier /= kNumNameChars + 1;
   }
-  if (j == 0) name[j++] = name_chars[0];
+  if (j == 0) name[j++] = kNameChars[0];
   name[j] = '\0';
-  return string(name) +
-         std::to_string(static_cast<unsigned long long>(m + 1));  // for msvc
-                                                                  // http://stackoverflow.com/questions/10664699/stdto-string-more-than-instance-of-overloaded-function-matches-the-argument
+  return string(name) + std::to_string((m + 1));
 }
 
 template <typename CoefficientType>
 void Polynomial<CoefficientType>::makeMonomialsUnique(void) {
   VarType unique_var = 0;  // also update the univariate flag
   for (ptrdiff_t i = monomials.size() - 1; i >= 0; i--) {
+    if (monomials[i].coefficient == 0) {
+      monomials.erase(monomials.begin() + i);
+      continue;
+    }
     Monomial& mi = monomials[i];
     if (!mi.terms.empty()) {
       if (mi.terms.size() > 1) is_univariate = false;

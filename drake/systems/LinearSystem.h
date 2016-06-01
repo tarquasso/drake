@@ -1,11 +1,10 @@
-#ifndef DRAKE_LINEARSYSTEM_H
-#define DRAKE_LINEARSYSTEM_H
+#pragma once
 
 #include "drake/systems/System.h"
 
 namespace Drake {
 
-/** AffineSystem<StateVector,InputVector,OutputVector>
+/** AffineSystem<StateVector, InputVector, OutputVector>
  * @brief Builds an affine system from it's state-space matrix coefficients
  * @concept{system_concept}
  *
@@ -62,9 +61,9 @@ class AffineSystem {
 
   bool isTimeVarying() const { return false; }
   bool isDirectFeedthrough() const { return !D.isZero(); }
-  size_t getNumStates() const { return static_cast<size_t>(A.cols()); };
-  size_t getNumInputs() const { return static_cast<size_t>(B.cols()); };
-  size_t getNumOutputs() const { return static_cast<size_t>(C.rows()); };
+  size_t getNumStates() const { return static_cast<size_t>(A.cols()); }
+  size_t getNumInputs() const { return static_cast<size_t>(B.cols()); }
+  size_t getNumOutputs() const { return static_cast<size_t>(C.rows()); }
 
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> A;
@@ -115,12 +114,10 @@ class Gain : public LinearSystem<NullVector, InputVec, OutputVec> {
   using InputVector = InputVec<ScalarType>;
 
   template <typename Derived>
-  Gain(const Eigen::MatrixBase<Derived>& D)
+  explicit Gain(const Eigen::MatrixBase<Derived>& D)
       : LinearSystem<NullVector, InputVec, OutputVec>(
             Eigen::Matrix<double, 0, 0>(), Eigen::Matrix<double, 0, 0>(),
             Eigen::Matrix<double, Eigen::Dynamic, 0>(D.rows(), 0), D) {}
 };
 
 }  // end namespace Drake
-
-#endif  // DRAKE_LINEARSYSTEM_H

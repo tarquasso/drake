@@ -1,4 +1,5 @@
-#include "mex.h"
+#include <mex.h>
+
 #include "drake/util/drakeMexUtil.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 
@@ -14,7 +15,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   RigidBodyTree *model = (RigidBodyTree *)getDrakeMexPointer(prhs[0]);
 
-  const size_t nq = model->num_positions;
+  const size_t nq = model->number_of_positions();
 
   if (mxGetNumberOfElements(prhs[1]) != nq) {
     mexErrMsgIdAndTxt(

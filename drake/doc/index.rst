@@ -32,7 +32,7 @@ Here is a quick summary of capabilities:
 	* Region of attraction analysis using sums-of-squares optimization
 	* Finite-time verification (e.g. forward/backward reachability analysis)
 	* Uncertainty quantification (coming soon)
-* Planning 
+* Planning
 	* Rich/fast inverse kinematics
 	* Trajectory optimization (kinematic and dynamic) -- many state-of-the-art algorithms here
 	* Basic RRT/RRT* functionality
@@ -58,7 +58,7 @@ Here is a quick summary of capabilities:
 	* Manipulation
 	* Humanoids (most notably including the bulk of our codebase for Atlas from `MIT's entry in the DARPA Robotics Challenge <http://drc.mit.edu>`_)
 	* Wheeled vehicle models (coming soon)
-* Other 
+* Other
 	* Advanced visualization tools, including parts of our user interface from the DARPA Robotics Challenge (with more coming soon)
 	* Hardware / network interfaces
 
@@ -90,11 +90,12 @@ Next steps
    installation
    Introduction and Examples <http://underactuated.csail.mit.edu/underactuated.html?chapter=drake>
    developers
-   Doxygen (MATLAB) <http://drake002.csail.mit.edu/drake/doxygen_matlab/>
-   Doxygen (C++) <http://drake002.csail.mit.edu/drake/doxygen_cpp/>
+   Doxygen (C++) <doxygen_cxx/index.html#://>
+   Doxygen (MATLAB) <doxygen_matlab/index.html#://>
    URDF Reference <http://drake002.csail.mit.edu/drake/urdf/drakeURDF.html>
    faq
+   issues
    video_tutorials
    Mailing list <http://mailman.mit.edu/mailman/listinfo/drake-users>
-   GitHub <http://github.com/RobotLocomotion/drake>
-
+   credits
+   GitHub <https://github.com/RobotLocomotion/drake>

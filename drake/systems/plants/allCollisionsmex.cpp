@@ -1,8 +1,9 @@
-#include "mex.h"
+#include <mex.h>
+
+#include <cmath>
 #include <iostream>
 #include "drake/util/drakeMexUtil.h"
 #include "drake/systems/plants/RigidBodyTree.h"
-#include "math.h"
 #include "rigidBodyTreeMexConversions.h"
 
 using namespace Eigen;
@@ -34,7 +35,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   // mxGetNumberOfFields(active_collision_options) << endl;
   // for (int i = 0; i < mxGetNumberOfFields(active_collision_options); ++i) {
   // const char* fieldname;
-  // fieldname = mxGetFieldNameByNumber(active_collision_options,i);
+  // fieldname = mxGetFieldNameByNumber(active_collision_options, i);
   // cout << *fieldname << endl;
   //}
   // END_DEBUG

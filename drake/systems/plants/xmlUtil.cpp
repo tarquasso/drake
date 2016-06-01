@@ -1,27 +1,19 @@
 
-#include <string>
 #include <fstream>
 #include <sstream>
-#include "xmlUtil.h"
-#include "drake/util/drakeGeometryUtil.h"
-#include "drake/Path.h"
+#include <string>
 
-// from
-// http://stackoverflow.com/questions/478898/how-to-execute-a-command-and-get-output-of-command-within-c
-#if defined(WIN32) || defined(WIN64)
-#define POPEN _popen
-#define PCLOSE _pclose
-#else
-#define POPEN popen
-#define PCLOSE pclose
-#endif
+#include "drake/Path.h"
+#include "drake/thirdParty/tinydir/tinydir.h"
+#include "drake/util/drakeGeometryUtil.h"
+#include "xmlUtil.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace tinyxml2;
 
 // only writes values if they exist
-bool parseVectorAttribute(tinyxml2::XMLElement* node,
+bool parseVectorAttribute(const tinyxml2::XMLElement* node,
                           const char* attribute_name, Eigen::Vector3d& val) {
   const char* attr = node->Attribute(attribute_name);
   if (attr) {
@@ -32,7 +24,7 @@ bool parseVectorAttribute(tinyxml2::XMLElement* node,
   return false;
 }
 
-bool parseVectorAttribute(tinyxml2::XMLElement* node,
+bool parseVectorAttribute(const tinyxml2::XMLElement* node,
                           const char* attribute_name, Eigen::Vector4d& val) {
   const char* attr = node->Attribute(attribute_name);
   if (attr) {
@@ -94,6 +86,7 @@ void poseValueToTransform(tinyxml2::XMLElement* node, const PoseMap& pose_map,
     std::stringstream s(strval);
     s >> xyz(0) >> xyz(1) >> xyz(2) >> rpy(0) >> rpy(1) >> rpy(2);
   }
+
   T.matrix() << rpy2rotmat(rpy), xyz, 0, 0, 0, 1;
 
   const char* attr = node->Attribute("frame");
@@ -115,38 +108,49 @@ void poseValueToTransform(tinyxml2::XMLElement* node, const PoseMap& pose_map,
   }
 }
 
-string exec(string cmd) {
-  FILE* pipe = POPEN(cmd.c_str(), "r");
-  if (!pipe) return "ERROR";
-  char buffer[128];
-  string result = "";
-  while (!feof(pipe)) {
-    if (fgets(buffer, 128, pipe) != NULL) result += buffer;
-  }
-  PCLOSE(pipe);
-  return result;
-}
-
+namespace {
 void searchDirectory(map<string, string>& package_map, string path) {
+#if defined(WIN32) || defined(WIN64)
+  const char pathsep = ';';
+#else
+  const char pathsep = ':';
+#endif
+
   string token, t;
   istringstream iss(path);
+  const std::string target_filename("package.xml");
 
-  while (getline(iss, token, ':')) {
-    istringstream p(exec("find -L " + token + " -iname package.xml"));
-    while (getline(p, t)) {
-      spruce::path mypath_s(t);
-      auto path_split = mypath_s.split();
-      if (path_split.size() > 2) {
-        string package = path_split.at(path_split.size() - 2);
-        auto package_iter = package_map.find(package);
-        // Don't overwrite entries in the map
-        if (package_iter == package_map.end()) {
-          package_map.insert(make_pair(package, mypath_s.root().append("/")));
-        }
-        // cout << mypath.getFileName() << endl;
-      }
+  while (getline(iss, token, pathsep)) {
+    tinydir_dir dir;
+    if (tinydir_open(&dir, token.c_str()) < 0) {
+      std::cerr << "Unable to open directory: " << token << std::endl;
+      continue;
     }
+
+    while (dir.has_next) {
+      tinydir_file file;
+      tinydir_readfile(&dir, &file);
+
+      // Skip hidden directories (including, importantly, "." and "..").
+      if (file.is_dir && (file.name[0] != '.')) {
+        searchDirectory(package_map, file.path);
+      } else if (file.name == target_filename) {
+        spruce::path mypath_s(file.path);
+        auto path_split = mypath_s.split();
+        if (path_split.size() > 2) {
+          string package = path_split.at(path_split.size() - 2);
+          auto package_iter = package_map.find(package);
+          // Don't overwrite entries in the map
+          if (package_iter == package_map.end()) {
+            package_map.insert(make_pair(package, mypath_s.root().append("/")));
+          }
+        }
+      }
+      tinydir_next(&dir);
+    }
+    tinydir_close(&dir);
   }
+}
 }
 
 void populatePackageMap(map<string, string>& package_map) {
@@ -159,6 +163,7 @@ void populatePackageMap(map<string, string>& package_map) {
   if (cstrpath) searchDirectory(package_map, cstrpath);
 }
 
+namespace {
 bool rospack(const string& package, const map<string, string>& package_map,
              string& package_path) {
   // my own quick and dirty implementation of the rospack algorithm (based on my
@@ -173,6 +178,7 @@ bool rospack(const string& package, const map<string, string>& package_map,
          << endl;
     return false;
   }
+}
 }
 
 string resolveFilename(const string& filename,
@@ -199,7 +205,25 @@ string resolveFilename(const string& filename,
       return string();
     }
   } else {
-    mesh_filename_s = spruce::path(root_dir);
+    std::string normalized_root_dir = spruce::path(root_dir).getStr();
+
+    // if root_dir is a relative path then convert it to absolute
+#ifdef _WIN32
+    bool dirIsRelative = !(normalized_root_dir.size() >= 2
+                           && std::isalpha(normalized_root_dir[0])
+                           && normalized_root_dir[1] == ':');
+#else
+    bool dirIsRelative = !(normalized_root_dir.size() >= 1
+                           && normalized_root_dir[0] == '/');
+#endif
+    if (dirIsRelative) {
+      mesh_filename_s = spruce::path();
+      mesh_filename_s.setAsCurrent();
+      mesh_filename_s.append(normalized_root_dir);
+    } else {
+      mesh_filename_s = spruce::path(normalized_root_dir);
+    }
+
     mesh_filename_s.append(filename);
   }
   if (!mesh_filename_s.exists()) {

@@ -1,5 +1,4 @@
-#ifndef DRAKEJOINT_H_
-#define DRAKEJOINT_H_
+#pragma once
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -77,9 +76,9 @@ class DRAKEJOINTS_EXPORT DrakeJoint {
 
   const Eigen::Isometry3d &getTransformToParentBody() const;
 
-  const int getNumPositions() const;
+  int getNumPositions() const;
 
-  const int getNumVelocities() const;
+  int getNumVelocities() const;
 
   const std::string &getName() const;
 
@@ -110,5 +109,3 @@ class DRAKEJOINTS_EXPORT DrakeJoint {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
-
-#endif /* DRAKEJOINT_H_ */

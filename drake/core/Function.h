@@ -1,11 +1,14 @@
+#pragma once
 
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-#include <iostream>
-#include <functional>
-#include <memory>
+
 #include <Eigen/Dense>
+
 #include "Gradient.h"
 
 namespace Drake {
@@ -35,7 +38,7 @@ struct InputOutputRelation {
   Form form;
   // todo: add sparsity info
 
-  InputOutputRelation(Form f) : form(f){};
+  explicit InputOutputRelation(Form f) : form(f) {}
 
   static bool isA(const Form& f, const Form& base) {
     if (f == base || base == Form::ARBITRARY) return true;
@@ -74,7 +77,7 @@ struct InputOutputRelation {
   /*
   static InputOutputRelation linearCombination(const InputOutputRelation& g,
   const InputOutputRelation& f) {
-    return InputOutputRelation(leastCommonAncestor({g.form,f.form,LINEAR}));
+    return InputOutputRelation(leastCommonAncestor({g.form, f.form, LINEAR}));
   }*/
   static InputOutputRelation combine(
       const InputOutputRelation& a,
@@ -131,7 +134,8 @@ using VecOut = Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>;
  */
 template <typename F>
 struct FunctionTraits {
-  // TODO: add in/out relation, possibly distinguish differentiable functions
+  // TODO(bradking): add in/out relation, possibly distinguish
+  // differentiable functions
   static size_t numInputs(F const& f) { return f.numInputs(); }
   static size_t numOutputs(F const& f) { return f.numOutputs(); }
   template <typename ScalarType>
@@ -144,50 +148,50 @@ struct FunctionTraits {
 template <typename F>
 struct FunctionTraits<std::reference_wrapper<F>> {
   static size_t numInputs(std::reference_wrapper<F> const& f) {
-    return f.get().numInputs();
+    return FunctionTraits<F>::numInputs(f.get());
   }
   static size_t numOutputs(std::reference_wrapper<F> const& f) {
-    return f.get().numOutputs();
+    return FunctionTraits<F>::numOutputs(f.get());
   }
   template <typename ScalarType>
   static void eval(std::reference_wrapper<F> const& f,
                    VecIn<ScalarType> const& x, VecOut<ScalarType>& y) {
-    f.get().eval(x, y);
+    FunctionTraits<F>::eval(f.get(), x, y);
   }
 };
 
 template <typename F>
 struct FunctionTraits<std::shared_ptr<F>> {
   static size_t numInputs(std::shared_ptr<F> const& f) {
-    return f->numInputs();
+    return FunctionTraits<F>::numInputs(*f);
   }
   static size_t numOutputs(std::shared_ptr<F> const& f) {
-    return f->numOutputs();
+    return FunctionTraits<F>::numOutputs(*f);
   }
   template <typename ScalarType>
   static void eval(std::shared_ptr<F> const& f, VecIn<ScalarType> const& x,
                    VecOut<ScalarType>& y) {
-    f->eval(x, y);
+    FunctionTraits<F>::eval(*f, x, y);
   }
 };
 
 template <typename F>
 struct FunctionTraits<std::unique_ptr<F>> {
   static size_t numInputs(std::unique_ptr<F> const& f) {
-    return f->numInputs();
+    return FunctionTraits<F>::numInputs(*f);
   }
   static size_t numOutputs(std::unique_ptr<F> const& f) {
-    return f->numOutputs();
+    return FunctionTraits<F>::numOutputs(*f);
   }
   template <typename ScalarType>
   static void eval(std::unique_ptr<F> const& f, VecIn<ScalarType> const& x,
                    VecOut<ScalarType>& y) {
-    f->eval(x, y);
+    FunctionTraits<F>::eval(*f, x, y);
   }
 };
 
 // idea: use templates to support multi-input, multi-output functions which
 // implement, e.g.
-// void eval(x1,...,xn,  y1,...,ym), and
-// InputOutputRelation getInputOutputRelation(input_index,output_index)
+// void eval(x1,..., xn,  y1,..., ym), and
+// InputOutputRelation getInputOutputRelation(input_index, output_index)
 };

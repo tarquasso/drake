@@ -1,6 +1,4 @@
-
-#ifndef __GUROBI_QP__
-#define __GUROBI_QP__
+#pragma once
 
 #include <Eigen/Dense>
 #include <vector>
@@ -36,4 +34,3 @@ GRBmodel* gurobiActiveSetQP(GRBenv* env, std::vector<Eigen::MatrixXd*> QblkDiag,
                             const Eigen::VectorXd& bin, Eigen::VectorXd& lb,
                             Eigen::VectorXd& ub, int*& vbasis, int vbasis_len,
                             int*& cbasis, int cbasis_len, Eigen::VectorXd& x);
-#endif

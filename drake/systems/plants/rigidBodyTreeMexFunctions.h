@@ -1,7 +1,6 @@
-#include "drake/util/mexify.h"
+#pragma once
 
-#ifndef DRAKE_DRAKEMEXFUNCTIONS_H
-#define DRAKE_DRAKEMEXFUNCTIONS_H
+#include "drake/util/mexify.h"
 
 #undef DLLEXPORT
 #if defined(WIN32) || defined(WIN64)
@@ -50,5 +49,3 @@ DLLEXPORT void velocityToPositionDotMappingmex(int nlhs, mxArray *plhs[],
                                                int nrhs, const mxArray *prhs[]);
 DLLEXPORT void positionDotToVelocityMappingmex(int nlhs, mxArray *plhs[],
                                                int nrhs, const mxArray *prhs[]);
-
-#endif  // DRAKE_DRAKEMEXFUNCTIONS_H

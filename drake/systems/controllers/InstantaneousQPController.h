@@ -1,5 +1,4 @@
-#ifndef INSTANTANEOUSQPCONTROLLER_H
-#define INSTANTANEOUSQPCONTROLLER_H
+#pragma once
 
 #include <memory>
 #include "QPCommon.h"
@@ -21,18 +20,18 @@ class InstantaneousQPController {
       const std::map<std::string, QPControllerParams>& param_sets_in,
       const RobotPropertyCache& rpc_in)
       : robot(std::move(robot_in)),
-        cache(this->robot->bodies),
         param_sets(param_sets_in),
         rpc(rpc_in),
-        use_fast_qp(INSTQP_USE_FASTQP) {
+        use_fast_qp(INSTQP_USE_FASTQP),
+        cache(this->robot->bodies) {
     initialize();
   }
 
   InstantaneousQPController(std::unique_ptr<RigidBodyTree> robot_in,
                             const std::string& control_config_filename)
       : robot(std::move(robot_in)),
-        cache(this->robot->bodies),
-        use_fast_qp(INSTQP_USE_FASTQP) {
+        use_fast_qp(INSTQP_USE_FASTQP),
+        cache(this->robot->bodies) {
     loadConfigurationFromYAML(control_config_filename);
     initialize();
   }
@@ -40,8 +39,8 @@ class InstantaneousQPController {
   InstantaneousQPController(const std::string& urdf_filename,
                             const std::string& control_config_filename)
       : robot(std::unique_ptr<RigidBodyTree>(new RigidBodyTree(urdf_filename))),
-        cache(this->robot->bodies),
-        use_fast_qp(INSTQP_USE_FASTQP) {
+        use_fast_qp(INSTQP_USE_FASTQP),
+        cache(this->robot->bodies) {
     loadConfigurationFromYAML(control_config_filename);
     initialize();
   }
@@ -124,5 +123,3 @@ void applyURDFModifications(std::unique_ptr<RigidBodyTree>& robot,
                             const KinematicModifications& modifications);
 void applyURDFModifications(std::unique_ptr<RigidBodyTree>& robot,
                             const std::string& urdf_modifications_filename);
-
-#endif

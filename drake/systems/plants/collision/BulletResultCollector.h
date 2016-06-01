@@ -1,40 +1,21 @@
-#ifndef __DrakeCollisionBullletResultCollector_H__
-#define __DrakeCollisionBullletResultCollector_H__
+#pragma once
 
 #include "drake/systems/plants/collision/DrakeCollision.h"
+#include "drake/systems/plants/collision/ResultCollector.h"
+
+#include <btBulletCollisionCommon.h>
 
 namespace DrakeCollision {
-Eigen::Vector3d toVector3d(const Eigen::Vector3d& vec);
 Eigen::Vector3d toVector3d(const btVector3& bt_vec);
-
-class ResultCollector {
- public:
-  virtual ~ResultCollector(){};
-
-  virtual void addPointPairResult(const PointPair& result);
-
-  inline void addSingleResult(const ElementId idA, const ElementId idB,
-                              const Eigen::Vector3d& ptA,
-                              const Eigen::Vector3d& ptB,
-                              const Eigen::Vector3d& normal, double distance) {
-    addPointPairResult(PointPair(idA, idB, ptA, ptB, normal, distance));
-  }
-
-  std::vector<PointPair> getResults() const { return pts; }
-
-  PointPair minDistPoint();
-
-  std::vector<PointPair> pts;
-};
 
 class BulletResultCollector : public ResultCollector,
                               public btCollisionWorld::ContactResultCallback {
  public:
-  virtual ~BulletResultCollector(){};
+  virtual ~BulletResultCollector() {}
 
   using ResultCollector::addSingleResult;
 
-  BulletResultCollector() : curr_bodyA_idx(-1), curr_bodyB_idx(-1){};
+  BulletResultCollector() : curr_bodyA_idx(-1), curr_bodyB_idx(-1) {}
 
   virtual btScalar addSingleResult(btManifoldPoint& cp,
                                    const btCollisionObjectWrapper* colObj0Wrap,
@@ -50,8 +31,4 @@ class BulletResultCollector : public ResultCollector,
   int curr_bodyA_idx;
   int curr_bodyB_idx;
 };
-
-typedef std::shared_ptr<ResultCollector> ResultCollShPtr;
 }
-
-#endif

@@ -1,7 +1,6 @@
 #include "drake/systems/plants/RigidBodyIK.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "../constraint/RigidBodyConstraint.h"
-#include "drake/systems/plants/RigidBodyTree.h"
 #include "../IKoptions.h"
 #include <iostream>
 #include <cstdlib>
@@ -27,10 +26,10 @@ int main() {
       new RigidBodyConstraint* [num_constraints];
   constraint_array[0] = com_kc;
   IKoptions ikoptions(model);
-  VectorXd q_sol(model->num_positions);
+  VectorXd q_sol(model->number_of_positions());
   int info;
-  approximateIK(model, q0, q0, num_constraints, constraint_array, q_sol, info,
-                ikoptions);
+  approximateIK(model, q0, q0, num_constraints, constraint_array,
+                ikoptions, &q_sol, &info);
   printf("INFO = %d\n", info);
   delete com_kc;
   delete[] constraint_array;

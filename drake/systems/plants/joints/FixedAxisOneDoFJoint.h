@@ -1,5 +1,4 @@
-#ifndef ONEDOFJOINT_H_
-#define ONEDOFJOINT_H_
+#pragma once
 
 #include "DrakeJointImpl.h"
 #include <cmath>
@@ -29,10 +28,10 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
         joint_axis(_joint_axis),
         damping(0.0),
         coulomb_friction(0.0),
-        coulomb_window(0.0){};
+        coulomb_window(0.0) {}
 
  public:
-  virtual ~FixedAxisOneDoFJoint(){};
+  virtual ~FixedAxisOneDoFJoint() {}
 
   using DrakeJoint::getNumPositions;
   using DrakeJoint::getNumVelocities;
@@ -46,7 +45,7 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
     if (dmotion_subspace) {
       dmotion_subspace->setZero(motion_subspace.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedQ, typename DerivedV>
   void motionSubspaceDotTimesV(
@@ -69,7 +68,7 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
     if (dmotion_subspace_dot_times_vdv) {
       dmotion_subspace_dot_times_vdv->setZero(TWIST_SIZE, 1);
     }
-  };
+  }
 
   template <typename DerivedQ>
   void qdot2v(const Eigen::MatrixBase<DerivedQ> &q,
@@ -83,7 +82,7 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
     if (dqdot_to_v) {
       dqdot_to_v->setZero(qdot_to_v.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedQ>
   void v2qdot(const Eigen::MatrixBase<DerivedQ> &q,
@@ -97,7 +96,7 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
     if (dv_to_qdot) {
       dv_to_qdot->setZero(v_to_qdot.size(), getNumPositions());
     }
-  };
+  }
 
   template <typename DerivedV>
   Eigen::Matrix<typename DerivedV::Scalar, Eigen::Dynamic, 1> frictionTorque(
@@ -175,5 +174,3 @@ class FixedAxisOneDoFJoint : public DrakeJointImpl<Derived> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
-
-#endif /* ONEDOFJOINT_H_ */

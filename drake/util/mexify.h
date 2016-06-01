@@ -1,9 +1,8 @@
+#pragma once
+
 //
 // Created by Twan Koolen on 8/22/15.
 //
-
-#ifndef DRAKE_MEXIFY_H
-#define DRAKE_MEXIFY_H
 
 #include <functional>
 #include <sstream>
@@ -98,7 +97,7 @@ void mexCallFunctionUnsafe(std::function<R(Arg0, Args...)> func, int nlhs,
   // recursively call mexCallFunctionUnsafe with partially applied function
   return mexCallFunctionUnsafe(std::function<R(Args...)>{partially_applied},
                                nlhs, plhs, nrhs - 1, &prhs[1]);
-};
+}
 
 /**
  * areArgumentsConvertibleFromMex
@@ -242,5 +241,3 @@ auto fromMex(const mxArray *source, T *trigger_type)
     throw std::runtime_error(log.str());
   }
 }
-
-#endif  // DRAKE_MEXIFY_H

@@ -5,10 +5,10 @@ using namespace Eigen;
 DrakeJoint::DrakeJoint(const std::string& _name,
                        const Isometry3d& _transform_to_parent_body,
                        int _num_positions, int _num_velocities)
-    : name(_name),
-      transform_to_parent_body(_transform_to_parent_body),
+    : transform_to_parent_body(_transform_to_parent_body),
       num_positions(_num_positions),
       num_velocities(_num_velocities),
+      name(_name),
       joint_limit_min(VectorXd::Constant(
           _num_positions, -std::numeric_limits<double>::infinity())),
       joint_limit_max(VectorXd::Constant(
@@ -25,9 +25,9 @@ const Isometry3d& DrakeJoint::getTransformToParentBody() const {
   return transform_to_parent_body;
 }
 
-const int DrakeJoint::getNumPositions() const { return num_positions; }
+int DrakeJoint::getNumPositions() const { return num_positions; }
 
-const int DrakeJoint::getNumVelocities() const { return num_velocities; }
+int DrakeJoint::getNumVelocities() const { return num_velocities; }
 
 const std::string& DrakeJoint::getName() const { return name; }
 

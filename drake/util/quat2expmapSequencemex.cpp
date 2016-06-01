@@ -1,4 +1,5 @@
-#include "mex.h"
+#include <mex.h>
+
 #include "drake/util/drakeMexUtil.h"
 #include "drake/util/drakeGeometryUtil.h"
 
@@ -8,8 +9,8 @@ using namespace Eigen;
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs != 2) {
     mexErrMsgTxt(
-        "Drake:quat2expmapSequencemex:Incorrect Usage, [expmap,expmap_dot] = "
-        "quat2expmapSequencemex(quat,quat_dot)");
+        "Drake:quat2expmapSequencemex:Incorrect Usage, [expmap, expmap_dot] = "
+        "quat2expmapSequencemex(quat, quat_dot)");
   }
   if (mxGetM(prhs[0]) != 4 || mxGetM(prhs[1]) != 4) {
     mexErrMsgTxt(

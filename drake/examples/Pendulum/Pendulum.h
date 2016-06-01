@@ -1,5 +1,4 @@
-#ifndef _PENDULUM_H_
-#define _PENDULUM_H_
+#pragma once
 
 #include <iostream>
 #include <cmath>
@@ -11,12 +10,14 @@ template <typename ScalarType = double>
 class PendulumState {  // models the Drake::Vector concept
  public:
   typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "PendulumState"; };
+  static std::string channel() { return "PendulumState"; }
 
-  PendulumState(void) : theta(0), thetadot(0){};
+  PendulumState(void) : theta(0), thetadot(0) {}
+
   template <typename Derived>
-  PendulumState(const Eigen::MatrixBase<Derived>& x)
-      : theta(x(0)), thetadot(x(1)){};
+  PendulumState(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
+      : theta(x(0)), thetadot(x(1)) {}
 
   template <typename Derived>
   PendulumState& operator=(const Eigen::MatrixBase<Derived>& x) {
@@ -40,9 +41,9 @@ class PendulumState {  // models the Drake::Vector concept
     Eigen::Matrix<ScalarType, 2, 1> x;
     x << vec.theta, vec.thetadot;
     return x;
-  };
+  }
 
-  const static int RowsAtCompileTime = 2;
+  static const int RowsAtCompileTime = 2;
 
   ScalarType theta;
   ScalarType thetadot;
@@ -52,12 +53,14 @@ template <typename ScalarType = double>
 class PendulumInput {
  public:
   typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "PendulumInput"; };
+  static std::string channel() { return "PendulumInput"; }
 
-  PendulumInput(void) : tau(0){};
+  PendulumInput(void) : tau(0) {}
+
   template <typename Derived>
-  PendulumInput(const Eigen::MatrixBase<Derived>& x)
-      : tau(x(0)){};
+  PendulumInput(  // NOLINT(runtime/explicit) per Drake::Vector.
+      const Eigen::MatrixBase<Derived>& x)
+      : tau(x(0)) {}
 
   template <typename Derived>
   PendulumInput& operator=(const Eigen::MatrixBase<Derived>& x) {
@@ -70,7 +73,7 @@ class PendulumInput {
     return os;
   }
 
-  const static int RowsAtCompileTime = 1;
+  static const int RowsAtCompileTime = 1;
 
   ScalarType tau;
 };
@@ -80,7 +83,7 @@ Eigen::Matrix<ScalarType, 1, 1> toEigen(const PendulumInput<ScalarType>& vec) {
   Eigen::Matrix<ScalarType, 1, 1> x;
   x << vec.tau;
   return x;
-};
+}
 
 class Pendulum {
  public:
@@ -99,7 +102,7 @@ class Pendulum {
         I(.25),  // m*l^2; % kg*m^2
         g(9.81)  // m/s^2
   {}
-  virtual ~Pendulum(void){};
+  virtual ~Pendulum(void) {}
 
   template <typename ScalarType>
   PendulumState<ScalarType> dynamics(const ScalarType& t,
@@ -135,8 +138,8 @@ class PendulumEnergyShapingController {
   template <typename ScalarType>
   using OutputVector = PendulumInput<ScalarType>;
 
-  PendulumEnergyShapingController(const Pendulum& pendulum)
-      : m(pendulum.m), l(pendulum.l), b(pendulum.b), g(pendulum.g){};
+  explicit PendulumEnergyShapingController(const Pendulum& pendulum)
+      : m(pendulum.m), l(pendulum.l), b(pendulum.b), g(pendulum.g) {}
 
   template <typename ScalarType>
   StateVector<ScalarType> dynamics(const ScalarType& t,
@@ -161,5 +164,3 @@ class PendulumEnergyShapingController {
 
   double m, l, b, g;  // pendulum parameters (initialized in the constructor)
 };
-
-#endif  // _PENDULUM_H_

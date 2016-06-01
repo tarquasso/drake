@@ -1,4 +1,5 @@
-#include "mex.h"
+#include <mex.h>
+
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "constraint/RigidBodyConstraint.h"
 #include "drake/systems/plants/IKoptions.h"
@@ -13,11 +14,11 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs < 6) {
     mexErrMsgIdAndTxt("Drake:inverseKinPointwisemex:NotEnoughInputs",
                       "Usage "
-                      "inverseKinPointwisemex(model_ptr,t,q_seed,q_nom,"
-                      "constraint1,constraint2,...,ikoptions");
+                      "inverseKinPointwisemex(model_ptr, t, q_seed, q_nom,"
+                      "constraint1, constraint2,..., ikoptions");
   }
   RigidBodyTree* model = (RigidBodyTree*)getDrakeMexPointer(prhs[0]);
-  int nq = model->num_positions;
+  int nq = model->number_of_positions();
   int nT = static_cast<int>(mxGetNumberOfElements(prhs[1]));
   double* t = mxGetPrSafe(prhs[1]);
   Map<MatrixXd> q_seed(mxGetPrSafe(prhs[2]), nq, nT);
@@ -34,8 +35,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   int* info = new int[nT];
   vector<string> infeasible_constraint;
   inverseKinPointwise(model, nT, t, q_seed, q_nom, num_constraints,
-                      constraint_array, q_sol, info, infeasible_constraint,
-                      *ikoptions);
+                      constraint_array, *ikoptions,
+                      &q_sol, info, &infeasible_constraint);
+
   plhs[1] = mxCreateDoubleMatrix(1, nT, mxREAL);
   for (int i = 0; i < nT; i++) {
     *(mxGetPrSafe(plhs[1]) + i) = (double)info[i];
