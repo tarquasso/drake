@@ -14,15 +14,15 @@ namespace drake {
 template <class UnitSystem>
 class NArySystem {
  public:
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   template <typename ScalarType>
   using StateVector = NAryState<
     typename UnitSystem::template StateVector<ScalarType> >;
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   template <typename ScalarType>
   using InputVector = NAryState<
     typename UnitSystem::template InputVector<ScalarType> >;
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   template <typename ScalarType>
   using OutputVector = NAryState<
     typename UnitSystem::template OutputVector<ScalarType> >;
@@ -37,43 +37,43 @@ class NArySystem {
     systems_.push_back(system);
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   template <typename ScalarType>
   StateVector<ScalarType> dynamics(const ScalarType& time,
                                    const StateVector<ScalarType>& state,
                                    const InputVector<ScalarType>& input) const {
-    if ((state.count() >= 0) && (state.count() != systems_.size())) {
+    if ((state.count() >= 0) && (state.count() != systems_size())) {
       throw std::invalid_argument("State count differs from systems count.");
     }
-    if ((input.count() >= 0) && (input.count() != systems_.size())) {
+    if ((input.count() >= 0) && (input.count() != systems_size())) {
       throw std::invalid_argument("Input count differs from systems count.");
     }
-    StateVector<ScalarType> xdot(systems_.size());
-    for (std::size_t i = 0; i < systems_.size(); ++i) {
+    StateVector<ScalarType> xdot(systems_size());
+    for (int i = 0; i < systems_size(); ++i) {
       xdot.set(i, systems_[i]->dynamics(time, state.get(i), input.get(i)));
     }
     return xdot;
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   template <typename ScalarType>
   OutputVector<ScalarType> output(const ScalarType& time,
                                   const StateVector<ScalarType>& state,
                                   const InputVector<ScalarType>& input) const {
-    if ((state.count() >= 0) && (state.count() != systems_.size())) {
+    if ((state.count() >= 0) && (state.count() != systems_size())) {
       throw std::invalid_argument("State count differs from systems count.");
     }
-    if ((input.count() >= 0) && (input.count() != systems_.size())) {
+    if ((input.count() >= 0) && (input.count() != systems_size())) {
       throw std::invalid_argument("Input count differs from systems count.");
     }
-    OutputVector<ScalarType> y(systems_.size());
-    for (std::size_t i = 0; i < systems_.size(); ++i) {
+    OutputVector<ScalarType> y(systems_size());
+    for (int i = 0; i < systems_size(); ++i) {
       y.set(i, systems_[i]->output(time, state.get(i), input.get(i)));
     }
     return y;
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   bool isTimeVarying() const {
     for (auto s : systems_) {
       if (s->isTimeVarying()) { return true; }
@@ -81,7 +81,7 @@ class NArySystem {
     return false;
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   bool isDirectFeedthrough() const {
     for (auto s : systems_) {
       if (s->isDirectFeedthrough()) { return true; }
@@ -89,22 +89,24 @@ class NArySystem {
     return false;
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   std::size_t getNumStates() const {
-    return StateVector<double>::RowsFromUnitCount(systems_.size());
+    return StateVector<double>::RowsFromUnitCount(systems_size());
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   std::size_t getNumInputs() const {
-    return InputVector<double>::RowsFromUnitCount(systems_.size());
+    return InputVector<double>::RowsFromUnitCount(systems_size());
   }
 
-  // Required by Drake::System concept.
+  // Required by drake::System concept.
   std::size_t getNumOutputs() const {
-    return OutputVector<double>::RowsFromUnitCount(systems_.size());
+    return OutputVector<double>::RowsFromUnitCount(systems_size());
   }
 
  private:
+  int systems_size() const { return systems_.size(); }
+
   std::vector<std::shared_ptr<UnitSystem> > systems_;
 };
 

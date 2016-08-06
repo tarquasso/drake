@@ -6,13 +6,13 @@
 #include <Eigen/Dense>
 #include "gtest/gtest.h"
 
-#include "drake/core/Vector.h"
 #include "drake/systems/cascade_system.h"
+#include "drake/systems/vector.h"
 
 namespace {
 
-using Drake::NullVector;
-using Drake::toEigen;
+using drake::NullVector;
+using drake::toEigen;
 using drake::NAryState;
 using drake::NArySystem;
 
@@ -101,18 +101,18 @@ GTEST_TEST(TestNArySystem, BasicOperation) {
 
   EXPECT_EQ(dut.isTimeVarying(), false);
   EXPECT_EQ(dut.isDirectFeedthrough(), false);
-  EXPECT_EQ(dut.getNumStates(), 0);
-  EXPECT_EQ(dut.getNumInputs(), 0);
-  EXPECT_EQ(dut.getNumOutputs(), 0);
+  EXPECT_EQ(dut.getNumStates(), 0u);
+  EXPECT_EQ(dut.getNumInputs(), 0u);
+  EXPECT_EQ(dut.getNumOutputs(), 0u);
   EXPECT_EQ(dut.dynamics(0., state, input).count(), 0);
   EXPECT_EQ(dut.output(0., state, input).count(), 0);
 
   dut.AddSystem(sq1);
   EXPECT_EQ(dut.isTimeVarying(), false);
   EXPECT_EQ(dut.isDirectFeedthrough(), false);
-  EXPECT_EQ(dut.getNumStates(), 2);
-  EXPECT_EQ(dut.getNumInputs(), 2);
-  EXPECT_EQ(dut.getNumOutputs(), 2);
+  EXPECT_EQ(dut.getNumStates(), 2u);
+  EXPECT_EQ(dut.getNumInputs(), 2u);
+  EXPECT_EQ(dut.getNumOutputs(), 2u);
   EXPECT_THROW(dut.dynamics(0., state, input), std::invalid_argument);
   EXPECT_THROW(dut.output(0., state, input), std::invalid_argument);
   StateQ<double> s1(1., 0.);
@@ -125,9 +125,9 @@ GTEST_TEST(TestNArySystem, BasicOperation) {
   dut.AddSystem(sq2);
   EXPECT_EQ(dut.isTimeVarying(), false);
   EXPECT_EQ(dut.isDirectFeedthrough(), false);
-  EXPECT_EQ(dut.getNumStates(), 4);
-  EXPECT_EQ(dut.getNumInputs(), 4);
-  EXPECT_EQ(dut.getNumOutputs(), 4);
+  EXPECT_EQ(dut.getNumStates(), 4u);
+  EXPECT_EQ(dut.getNumInputs(), 4u);
+  EXPECT_EQ(dut.getNumOutputs(), 4u);
   EXPECT_THROW(dut.dynamics(0., state, input), std::invalid_argument);
   EXPECT_THROW(dut.output(0., state, input), std::invalid_argument);
   StateQ<double> s2(2., 0.);
@@ -158,7 +158,7 @@ GTEST_TEST(TestNArySystem, Cascade) {
 
   auto n1 = std::make_shared<NArySystem<SystemQ> >();
   auto n2 = std::make_shared<NArySystem<SystemQ> >();
-  auto dut = Drake::cascade(n1, n2);
+  auto dut = drake::cascade(n1, n2);
 }
 
 }  // namespace

@@ -13,7 +13,7 @@
 #include "drake/systems/System.h"
 #include "drake/systems/cascade_system.h"
 
-namespace Drake {
+namespace drake {
 
 /** @defgroup lcm_vector_concept LCMVector<ScalarType> Concept
  * @ingroup vector_concept
@@ -179,7 +179,7 @@ class LCMOutputSystem<
   template <typename ScalarType>
   using OutputVector = NullVector<ScalarType>;
 
-  explicit LCMOutputSystem(std::shared_ptr<lcm::LCM> lcm) : lcm(lcm) {}
+  explicit LCMOutputSystem(std::shared_ptr<lcm::LCM> lcm) : lcm_(lcm) {}
 
   StateVector<double> dynamics(const double &t, const StateVector<double> &x,
                                const InputVector<double> &u) const {
@@ -192,12 +192,12 @@ class LCMOutputSystem<
     if (!encode(t, u, msg))
       throw std::runtime_error(std::string("failed to encode") +
                                msg.getTypeName());
-    lcm->publish(u.channel(), &msg);
+    lcm_->publish(u.channel(), &msg);
     return OutputVector<double>();
   }
 
  private:
-  const std::shared_ptr<lcm::LCM> lcm;
+  const std::shared_ptr<lcm::LCM> lcm_;
 };
 
 // todo: template specialization for the CombinedVector case
@@ -227,7 +227,7 @@ template <typename System>
 void runLCM(std::shared_ptr<System> sys, std::shared_ptr<lcm::LCM> lcm,
             double t0, double tf,
             const typename System::template StateVector<double> &x0,
-            const SimulationOptions &options = default_simulation_options) {
+            const SimulationOptions &options = SimulationOptions()) {
   if (!lcm->good()) throw std::runtime_error("bad LCM reference");
 
   //    typename System::template OutputVector<double> x = 1;  // useful for
@@ -288,4 +288,4 @@ void runLCM(const System &sys, std::shared_ptr<lcm::LCM> lcm, double t0,
   runLCM(sys, lcm, t0, tf, getInitialState(*sys));
 }
 
-}  // end namespace Drake
+}  // end namespace drake

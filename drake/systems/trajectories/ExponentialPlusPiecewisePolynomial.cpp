@@ -2,6 +2,8 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #include <stdexcept>
 
+#include "drake/common/drake_assert.h"
+
 using namespace Eigen;
 
 template <typename CoefficientType>
@@ -15,13 +17,13 @@ ExponentialPlusPiecewisePolynomial<CoefficientType>::
     ExponentialPlusPiecewisePolynomial(
         const PiecewisePolynomial<CoefficientType>& piecewise_polynomial_part)
     : PiecewiseFunction(piecewise_polynomial_part),
-      K(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(
+      K_(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(
           piecewise_polynomial_part.rows(), 1)),
-      A(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(1, 1)),
-      alpha(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(
+      A_(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(1, 1)),
+      alpha_(Matrix<CoefficientType, Dynamic, Dynamic>::Zero(
           1, piecewise_polynomial_part.getNumberOfSegments())),
-      piecewise_polynomial_part(piecewise_polynomial_part) {
-  assert(piecewise_polynomial_part.cols() == 1);
+      piecewise_polynomial_part_(piecewise_polynomial_part) {
+  DRAKE_ASSERT(piecewise_polynomial_part.cols() == 1);
 }
 
 template <typename CoefficientType>
@@ -30,10 +32,10 @@ ExponentialPlusPiecewisePolynomial<CoefficientType>::value(double t) const {
   int segment_index = getSegmentIndex(t);
 
   Eigen::Matrix<double, Eigen::Dynamic, 1> ret =
-      piecewise_polynomial_part.value(t);
+      piecewise_polynomial_part_.value(t);
   double tj = getStartTime(segment_index);
-  auto exponential = (A * (t - tj)).eval().exp().eval();
-  ret.noalias() += K * exponential * alpha.col(segment_index);
+  auto exponential = (A_ * (t - tj)).eval().exp().eval();
+  ret.noalias() += K_ * exponential * alpha_.col(segment_index);
   return ret;
 }
 
@@ -41,25 +43,26 @@ template <typename CoefficientType>
 ExponentialPlusPiecewisePolynomial<CoefficientType>
 ExponentialPlusPiecewisePolynomial<CoefficientType>::derivative(
     int derivative_order) const {
-  assert(derivative_order >= 0);
+  DRAKE_ASSERT(derivative_order >= 0);
   // quite inefficient, especially for high order derivatives due to all the
   // temporaries...
-  MatrixX K_new = K;
+  MatrixX K_new = K_;
   for (int i = 0; i < derivative_order; i++) {
-    K_new = K_new * A;
+    K_new = K_new * A_;
   }
   return ExponentialPlusPiecewisePolynomial<CoefficientType>(
-      K_new, A, alpha, piecewise_polynomial_part.derivative(derivative_order));
+      K_new, A_, alpha_,
+      piecewise_polynomial_part_.derivative(derivative_order));
 }
 
 template <typename CoefficientType>
 Eigen::Index ExponentialPlusPiecewisePolynomial<CoefficientType>::rows() const {
-  return piecewise_polynomial_part.rows();
+  return piecewise_polynomial_part_.rows();
 }
 
 template <typename CoefficientType>
 Eigen::Index ExponentialPlusPiecewisePolynomial<CoefficientType>::cols() const {
-  return piecewise_polynomial_part.cols();
+  return piecewise_polynomial_part_.cols();
 }
 
 template <typename CoefficientType>
@@ -68,7 +71,7 @@ void ExponentialPlusPiecewisePolynomial<CoefficientType>::shiftRight(
   for (auto it = segment_times.begin(); it != segment_times.end(); ++it) {
     *it += offset;
   }
-  piecewise_polynomial_part.shiftRight(offset);
+  piecewise_polynomial_part_.shiftRight(offset);
 }
 
 template class DRAKETRAJECTORIES_EXPORT

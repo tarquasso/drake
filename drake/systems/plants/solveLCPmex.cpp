@@ -5,7 +5,7 @@
 #include "drake/util/drakeMexUtil.h"
 #include "drake/util/MexWrapper.h"
 #include "drake/systems/plants/RigidBodyTree.h"
-#include "drake/solvers/fastQP.h"
+#include "drake/solvers/fast_qp.h"
 #include <sstream>
 #include "rigidBodyTreeMexConversions.h"
 
@@ -368,7 +368,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (enable_fastqp) {
       if (num_z_cached != lcp_size) {
         z_inactive.clear();
-        for (int i = 0; i < lcp_size; i++) {
+        for (size_t i = 0; i < lcp_size; i++) {
           z_inactive.push_back(true);
         }
       } else {

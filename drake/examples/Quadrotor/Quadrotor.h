@@ -1,12 +1,15 @@
 #pragma once
 
-#include <iostream>
 #include <cmath>
+#include <iostream>
+
+#include "drake/math/gradient.h"
+#include "drake/math/roll_pitch_yaw.h"
 #include "drake/systems/System.h"
 #include "drake/util/drakeGeometryUtil.h"
 
 template <typename ScalarType = double>
-class QuadrotorState {  // models the Drake::Vector concept
+class QuadrotorState {  // models the drake::Vector concept
  public:
   QuadrotorState(void)
       : x(0),
@@ -23,20 +26,20 @@ class QuadrotorState {  // models the Drake::Vector concept
         yawdot(0) {}
 
   template <typename Derived>
-  QuadrotorState(  // NOLINT(runtime/explicit) per Drake::Vector.
-      const Eigen::MatrixBase<Derived>& x)
-      : x(x(0)),
-        y(x(1)),
-        z(x(2)),
-        roll(x(3)),
-        pitch(x(4)),
-        yaw(x(5)),
-        xdot(x(6)),
-        ydot(x(7)),
-        zdot(x(8)),
-        rolldot(x(9)),
-        pitchdot(x(10)),
-        yawdot(x(11)) {}
+  QuadrotorState(  // NOLINT(runtime/explicit) per drake::Vector.
+      const Eigen::MatrixBase<Derived>& state)
+      : x(state(0)),
+        y(state(1)),
+        z(state(2)),
+        roll(state(3)),
+        pitch(state(4)),
+        yaw(state(5)),
+        xdot(state(6)),
+        ydot(state(7)),
+        zdot(state(8)),
+        rolldot(state(9)),
+        pitchdot(state(10)),
+        yawdot(state(11)) {}
 
   template <typename Derived>
   QuadrotorState& operator=(const Eigen::MatrixBase<Derived>& state) {
@@ -97,7 +100,7 @@ class QuadrotorInput {
   QuadrotorInput(void) : w1(0), w2(0), w3(0), w4(0) {}
 
   template <typename Derived>
-  QuadrotorInput(  // NOLINT(runtime/explicit) per Drake::Vector.
+  QuadrotorInput(  // NOLINT(runtime/explicit) per drake::Vector.
       const Eigen::MatrixBase<Derived>& x)
       : w1(x(0)), w2(x(1)), w3(x(2)), w4(x(3)) {}
 
@@ -154,7 +157,7 @@ class Quadrotor {
                                   const QuadrotorInput<Scalar>& u) const {
     Eigen::Matrix<Scalar, 12, 1> xvec = toEigen(x);
     Eigen::Matrix<Scalar, 3, 1> rpy(x.roll, x.pitch, x.yaw);
-    Eigen::Matrix<Scalar, 3, 3> R = rpy2rotmat(rpy);
+    Eigen::Matrix<Scalar, 3, 3> R = drake::math::rpy2rotmat(rpy);
 
     Scalar F1 = kf * u.w1;
     Scalar F2 = kf * u.w2;
@@ -176,17 +179,17 @@ class Quadrotor {
     pqr = R.adjoint() * pqr;
 
     Eigen::Matrix<Scalar, 3, 1> pqr_dot_term1;
-    pqr_dot_term1 << L*(F2 - F4), L * (F3 - F1), (M1 - M2 + M3 - M4);
+    pqr_dot_term1 << L * (F2 - F4), L * (F3 - F1), (M1 - M2 + M3 - M4);
 
     Eigen::Matrix<Scalar, 3, 1> pqr_dot =
         I.ldlt().solve(pqr_dot_term1 - pqr.cross(I * pqr));
     Eigen::Matrix<Scalar, 3, 3> Phi;
-    typename Gradient<Eigen::Matrix<Scalar, 3, 3>, 3>::type dPhi;
-    auto ddPhi =
-        (typename Gradient<Eigen::Matrix<Scalar, 3, 3>, 3, 2>::type*)nullptr;
+    typename drake::math::Gradient<Eigen::Matrix<Scalar, 3, 3>, 3>::type dPhi;
+    typename drake::math::Gradient<Eigen::Matrix<Scalar, 3, 3>, 3, 2>::type*
+        ddPhi = nullptr;
     angularvel2rpydotMatrix(rpy, Phi, &dPhi, ddPhi);
 
-    Eigen::Matrix<Scalar, 9, 3> drpy2drotmat = drpy2rotmat(rpy);
+    Eigen::Matrix<Scalar, 9, 3> drpy2drotmat = drake::math::drpy2rotmat(rpy);
     Eigen::Matrix<Scalar, 9, 1> Rdot_vec;
     Rdot_vec = drpy2drotmat * rpydot;
     Eigen::Matrix<Scalar, 3, 3> Rdot =

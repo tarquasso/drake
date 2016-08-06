@@ -6,7 +6,7 @@
 
 using namespace std;
 using namespace Eigen;
-using namespace Drake;
+using namespace drake;
 
 /** @page rigidBodyLCMNode rigidBodyLCMNode Application
  * @ingroup simulation
@@ -31,7 +31,14 @@ Usage:  rigidBodyLCMNode [options] full_path_to_urdf_or_sdf_file
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0]
-              << " [options] full_path_to_urdf_or_sdf_file" << std::endl;
+              << " [options] full_path_to_urdf_or_sdf_file" << std::endl
+              << "Options: " << std::endl
+              << "  --base [FIXED|RPY|(QUAT)]      defines the connection "
+                 "between the root link and the world"
+              << std::endl
+              << "  --add_flat_terrain             adds a large box to "
+                 "approximate flat terrain"
+              << std::endl;
     return 1;
   }
 
@@ -69,10 +76,10 @@ int main(int argc, char* argv[]) {
     Vector4d color;
     color << 0.9297, 0.7930, 0.6758,
         1;  // was hex2dec({'ee','cb','ad'})'/256 in matlab
-    world.addVisualElement(
+    world.AddVisualElement(
         DrakeShapes::VisualElement(geom, T_element_to_link, color));
     tree->addCollisionElement(
-        RigidBody::CollisionElement(geom, T_element_to_link, &world), world,
+        RigidBodyCollisionElement(geom, T_element_to_link, &world), world,
         "terrain");
     tree->updateStaticCollisionElements();
   }
@@ -82,7 +89,7 @@ int main(int argc, char* argv[]) {
       make_shared<BotVisualizer<RigidBodySystem::StateVector>>(lcm, tree);
   auto sys = cascade(rigid_body_sys, visualizer);
 
-  SimulationOptions options = default_simulation_options;
+  SimulationOptions options;
   options.realtime_factor = 1.0;
   options.timeout_seconds = std::numeric_limits<double>::infinity();
   options.initial_step_size = 5e-3;

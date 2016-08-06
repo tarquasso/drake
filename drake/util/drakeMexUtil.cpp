@@ -1,6 +1,8 @@
 #include "drake/util/drakeMexUtil.h"
 #include <stdexcept>
 
+#include "drake/common/drake_assert.h"
+
 using namespace std;
 using namespace Eigen;
 
@@ -225,7 +227,7 @@ mxArray* stdStringToMatlab(const std::string& str) {
 
 mxArray* vectorOfStdStringsToMatlab(const std::vector<std::string>& strs) {
   mxArray* cell = mxCreateCellMatrix(strs.size(), 1);
-  for (int i = 0; i < strs.size(); i++) {
+  for (size_t i = 0; i < strs.size(); i++) {
     mxSetCell(cell, i, mxCreateString(strs[i].c_str()));
   }
   return cell;
@@ -305,12 +307,12 @@ const std::vector<T> matlabToStdVector(const mxArray* in) {
   std::vector<T> ret;
   if (mxIsLogical(in)) {
     mxLogical* data = mxGetLogicals(in);
-    for (int i = 0; i < mxGetNumberOfElements(in); i++) {
+    for (size_t i = 0; i < mxGetNumberOfElements(in); i++) {
       ret.push_back(static_cast<T>(data[i]));
     }
   } else {
     double* data = mxGetPrSafe(in);
-    for (int i = 0; i < mxGetNumberOfElements(in); i++) {
+    for (size_t i = 0; i < mxGetNumberOfElements(in); i++) {
       ret.push_back(static_cast<T>(data[i]));
     }
   }
@@ -338,10 +340,10 @@ DLLEXPORT Matrix<Polynomiald, Dynamic, Dynamic> msspolyToEigen(
   auto coeff =
       matlabToEigenMap<Dynamic, 1>(mxGetPropertySafe(msspoly, 0, "coeff"));
 
-  assert(sub.rows() == var.rows());
-  assert(sub.rows() == pow.rows());
-  assert(sub.rows() == coeff.rows());
-  assert(var.cols() == pow.cols());
+  DRAKE_ASSERT(sub.rows() == var.rows());
+  DRAKE_ASSERT(sub.rows() == pow.rows());
+  DRAKE_ASSERT(sub.rows() == coeff.rows());
+  DRAKE_ASSERT(var.cols() == pow.cols());
 
   Matrix<Polynomiald, Dynamic, Dynamic> poly((int)dim(0), (int)dim(1));
   for (int i = 0; i < sub.rows(); i++) {
@@ -373,9 +375,9 @@ trigPolyToEigen(const mxArray* trigpoly) {
   TrigPolyd::SinCosMap m;
   for (int i = 0; i < q.size(); i++) {
     TrigPolyd::SinCosVars sc;
-    sc.s = s(i).getSimpleVariable();
-    sc.c = c(i).getSimpleVariable();
-    m[q(i).getSimpleVariable()] = sc;
+    sc.s = s(i).GetSimpleVariable();
+    sc.c = c(i).GetSimpleVariable();
+    m[q(i).GetSimpleVariable()] = sc;
   }
 
   // todo: feels very inefficient (one copy of the sincosmap for every element
@@ -392,7 +394,7 @@ trigPolyToEigen(const mxArray* trigpoly) {
 mwSize sub2ind(mwSize ndims, const mwSize* dims, const mwSize* sub) {
   mwSize stride = 1;
   mwSize ret = 0;
-  for (int i = 0; i < ndims; i++) {
+  for (mwSize i = 0; i < ndims; i++) {
     ret += sub[i] * stride;
     stride *= dims[i];
   }

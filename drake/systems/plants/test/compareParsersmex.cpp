@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <iostream>
+
+#include "drake/common/eigen_types.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "drake/util/drakeMexUtil.h"
 #include "drake/util/eigen_matrix_compare.h"
@@ -59,8 +61,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
           matlab_model->findJoint(cpp_model->bodies[i]->getJoint().getName());
       if (b == nullptr) continue;
       for (int j = 0; j < b->getJoint().getNumPositions(); j++) {
-        P(cpp_model->bodies[i]->position_num_start + j,
-          b->position_num_start + j) = 1.0;
+        P(cpp_model->bodies[i]->get_position_start_index() + j,
+          b->get_position_start_index() + j) = 1.0;
       }
     }
   }
@@ -103,8 +105,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         cpp_model->doKinematics(cpp_q, cpp_v, true);
 
     {  // compare H, C, and B
-      eigen_aligned_unordered_map<RigidBody const*,
-                                  Matrix<double, TWIST_SIZE, 1>>
+      eigen_aligned_unordered_map<RigidBody const*, drake::TwistVector<double>>
           f_ext;
 
       auto matlab_H = matlab_model->massMatrix(matlab_cache);

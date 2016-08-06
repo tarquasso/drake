@@ -1,18 +1,12 @@
+project(drake)
 cmake_minimum_required(VERSION 3.5)
 
 cmake_policy(SET CMP0025 NEW)
 cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0054 OLD)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
-  message(FATAL_ERROR "GCC version must be at least 4.9")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
-  message(FATAL_ERROR "Apple Clang version must be at least 7")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.7)
-  message(FATAL_ERROR "Clang version must be at least 3.7")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
-  message(FATAL_ERROR "MSVC version must be at least 14")
-endif()
+include(../cmake/config.cmake)
+
+drake_setup_platform()
 
 # Create a cache variable that contains the
 # max number of concurent link jobs that can be run
@@ -34,8 +28,6 @@ option(BUILD_SHARED_LIBS "Build Drake with shared libraries." ON)
 option(LONG_RUNNING_TESTS "some tests should be run nightly for coverage, but are too slow for CI" OFF)
 option(RANDOMIZE_MATLAB_TESTS "every MATLAB unit is started with a new random seed" OFF)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # prepend module path so we can override FindMatlab.cmake
@@ -51,13 +43,6 @@ endif()
 set(POD_NAME drake)
 include(cmake/pods.cmake)
 
-find_package(Java REQUIRED)
-include(UseJava)
-
-if(WIN32)
-  set(CMAKE_JAVA_COMPILE_FLAGS ${CMAKE_JAVA_COMPILE_FLAGS} -source 6 -target 6)  # See #2442.
-endif()
-
 function(drake_install_headers)
   file(RELATIVE_PATH rel_path ${PROJECT_SOURCE_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR})
   pods_install_headers(${ARGV} DESTINATION drake/${rel_path})
@@ -68,11 +53,23 @@ endfunction()
 # This means that export headers can be included as drake/bla_export.h
 include(GenerateExportHeader)
 function(add_library_with_exports)
+  set(options STATIC)
   set(oneValueArgs LIB_NAME)
   set(multiValueArgs SOURCE_FILES)
   cmake_parse_arguments(parsed_args "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-  add_library(${parsed_args_LIB_NAME} SHARED ${parsed_args_SOURCE_FILES})
+  if(parsed_args_STATIC)
+    add_library(${parsed_args_LIB_NAME} STATIC ${parsed_args_SOURCE_FILES})
+    # Add a public preprocessor macro definition for LIB_NAME_STATIC_DEFINE,
+    # which suppresses platform-specific shared library export declarations
+    # in this target and all targets that depend on it.
+    string(TOUPPER ${parsed_args_LIB_NAME} capitalized_lib_name)
+    set(static_define ${capitalized_lib_name}_STATIC_DEFINE)
+    target_compile_definitions(${parsed_args_LIB_NAME} PUBLIC ${static_define})
+  else()
+    add_library(${parsed_args_LIB_NAME} SHARED ${parsed_args_SOURCE_FILES})
+  endif()
+
   set(exports_abs_path ${PROJECT_BINARY_DIR}/exports/drake/${parsed_args_LIB_NAME}_export.h)
   generate_export_header(${parsed_args_LIB_NAME} EXPORT_FILE_NAME ${exports_abs_path})
   install(FILES ${exports_abs_path} DESTINATION include/drake/)
@@ -81,14 +78,14 @@ include_directories(BEFORE ${PROJECT_BINARY_DIR}/exports/)
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/..)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=all")
-
-  # TODO(#2372) These are warnings that we can't handle yet.
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=all -Werror=ignored-qualifiers")
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-braces")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-private-field")
+    # TODO(#2852) Turn on shadow checking for g++ once we use a version that fixes
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=57709
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=shadow")
   endif()
+  set(CXX_FLAGS_NO_ERROR_SHADOW "-Wno-error=shadow -Wno-shadow")
+  set(CXX_FLAGS_NO_SIGN_COMPARE "-Wno-sign-compare")
 elseif(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
   # disable warning C4251: e.g.'RigidBody::linkname' : class 'std::basic_string<_Elem,_Traits,_Ax>' needs to have dll-interface to be used by clients of class 'RigidBody'
@@ -114,29 +111,24 @@ elseif(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj") # after receiving RigidBodyTree.cpp : fatal error C1128: number of sections exceeded object file format limit: compile with /bigobj
 
   add_definitions(-D_USE_MATH_DEFINES) # to get math constants on MSVC (see https://msdn.microsoft.com/en-us/library/4hwaceh6.aspx)
-endif()
 
-# similar to the export headers, any other generated headers will be installed to build/include/drake, but will be created in ${PROJECT_BINARY_DIR}/exports/drake
-# These headers can be included as drake/bla.h
-set(generated_dir ${PROJECT_BINARY_DIR}/generated)
-set(drake_path_header ${generated_dir}/drake/Path.h)
-configure_file(core/Path.h.in ${drake_path_header})
-install(FILES ${drake_path_header} DESTINATION include/drake/)
-include_directories(BEFORE ${generated_dir})
+  set(CXX_FLAGS_NO_ERROR_SHADOW "/wd4456 /wd4457")
+  set(CXX_FLAGS_NO_SIGN_COMPARE "/wd4018")
+endif()
 
 # set up matlab build
 include(cmake/mex.cmake)
-if(DISABLE_MATLAB)
-  message(STATUS "MATLAB is disabled because the CMake option DISABLE_MATLAB is set to ON.")
-else()
-  # Search for MATLAB and configure various MEX options.
-  # If MATLAB is found, MATLAB_FOUND is set.
-  mex_setup()
+if(MATLAB_EXECUTABLE) # Set by drake_setup_platform
+  if(DISABLE_MATLAB)
+    message(STATUS "MATLAB is disabled because the CMake option DISABLE_MATLAB is set to ON.")
+  else()
+    # Search for MATLAB and configure various MEX options.
+    # If MATLAB is found, MATLAB_FOUND is set.
+    mex_setup()
 
-  # if MATLAB is in the PATH then use cmake find_package to find it
-  # along with what is needed to use matlab_add_unit_test
-  if(MATLAB_FOUND)
-    find_package(Matlab COMPONENTS MAIN_PROGRAM)
+    # Use find_package to find "all of matlab" along with what is needed to use
+    # matlab_add_unit_test
+    find_package(Matlab COMPONENTS MAIN_PROGRAM REQUIRED)
   endif()
 endif()
 
@@ -211,13 +203,16 @@ set(drake_jar_requires)
 
 include(cmake/procman.cmake)  # helper script for writing procman files
 
-# set up and build lcm types
-include(cmake/lcmtypes.cmake)
+# set up pseudo-target for threads
+find_package(Threads)
+add_library(threads INTERFACE)
+target_link_libraries(threads INTERFACE ${CMAKE_THREAD_LIBS_INIT})
 
-if(LCM_FOUND)
-  #add_subdirectory(lcmtypes)
-  lcmtypes_build()
-  pods_use_pkg_config_classpath(lcm-java)
+# set up and build lcm types
+find_package(lcm)
+if(lcm_FOUND)
+  add_subdirectory(lcmtypes)
+  include_directories(${drake_BINARY_DIR} ${drake_BINARY_DIR}/lcmtypes)
 
   list(APPEND drake_jar_javafiles
     util/MyLCMTypeDatabase.java
@@ -244,7 +239,7 @@ if(LCM_FOUND)
   endif()
 endif()
 
-add_jar(drake SOURCES ${drake_jar_javafiles})
+add_jar(drake SOURCES ${drake_jar_javafiles} INCLUDE_JARS ${drake_jar_requires})
 install_jar(drake share/java)
 pods_install_pkg_config_file(drake-java
   CLASSPATH drake
@@ -266,40 +261,36 @@ else()
   endif()
 endif()
 
-# Setup ROS if it is available on the local system
-find_package(roscpp QUIET)
-if(roscpp_FOUND)
-  message(STATUS "Found roscpp installed at ${roscpp_DIR}, so building ROS-specific functionality.")
-  include_directories(${roscpp_INCLUDE_DIRS})
-else()
-  message(STATUS "Couldn't find roscpp so not building ROS-specific functionality. If you want ROS support, be sure to source the ROS setup.sh prior to building Drake.")
+pods_find_pkg_config(spdlog)
+if(spdlog_FOUND)
+  pods_use_pkg_config_includes(spdlog)
+  add_definitions(-DHAVE_SPDLOG)
 endif()
 
-include_directories(thirdParty/spruce/include)
-include_directories(thirdParty/cimg)
+include_directories(thirdParty/bsd/spruce/include)
 
 add_subdirectory(common)
+add_subdirectory(math)
 add_subdirectory(core)
 add_subdirectory(util)
 add_subdirectory(solvers)
 add_subdirectory(systems)
-add_subdirectory(thirdParty/GetFullPath)
-add_subdirectory(thirdParty/spruce)
-add_subdirectory(thirdParty/tinyxml2)
+add_subdirectory(thirdParty/bsd/GetFullPath)
+add_subdirectory(thirdParty/bsd/spruce)
+add_subdirectory(thirdParty/zlib/tinyxml2)
 add_subdirectory(examples)
 add_subdirectory(bindings)
+add_subdirectory(regtests)
 
 # setup MATLAB pods-compliance
 include(cmake/matlab_pods.cmake)
 pods_configure_matlab_paths()
 
-file(RELATIVE_PATH relpath ${CMAKE_INSTALL_PREFIX}/matlab ${CMAKE_CURRENT_SOURCE_DIR})
-
-message(STATUS "Writing addpath_drake.m and rmpath_drake.m to ${CMAKE_INSTALL_PREFIX}/matlab")
+message(STATUS "Writing path utilities to ${CMAKE_INSTALL_PREFIX}/matlab")
 file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/addpath_drake.m
   "function addpath_drake()\n"
-  "  mfiledir = fileparts(which(mfilename));\n"
-  "  wd = cd(fullfile(mfiledir,'${relpath}'));\n"
+  "  addpath(fullfile('${CMAKE_INSTALL_PREFIX}', 'matlab'));\n"
+  "  wd = cd('${CMAKE_CURRENT_SOURCE_DIR}');\n"
   "  addpath_drake();\n"
   "  cd(wd);\n"
   "end\n"
@@ -307,17 +298,25 @@ file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/addpath_drake.m
 
 file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/rmpath_drake.m
   "function rmpath_drake()\n"
-  "  mfiledir = fileparts(which(mfilename));\n"
-  "  wd = cd(fullfile(mfiledir,'${relpath}'));\n"
+  "  wd = cd('${CMAKE_CURRENT_SOURCE_DIR}');\n"
   "  rmpath_drake();\n"
   "  cd(wd);\n")
+
+file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/get_drake_binary_dir.m
+  "function [binary_dir] = get_drake_binary_dir()\n"
+  "  binary_dir = '${PROJECT_BINARY_DIR}';\n"
+  "end\n"
+  "\n")
+
+file(WRITE ${CMAKE_INSTALL_PREFIX}/matlab/get_drake_install_dir.m
+  "function [install_dir] = get_drake_install_dir()\n"
+  "  install_dir = '${CMAKE_INSTALL_PREFIX}';\n"
+  "end\n"
+  "\n")
 
 find_program(avl avl PATHS ${CMAKE_INSTALL_DIR}/bin)
 find_program(xfoil xfoil PATHS ${CMAKE_INSTALL_DIR}/bin)
 find_program(ffmpeg ffmpeg)
-
-# write some additional information to the CMake cache
-set(lcm_java_classpath "${lcm-java_CLASSPATH}" CACHE FILEPATH "${lcm-java_CLASSPATH}" FORCE)
 
 if(APPLE)
   set(DYLD_LIBRARY_PATH "$ENV{DYLD_LIBRARY_PATH}" CACHE STRING "Environment variable used to launch processes from Matlab")
@@ -336,12 +335,12 @@ if(MATLAB_FOUND)
     PROPERTIES TIMEOUT 300)
 endif()
 
-option(BUILD_DOCUMENTATION "Build Doxygen and Sphinx documentation." OFF)
+option(ENABLE_DOCUMENTATION "Enable build target for Doxygen and Sphinx documentation." ON)
 
-if(BUILD_DOCUMENTATION)
+if(ENABLE_DOCUMENTATION)
   add_subdirectory(doc)
 endif()
 
-if(IS_DIRECTORY doc/textbook)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/doc/textbook/CMakeLists.txt)
   add_subdirectory(doc/textbook)
 endif()

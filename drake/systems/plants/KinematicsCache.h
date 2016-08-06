@@ -4,13 +4,16 @@
 #include <Eigen/Geometry>
 #include <unordered_map>
 #include <vector>
-#include <cassert>
 #include <numeric>
 #include <type_traits>
 #include <stdexcept>
 #include <utility>
-#include "drake/util/drakeGradientUtil.h"
-#include "RigidBody.h"
+
+#include "drake/common/constants.h"
+#include "drake/common/drake_assert.h"
+#include "drake/common/eigen_types.h"
+#include "drake/systems/plants/RigidBody.h"
+#include "drake/systems/plants/joints/DrakeJoint.h"
 
 template <typename Scalar>
 class KinematicsCacheElement {
@@ -18,11 +21,13 @@ class KinematicsCacheElement {
   /*
    * Configuration dependent
    */
-  Eigen::Transform<Scalar, SPACE_DIMENSION, Eigen::Isometry> transform_to_world;
-  Eigen::Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic, 0, TWIST_SIZE,
+
+  Eigen::Transform<Scalar, drake::kSpaceDimension, Eigen::Isometry>
+      transform_to_world;
+  Eigen::Matrix<Scalar, drake::kTwistSize, Eigen::Dynamic, 0, drake::kTwistSize,
                 DrakeJoint::MAX_NUM_VELOCITIES>
       motion_subspace_in_body;  // gradient w.r.t. q_i only
-  Eigen::Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic, 0, TWIST_SIZE,
+  Eigen::Matrix<Scalar, drake::kTwistSize, Eigen::Dynamic, 0, drake::kTwistSize,
                 DrakeJoint::MAX_NUM_VELOCITIES>
       motion_subspace_in_world;  // gradient w.r.t. q
   Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,
@@ -31,24 +36,25 @@ class KinematicsCacheElement {
   Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, 0,
                 DrakeJoint::MAX_NUM_POSITIONS,
                 DrakeJoint::MAX_NUM_VELOCITIES> v_to_qdot;  // gradient w.r.t. q
-  Eigen::Matrix<Scalar, TWIST_SIZE, TWIST_SIZE> inertia_in_world;
-  Eigen::Matrix<Scalar, TWIST_SIZE, TWIST_SIZE> crb_in_world;
+  drake::SquareTwistMatrix<Scalar> inertia_in_world;
+  drake::SquareTwistMatrix<Scalar> crb_in_world;
 
   /*
    * Configuration and velocity dependent
    */
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      twist_in_world;  // gradient w.r.t. q only; gradient w.r.t. v is
-                       // motion_subspace_in_world
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      motion_subspace_in_body_dot_times_v;  // gradient w.r.t. q_i and v_i only
-  Eigen::Matrix<Scalar, TWIST_SIZE, 1>
-      motion_subspace_in_world_dot_times_v;  // gradient w.r.t. q and v
+
+  // Gradient with respect to q only.  The gradient with respect to v is
+  // motion_subspace_in_world.
+  drake::TwistVector<Scalar> twist_in_world;
+  // Gradient with respect to q_i and v_i only.
+  drake::TwistVector<Scalar> motion_subspace_in_body_dot_times_v;
+  // Gradient with respect to q and v.
+  drake::TwistVector<Scalar> motion_subspace_in_world_dot_times_v;
 
  public:
   KinematicsCacheElement(int num_positions_joint, int num_velocities_joint)
-      : motion_subspace_in_body(TWIST_SIZE, num_velocities_joint),
-        motion_subspace_in_world(TWIST_SIZE, num_velocities_joint),
+      : motion_subspace_in_body(drake::kTwistSize, num_velocities_joint),
+        motion_subspace_in_world(drake::kTwistSize, num_velocities_joint),
         qdot_to_v(num_velocities_joint, num_positions_joint),
         v_to_qdot(num_positions_joint, num_velocities_joint) {
     // empty
@@ -86,13 +92,13 @@ class KinematicsCache {
 
  public:
   explicit KinematicsCache(
-      const std::vector<std::unique_ptr<RigidBody> >& bodies)
-      : num_positions(getNumPositions(bodies)),
-        num_velocities(getNumVelocities(bodies)),
+      const std::vector<std::unique_ptr<RigidBody> >& bodies_in)
+      : num_positions(getNumPositions(bodies_in)),
+        num_velocities(getNumVelocities(bodies_in)),
         q(Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(num_positions)),
         v(Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(num_velocities)),
         velocity_vector_valid(false) {
-    for (const auto& body_unique_ptr : bodies) {
+    for (const auto& body_unique_ptr : bodies_in) {
       const RigidBody& body = *body_unique_ptr;
       int num_positions_joint =
           body.hasParent() ? body.getJoint().getNumPositions() : 0;
@@ -100,7 +106,7 @@ class KinematicsCache {
           body.hasParent() ? body.getJoint().getNumVelocities() : 0;
       elements.insert({&body, KinematicsCacheElement<Scalar>(
                                   num_positions_joint, num_velocities_joint)});
-      this->bodies.push_back(&body);
+      bodies.push_back(&body);
     }
     invalidate();
   }
@@ -115,25 +121,25 @@ class KinematicsCache {
   }
 
   template <typename Derived>
-  void initialize(const Eigen::MatrixBase<Derived>& q) {
+  void initialize(const Eigen::MatrixBase<Derived>& q_in) {
     static_assert(Derived::ColsAtCompileTime == 1, "q must be a vector");
     static_assert(std::is_same<typename Derived::Scalar, Scalar>::value,
                   "scalar type of q must match scalar type of KinematicsCache");
-    assert(this->q.rows() == q.rows());
-    this->q = q;
+    DRAKE_ASSERT(q.rows() == q_in.rows());
+    q = q_in;
     invalidate();
     velocity_vector_valid = false;
   }
 
   template <typename DerivedQ, typename DerivedV>
-  void initialize(const Eigen::MatrixBase<DerivedQ>& q,
-                  const Eigen::MatrixBase<DerivedV>& v) {
-    initialize(q);  // also invalidates
+  void initialize(const Eigen::MatrixBase<DerivedQ>& q_in,
+                  const Eigen::MatrixBase<DerivedV>& v_in) {
+    initialize(q_in);  // also invalidates
     static_assert(DerivedV::ColsAtCompileTime == 1, "v must be a vector");
     static_assert(std::is_same<typename DerivedV::Scalar, Scalar>::value,
                   "scalar type of v must match scalar type of KinematicsCache");
-    assert(this->v.rows() == v.rows());
-    this->v = v;
+    DRAKE_ASSERT(v.rows() == v_in.rows());
+    v = v_in;
     velocity_vector_valid = true;
   }
 
@@ -236,7 +242,7 @@ class KinematicsCache {
 
   void setPositionKinematicsCached() { position_kinematics_cached = true; }
 
-  void setJdotVCached(bool jdotV_cached) { this->jdotV_cached = jdotV_cached; }
+  void setJdotVCached(bool jdotV_cached_in) { jdotV_cached = jdotV_cached_in; }
 
   int getNumPositions() const { return num_positions; }
 

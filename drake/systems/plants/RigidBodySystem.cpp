@@ -1,12 +1,16 @@
-
 #include "drake/systems/plants/RigidBodySystem.h"
+
 #include <list>
 #include <stdexcept>
-#include "drake/solvers/Optimization.h"
-#include "drake/systems/plants/constraint/RigidBodyConstraint.h"
+
+#include "drake/common/drake_assert.h"
+#include "drake/math/quaternion.h"
+#include "drake/solvers/optimization.h"
 #include "drake/systems/plants/ConstraintWrappers.h"
+#include "drake/systems/plants/constraint/RigidBodyConstraint.h"
+#include "drake/systems/plants/parser_sdf.h"
+#include "drake/systems/plants/parser_urdf.h"
 #include "drake/systems/plants/pose_map.h"
-#include "drake/systems/plants/rigid_body_tree_urdf.h"
 #include "spruce.hh"
 #include "xmlUtil.h"
 
@@ -27,19 +31,21 @@ using std::runtime_error;
 using std::shared_ptr;
 using std::string;
 
+using drake::math::quatRotateVec;
+
 using tinyxml2::XMLDocument;
 using tinyxml2::XMLElement;
 using tinyxml2::XML_SUCCESS;
 
-namespace Drake {
+namespace drake {
 
 size_t RigidBodySystem::getNumStates() const {
   return tree->number_of_positions() + tree->number_of_velocities();
 }
 
 // TODO(sam.creasey) This whole file should be in this namespace.
-using Drake::systems::plants::SingleTimeKinematicConstraintWrapper;
-using Drake::systems::plants::KinematicsCacheHelper;
+using drake::systems::plants::SingleTimeKinematicConstraintWrapper;
+using drake::systems::plants::KinematicsCacheHelper;
 
 size_t RigidBodySystem::getNumInputs(void) const {
   size_t num = tree->actuators.size();
@@ -50,7 +56,7 @@ size_t RigidBodySystem::getNumInputs(void) const {
 }
 
 size_t RigidBodySystem::getNumOutputs() const {
-  int n = getNumStates();
+  size_t n = getNumStates();
   for (const auto& s : sensors) {
     n += s->getNumOutputs();
   }
@@ -93,7 +99,7 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   // happily, this clunkier version seems fast enough for now
   // the optimization framework should support this (though it has not been
   // tested thoroughly yet)
-  OptimizationProblem prog;
+  drake::solvers::OptimizationProblem prog;
   auto const& vdot = prog.AddContinuousVariables(nv, "vdot");
 
   auto H = tree->massMatrix(kinsol);
@@ -127,14 +133,14 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
         double qmin = joint.getJointLimitMin()(0),
                qmax = joint.getJointLimitMax()(0);
         // tau = k*(qlimit-q) - b(qdot)
-        if (q(b->position_num_start) < qmin)
-          C(b->velocity_num_start) -=
-              penetration_stiffness * (qmin - q(b->position_num_start)) -
-              penetration_damping * v(b->velocity_num_start);
-        else if (q(b->position_num_start) > qmax)
-          C(b->velocity_num_start) -=
-              penetration_stiffness * (qmax - q(b->position_num_start)) -
-              penetration_damping * v(b->velocity_num_start);
+        if (q(b->get_position_start_index()) < qmin)
+          C(b->get_velocity_start_index()) -=
+              penetration_stiffness * (qmin - q(b->get_position_start_index()))
+              - penetration_damping * v(b->get_velocity_start_index());
+        else if (q(b->get_position_start_index()) > qmax)
+          C(b->get_velocity_start_index()) -=
+              penetration_stiffness * (qmax - q(b->get_position_start_index()))
+              - penetration_damping * v(b->get_velocity_start_index());
       }
     }
   }
@@ -206,7 +212,7 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   }
 
   if (tree->getNumPositionConstraints()) {
-    int nc = tree->getNumPositionConstraints();
+    size_t nc = tree->getNumPositionConstraints();
     const double alpha = 5.0;  // 1/time constant of position constraint
                                // satisfaction (see my latex rigid body notes)
 
@@ -250,11 +256,11 @@ RigidBodySystem::OutputVector<double> RigidBodySystem::output(
                                    x.bottomRows(tree->number_of_velocities()));
   Eigen::VectorXd y(getNumOutputs());
 
-  assert(getNumStates() == x.size());
-  assert(getNumInputs() == u.size());
+  DRAKE_ASSERT(static_cast<int>(getNumStates()) == x.size());
+  DRAKE_ASSERT(static_cast<int>(getNumInputs()) == u.size());
 
   y.segment(0, getNumStates()) << x;
-  int index = getNumStates();
+  size_t index = getNumStates();
   for (const auto& s : sensors) {
     y.segment(index, s->getNumOutputs()) = s->output(t, kinsol, u);
     index += s->getNumOutputs();
@@ -284,7 +290,7 @@ DRAKERBSYSTEM_EXPORT RigidBodySystem::StateVector<double> getInitialState(
   if (sys.tree->getNumPositionConstraints()) {
     // todo: move this up to the system level?
 
-    OptimizationProblem prog;
+    drake::solvers::OptimizationProblem prog;
     std::vector<RigidBodyLoop, Eigen::aligned_allocator<RigidBodyLoop>> const&
         loops = sys.tree->loops;
 
@@ -299,18 +305,18 @@ DRAKERBSYSTEM_EXPORT RigidBodySystem::StateVector<double> getInitialState(
     Vector3d zero = Vector3d::Zero();
     KinematicsCacheHelper<double> kin_helper(sys.tree->bodies);
     std::list<RelativePositionConstraint> constraints;
-    for (int i = 0; i < loops.size(); i++) {
+    for (const auto& loop : loops) {
       constraints.push_back(RelativePositionConstraint(
-          sys.tree.get(), zero, zero, zero, loops[i].frameA->frame_index,
-          loops[i].frameB->frame_index, bTbp, tspan));
+          sys.tree.get(), zero, zero, zero, loop.frameA_->get_frame_index(),
+          loop.frameB_->get_frame_index(), bTbp, tspan));
       std::shared_ptr<SingleTimeKinematicConstraintWrapper> con1wrapper(
           new SingleTimeKinematicConstraintWrapper(&constraints.back(),
                                                    &kin_helper));
       prog.AddGenericConstraint(con1wrapper, {qvar});
       constraints.push_back(RelativePositionConstraint(
-          sys.tree.get(), loops[i].axis, loops[i].axis, loops[i].axis,
-          loops[i].frameA->frame_index, loops[i].frameB->frame_index, bTbp,
-          tspan));
+          sys.tree.get(), loop.axis_, loop.axis_, loop.axis_,
+          loop.frameA_->get_frame_index(), loop.frameB_->get_frame_index(),
+          bTbp, tspan));
       std::shared_ptr<SingleTimeKinematicConstraintWrapper> con2wrapper(
           new SingleTimeKinematicConstraintWrapper(&constraints.back(),
                                                    &kin_helper));
@@ -338,8 +344,8 @@ RigidBodyPropellor::RigidBodyPropellor(RigidBodySystem& sys, XMLElement* node,
   XMLElement* parent_node = node->FirstChildElement("parent");
   if (!parent_node)
     throw runtime_error("propellor " + name + " is missing the parent node");
-  frame = drake::systems::MakeRigidBodyFrameFromURDFNode(
-      *tree, parent_node, node->FirstChildElement("origin"), name + "Frame");
+  frame = drake::parsers::urdf::MakeRigidBodyFrameFromURDFNode(
+      *tree, *parent_node, node->FirstChildElement("origin"), name + "Frame");
   tree->addFrame(frame);
 
   axis << 1.0, 0.0, 0.0;
@@ -376,21 +382,21 @@ RigidBodySpringDamper::RigidBodySpringDamper(RigidBodySystem& sys,
   if (!link_ref_node)
     throw runtime_error("linear_spring_damper " + name +
                         " is missing the link1 node");
-  frameA = drake::systems::MakeRigidBodyFrameFromURDFNode(
-      *tree, link_ref_node, link_ref_node, name + "FrameA");
+  frameA = drake::parsers::urdf::MakeRigidBodyFrameFromURDFNode(
+      *tree, *link_ref_node, link_ref_node, name + "FrameA");
   tree->addFrame(frameA);
 
   link_ref_node = node->FirstChildElement("link2");
   if (!link_ref_node)
     throw runtime_error("linear_spring_damper " + name +
                         " is missing the link2 node");
-  frameB = drake::systems::MakeRigidBodyFrameFromURDFNode(
-      *tree, link_ref_node, link_ref_node, name + "FrameB");
+  frameB = drake::parsers::urdf::MakeRigidBodyFrameFromURDFNode(
+      *tree, *link_ref_node, link_ref_node, name + "FrameB");
   tree->addFrame(frameB);
 }
 
 const std::string& RigidBodySensor::get_model_name() const {
-  return frame_->body->model_name();
+  return frame_->get_rigid_body().get_model_name();
 }
 
 const RigidBodyFrame& RigidBodySensor::get_frame() const {
@@ -425,12 +431,14 @@ Eigen::VectorXd RigidBodyAccelerometer::output(
   Vector3d sensor_origin =
       Vector3d::Zero();  // assumes sensor coincides with the frame's origin;
   auto J = tree->transformPointsJacobian(rigid_body_state, sensor_origin,
-                                         get_frame().frame_index, 0, false);
+                                         get_frame().get_frame_index(), 0,
+                                         false);
   auto Jdot_times_v = tree->transformPointsJacobianDotTimesV(
-      rigid_body_state, sensor_origin, get_frame().frame_index, 0);
+      rigid_body_state, sensor_origin, get_frame().get_frame_index(), 0);
 
   Vector4d quat_world_to_body =
-      tree->relativeQuaternion(rigid_body_state, 0, get_frame().frame_index);
+      tree->relativeQuaternion(rigid_body_state, 0,
+          get_frame().get_frame_index());
 
   Vector3d accel_base = Jdot_times_v + J * v_dot;
   Vector3d accel_body = quatRotateVec(quat_world_to_body, accel_base);
@@ -454,7 +462,8 @@ Eigen::VectorXd RigidBodyMagnetometer::output(
   auto const& tree = get_rigid_body_system().getRigidBodyTree();
 
   Vector4d quat_world_to_body =
-      tree->relativeQuaternion(rigid_body_state, 0, get_frame().frame_index);
+      tree->relativeQuaternion(rigid_body_state, 0,
+          get_frame().get_frame_index());
 
   Vector3d mag_body = quatRotateVec(quat_world_to_body, magnetic_north);
 
@@ -467,7 +476,8 @@ Eigen::VectorXd RigidBodyGyroscope::output(
   // relative twist of body with respect to world expressed in body
   auto const& tree = get_rigid_body_system().getRigidBodyTree();
   auto relative_twist = tree->relativeTwist(
-      rigid_body_state, 0, get_frame().frame_index, get_frame().frame_index);
+      rigid_body_state, 0, get_frame().get_frame_index(),
+          get_frame().get_frame_index());
   Eigen::Vector3d angular_rates = relative_twist.head<3>();
 
   return noise_model ? noise_model->generateNoise(angular_rates)
@@ -629,12 +639,13 @@ Eigen::VectorXd RigidBodyDepthSensor::output(
   // Computes the origin of the rays in the world frame. The origin of
   // of the rays in the frame of the sensor is [0,0,0] (the Vector3d::Zero()).
   Vector3d origin = get_rigid_body_system().getRigidBodyTree()->transformPoints(
-      rigid_body_state, Vector3d::Zero(), get_frame().frame_index, 0);
+      rigid_body_state, Vector3d::Zero(), get_frame().get_frame_index(), 0);
 
   // Computes the end of the casted rays in the world frame.
   Matrix3Xd raycast_endpoints_world =
       get_rigid_body_system().getRigidBodyTree()->transformPoints(
-          rigid_body_state, raycast_endpoints, get_frame().frame_index, 0);
+          rigid_body_state, raycast_endpoints, get_frame().get_frame_index(),
+              0);
 
   get_rigid_body_system().getRigidBodyTree()->collisionRaycast(
       rigid_body_state, origin, raycast_endpoints_world, distances);
@@ -711,8 +722,8 @@ void parseURDF(RigidBodySystem& sys, XMLDocument* xml_doc) {
   parseRobot(sys, node);
 }
 
-void parseSDFJoint(RigidBodySystem& sys, string model_name, XMLElement* node,
-                   PoseMap& pose_map) {
+void parseSDFJoint(RigidBodySystem& sys, int model_instance_id,
+                   XMLElement* node, PoseMap& pose_map) {
   // Obtains the name of the joint.
   const char* attr = node->Attribute("name");
   if (!attr) throw runtime_error("ERROR: joint tag is missing name attribute");
@@ -727,23 +738,24 @@ void parseSDFJoint(RigidBodySystem& sys, string model_name, XMLElement* node,
   }
 }
 
-void parseSDFLink(RigidBodySystem& sys, string model_name, XMLElement* node,
+void parseSDFLink(RigidBodySystem& sys, int model_instance_id, XMLElement* node,
                   PoseMap& pose_map) {
-  // Obtains the name of the link.
+  // Obtains the name of the body.
   const char* attr = node->Attribute("name");
   if (!attr) throw runtime_error("ERROR: link tag is missing name attribute");
-  string link_name(attr);
+  string body_name(attr);
 
-  // Obtains the corresponding rigid body from the rigid body tree.
-  auto body = sys.getRigidBodyTree()->findLink(link_name, model_name);
+  // Obtains the corresponding body from the rigid body tree.
+  auto body = sys.getRigidBodyTree()->FindBody(body_name, "",
+      model_instance_id);
 
   // Obtains the transform from the link to the model.
   Isometry3d transform_link_to_model = Isometry3d::Identity();
-  XMLElement* pose = node->FirstChildElement("pose");
-  if (pose) {
-    poseValueToTransform(pose, pose_map, transform_link_to_model);
-    pose_map.insert(
-        std::pair<string, Isometry3d>(body->name_, transform_link_to_model));
+  XMLElement* link_pose = node->FirstChildElement("pose");
+  if (link_pose) {
+    poseValueToTransform(link_pose, pose_map, transform_link_to_model);
+    pose_map.insert(std::pair<string, Isometry3d>(body->get_name(),
+                                                  transform_link_to_model));
   }
 
   // Processes each sensor element within the link.
@@ -760,9 +772,9 @@ void parseSDFLink(RigidBodySystem& sys, string model_name, XMLElement* node,
     string type(attr);
 
     Isometry3d transform_sensor_to_model = transform_link_to_model;
-    XMLElement* pose = elnode->FirstChildElement("pose");
-    if (pose) {
-      poseValueToTransform(pose, pose_map, transform_sensor_to_model,
+    XMLElement* sensor_pose = elnode->FirstChildElement("pose");
+    if (sensor_pose) {
+      poseValueToTransform(sensor_pose, pose_map, transform_sensor_to_model,
                            transform_link_to_model);
     }
 
@@ -782,7 +794,8 @@ void parseSDFLink(RigidBodySystem& sys, string model_name, XMLElement* node,
   }
 }
 
-void parseSDFModel(RigidBodySystem& sys, XMLElement* node) {
+void parseSDFModel(RigidBodySystem& sys, int model_instance_id,
+    XMLElement* node) {
   // A pose map is necessary since SDF specifies almost everything in the
   // global coordinate frame. The pose map contains transforms from a link's
   // coordinate frame to the model's coordinate frame.
@@ -791,57 +804,133 @@ void parseSDFModel(RigidBodySystem& sys, XMLElement* node) {
   // Obtains the name of the model.
   if (!node->Attribute("name"))
     throw runtime_error("Error: your model must have a name attribute");
-  string model_name = node->Attribute("name");
 
   // Parses each link element within the model.
   for (XMLElement* elnode = node->FirstChildElement("link"); elnode;
        elnode = elnode->NextSiblingElement("link"))
-    parseSDFLink(sys, model_name, elnode, pose_map);
+    parseSDFLink(sys, model_instance_id, elnode, pose_map);
 
   // Parses each joint element within the model.
   for (XMLElement* elnode = node->FirstChildElement("joint"); elnode;
        elnode = elnode->NextSiblingElement("joint"))
-    parseSDFJoint(sys, model_name, elnode, pose_map);
+    parseSDFJoint(sys, model_instance_id, elnode, pose_map);
 }
 
 void parseSDF(RigidBodySystem& sys, XMLDocument* xml_doc) {
   XMLElement* node = xml_doc->FirstChildElement("sdf");
-  if (!node)
+
+  if (!node) {
     throw std::runtime_error(
         "ERROR: This xml file does not contain an sdf tag");
+  }
+
+  // Obtains the final model instance ID after all models in the SDF are added
+  // to the RigidBodyTree. This is simply the current model instance ID since
+  // the models in this SDF were already added to the rigid body tree prior to
+  // this method being called. It's possible for final_model_instance_id to be
+  // greater than the number of models in the SDF file since multiple SDF files
+  // can be loaded into this RigidBodySystem. In fact, the same SDF file can be
+  // added to this RigidBodySystem multiple times. This is feasible since all
+  // modeling elements that belong to a particular model instance are all
+  // assigned the same model instance ID. This model instance ID is unique among
+  // all model instances in the rigid body tree.
+  int final_model_instance_id =
+      sys.getRigidBodyTree()->get_number_of_model_instances();
+
+  // Computes the number of models in the SDF. This includes only the models
+  // that are not part of the world. This is correct because even though
+  // RigidBodyTree assigns a unique model instance ID to each model regardless
+  // of whether it is part of the world, the models that are part of the world
+  // are added first and thus have smaller model instance IDs. Since the models
+  // that are not part of the world are the ones that need to be parsed by the
+  // RigidBodySystem, we only count the models that are not part of the world.
+  int number_of_models_in_sdf = 0;
+  {
+    for (XMLElement* elnode = node->FirstChildElement("model"); elnode;
+         elnode = elnode->NextSiblingElement("model")) {
+      ++number_of_models_in_sdf;
+    }
+  }
+
+  // Computes the ID of the first model in the SDF. Since this SDF was just
+  // added to the RigidBodyTree, the model instance ID of the first model in the
+  // SDF is simply the final_model_instance_id minus the number of models in the
+  // SDF that are not part of the world.
+  int model_instance_id = final_model_instance_id - number_of_models_in_sdf;
+
+  // Parses each model in the SDF. This includes parsing and instantiating
+  // simulated sensors as specified by the SDF description.
   for (XMLElement* elnode = node->FirstChildElement("model"); elnode;
-       elnode = node->NextSiblingElement("model"))
-    parseSDFModel(sys, elnode);
+       elnode = elnode->NextSiblingElement("model")) {
+    parseSDFModel(sys, model_instance_id++, elnode);
+  }
+
+  // Verifies that the model_instance_id is equal to the
+  // final_model_instance_id. They should
+  // match since the number of models we just parsed is equal to:
+  //
+  //     number_of_models_in_sdf
+  //
+  // And initially prior to parsing the models in the SDF:
+  //
+  //     model_instance_id = final_model_instance_id - number_of_models_in_sdf
+  //
+  // Since model_instance_id is incremented each time a model in the SDF is
+  // parsed, its final value is equal to its original value plus
+  // number_of_models_in_sdf.
+  //
+  // Thus:
+  //
+  //     model_instance_id = final_model_instance_id - number_of_models_in_sdf +
+  //                number_of_models_in_sdf
+  //              = final_model_instance_id
+  //
+  // Hence, at this point in the code, model_instance_id should equal
+  // final_model_instance_id.
+  if (model_instance_id != final_model_instance_id) {
+    throw std::runtime_error(
+        "RigidBodySystem.cpp: parseSDF: ERROR: the final model instance ID (" +
+        std::to_string(model_instance_id) +
+        ") is not equal to the expected final model instance ID (" +
+        std::to_string(final_model_instance_id) + ")");
+  }
 }
 
 void RigidBodySystem::addRobotFromURDFString(
-    const string& xml_string, const string& root_dir,
+    const string& urdf_string, const string& root_dir,
     const DrakeJoint::FloatingBaseType floating_base_type) {
   // first add the urdf to the rigid body tree
-  tree->addRobotFromURDFString(xml_string, root_dir, floating_base_type);
+  drake::parsers::urdf::AddModelInstanceFromURDFString(urdf_string, root_dir,
+                                               floating_base_type, tree.get());
 
   // now parse additional tags understood by rigid body system (actuators,
   // sensors, etc)
   XMLDocument xml_doc;
-  xml_doc.Parse(xml_string.c_str());
+  xml_doc.Parse(urdf_string.c_str());
 
   parseURDF(*this, &xml_doc);
 }
 
+// TODO(liang.fok) Remove this method once the URDF parser emits a Model
+// container that contains information needed by both the RigidBodySystem and
+// RigidBodyTree.
 void RigidBodySystem::addRobotFromURDF(
     const string& urdf_filename,
     const DrakeJoint::FloatingBaseType floating_base_type,
     std::shared_ptr<RigidBodyFrame> weld_to_frame) {
-  // first add the urdf to the rigid body tree
-  tree->addRobotFromURDF(urdf_filename, floating_base_type, weld_to_frame);
+  // Adds the URDF to the rigid body tree.
+  drake::parsers::urdf::AddModelInstanceFromURDF(urdf_filename,
+      floating_base_type, weld_to_frame, tree.get());
 
-  // now parse additional tags understood by rigid body system (actuators,
-  // sensors, etc)
+  // Parses additional tags understood by rigid body system (e.g., actuators,
+  // sensors, etc).
   XMLDocument xml_doc;
   xml_doc.LoadFile(urdf_filename.data());
   if (xml_doc.ErrorID() != XML_SUCCESS) {
-    throw std::runtime_error("failed to parse xml in file " + urdf_filename +
-                             "\n" + xml_doc.ErrorName());
+    throw std::runtime_error(
+        "RigidBodySystem::addRobotFromURDF: ERROR: Failed to parse xml in "
+        "file " +
+        urdf_filename + "\n" + xml_doc.ErrorName());
   }
   parseURDF(*this, &xml_doc);
 }
@@ -851,15 +940,18 @@ void RigidBodySystem::addRobotFromSDF(
     const DrakeJoint::FloatingBaseType floating_base_type,
     std::shared_ptr<RigidBodyFrame> weld_to_frame) {
   // Adds the robot to the rigid body tree.
-  tree->addRobotFromSDF(sdf_filename, floating_base_type, weld_to_frame);
+  drake::parsers::sdf::AddRobotFromSDF(sdf_filename, floating_base_type,
+                                       weld_to_frame, tree.get());
 
   // Parses the additional SDF elements that are understood by RigidBodySystem,
   // namely (actuators, sensors, etc.).
   XMLDocument xml_doc;
   xml_doc.LoadFile(sdf_filename.data());
   if (xml_doc.ErrorID() != XML_SUCCESS) {
-    throw std::runtime_error("failed to parse xml in file " + sdf_filename +
-                             "\n" + xml_doc.ErrorName());
+    throw std::runtime_error(
+        "RigidBodySystem::addRobotFromSDF: ERROR: Failed to parse xml in "
+        "file " +
+        sdf_filename + "\n" + xml_doc.ErrorName());
   }
   parseSDF(*this, &xml_doc);
 }
@@ -874,28 +966,32 @@ void RigidBodySystem::addRobotFromFile(
   // Converts the file extension to be all lower case.
   std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-  if (ext == ".urdf")
+  if (ext == ".urdf") {
     addRobotFromURDF(filename, floating_base_type, weld_to_frame);
-  else if (ext == ".sdf")
+  } else if (ext == ".sdf") {
     addRobotFromSDF(filename, floating_base_type, weld_to_frame);
-  else
-    throw runtime_error("unknown file extension: " + ext);
+  } else {
+    throw runtime_error(
+        "RigidBodySystem::addRobotFromFile: ERROR: Unknown file extension: " +
+        ext);
+  }
 }
 
 Eigen::VectorXd spatialForceInFrameToJointTorque(
     const RigidBodyTree* tree, const KinematicsCache<double>& rigid_body_state,
     const RigidBodyFrame* frame, const Eigen::Matrix<double, 6, 1>& wrench) {
   auto T_frame_to_world =
-      tree->relativeTransform(rigid_body_state, 0, frame->frame_index);
+      tree->relativeTransform(rigid_body_state, 0, frame->get_frame_index());
   auto force_in_world = transformSpatialForce(T_frame_to_world, wrench);
   std::vector<int> v_indices;
-  auto J = tree->geometricJacobian(rigid_body_state, 0, frame->frame_index, 0,
+  auto J = tree->geometricJacobian(rigid_body_state, 0,
+                                   frame->get_frame_index(), 0,
                                    false, &v_indices);
   Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree->number_of_velocities());
-  for (int i = 0; i < v_indices.size(); i++) {
+  for (size_t i = 0; i < v_indices.size(); i++) {
     tau(v_indices[i]) = J.col(i).dot(force_in_world);
   }
   return tau;
 }
 
-}  // namespace Drake
+}  // namespace drake

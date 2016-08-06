@@ -2,12 +2,11 @@
 
 #include <memory>
 
-#include "drake/core/Function.h"
-#include "drake/core/Gradient.h"
-#include "drake/core/Vector.h"
+#include "drake/common/drake_assert.h"
 #include "drake/systems/System.h"
+#include "drake/systems/vector.h"
 
-namespace Drake {
+namespace drake {
 
 /** FeedbackSystem<System1,System2>
  * @brief Builds a new system from the feedback connection of two simpler
@@ -88,10 +87,10 @@ class FeedbackSystem {
   }
   bool isDirectFeedthrough() const { return sys1->isDirectFeedthrough(); }
   size_t getNumStates() const {
-    return Drake::getNumStates(*sys1) + Drake::getNumStates(*sys2);
+    return drake::getNumStates(*sys1) + drake::getNumStates(*sys2);
   }
-  size_t getNumInputs() const { return Drake::getNumInputs(*sys1); }
-  size_t getNumOutputs() const { return Drake::getNumOutputs(*sys1); }
+  size_t getNumInputs() const { return drake::getNumInputs(*sys1); }
+  size_t getNumOutputs() const { return drake::getNumOutputs(*sys1); }
 
   const System1Ptr& getSys1() const { return sys1; }
 
@@ -131,7 +130,7 @@ class FeedbackSystem {
         *u1 = static_cast<InputVector<ScalarType>>(toEigen(*y2) + toEigen(u));
       }
     } else {
-      assert(!sys2->isDirectFeedthrough());  // Per our constructor.
+      DRAKE_ASSERT(!sys2->isDirectFeedthrough());  // Per our constructor.
       // sys2->output doesn't use y1, so it's okay that it isn't filled in yet.
       *y2 = sys2->output(t, x2, *y1);
       *u1 = static_cast<InputVector<ScalarType>>(toEigen(*y2) + toEigen(u));
@@ -154,4 +153,4 @@ std::shared_ptr<FeedbackSystem<System1, System2>> feedback(
   return std::make_shared<FeedbackSystem<System1, System2>>(sys1, sys2);
 }
 
-}  // namespace Drake
+}  // namespace drake

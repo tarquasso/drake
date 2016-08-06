@@ -2,7 +2,7 @@
 
 #include "KinematicsCache.h"
 #include "drake/drakeRBSystem_export.h"
-#include "drake/solvers/Optimization.h"
+#include "drake/solvers/optimization.h"
 #include "drake/systems/System.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 
@@ -90,7 +90,7 @@ namespace tinyxml2 {
 class XMLElement;
 }
 
-namespace Drake {
+namespace drake {
 
 class RigidBodyForceElement;  // forward declaration
 class RigidBodySensor;        // forward declaration
@@ -176,10 +176,32 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
       const DrakeJoint::FloatingBaseType floating_base_type =
           DrakeJoint::QUATERNION,
       std::shared_ptr<RigidBodyFrame> weld_to_frame = nullptr);
+
+  /**
+   * Adds the models contained within an SDF file to this rigid body system.
+   * The models within a particular SDF file can be added multiple times. Each
+   * model is uniquely identified by a model instance ID that is assigned to the
+   * rigid bodies that belong to the model.
+   *
+   * @param[in] sdf_filename The name of the SDF file containing the models to
+   * add to this rigid body system.
+   *
+   * @param[in] floating_base_type The type of floating base to use to connect
+   * the models within the SDF file to the world.
+   *
+   * @param[in] weld_to_frame The frame used for connecting the models in the
+   * SDF to the rigid body tree within this rigid body system. Note that this
+   * specifies both the existing frame in the rigid body tree to connect the
+   * new models to and the offset from this frame to the new models' root
+   * bodies. This is an optional parameter. If it is `nullptr`, the models
+   * within the SDF are connected to the world with zero offset and rotation
+   * relative to the world's frame.
+   */
   void addRobotFromSDF(const std::string& sdf_filename,
                        const DrakeJoint::FloatingBaseType floating_base_type =
                            DrakeJoint::QUATERNION,
                        std::shared_ptr<RigidBodyFrame> weld_to_frame = nullptr);
+
   void addRobotFromFile(
       const std::string& filename,
       const DrakeJoint::FloatingBaseType floating_base_type =
@@ -278,7 +300,6 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
   std::shared_ptr<RigidBodyTree> tree;
   std::vector<std::shared_ptr<RigidBodyForceElement>> force_elements;
   std::vector<std::shared_ptr<RigidBodySensor>> sensors;
-  size_t num_sensor_outputs;
   bool direct_feedthrough;
 
   /*
@@ -294,8 +315,8 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
  */
 class DRAKERBSYSTEM_EXPORT RigidBodyForceElement {
  public:
-  RigidBodyForceElement(RigidBodySystem& sys, const std::string& name)
-      : sys(sys), name(name) {}
+  RigidBodyForceElement(RigidBodySystem& sys_in, const std::string& name_in)
+      : sys(sys_in), name(name_in) {}
   virtual ~RigidBodyForceElement() {}
 
   virtual size_t getNumInputs() const { return 0; }
@@ -379,11 +400,14 @@ class DRAKERBSYSTEM_EXPORT RigidBodySpringDamper
     using namespace Eigen;
     const Vector3d origin = Vector3d::Zero();
     Vector3d xA_in_B = sys.getRigidBodyTree()->transformPoints(
-        rigid_body_state, origin, frameA->frame_index, frameB->frame_index);
+        rigid_body_state, origin, frameA->get_frame_index(),
+        frameB->get_frame_index());
     Vector3d xB_in_A = sys.getRigidBodyTree()->transformPoints(
-        rigid_body_state, origin, frameB->frame_index, frameA->frame_index);
+        rigid_body_state, origin, frameB->get_frame_index(),
+        frameA->get_frame_index());
     auto JA_in_B = sys.getRigidBodyTree()->transformPointsJacobian(
-        rigid_body_state, origin, frameA->frame_index, frameB->frame_index,
+        rigid_body_state, origin, frameA->get_frame_index(),
+        frameB->get_frame_index(),
         false);
 
     double length = xA_in_B.norm();
@@ -710,4 +734,4 @@ class DRAKERBSYSTEM_EXPORT RigidBodyMagnetometer : public RigidBodySensor {
   std::shared_ptr<NoiseModel<double, 3, Eigen::Vector3d>> noise_model;
 };
 
-}  // end namespace Drake
+}  // end namespace drake

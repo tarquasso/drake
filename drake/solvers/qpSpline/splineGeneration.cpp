@@ -6,6 +6,8 @@
 #include <numeric>
 #include <stdexcept>
 
+#include "drake/common/drake_assert.h"
+
 using namespace std;
 using namespace Eigen;
 
@@ -63,9 +65,9 @@ PiecewisePolynomial<double> generateSpline(
       const ValueConstraint& constraint = *it;
       int number_of_coefficients =
           spline_information.getNumberOfCoefficients(i);
-      int segment_col_start = segment_col_starts[i];
       auto constraint_matrix_segment_part = constraint_matrix.block<1, Dynamic>(
-          constraint_row_start, segment_col_start, 1, number_of_coefficients);
+          constraint_row_start, segment_col_starts[i], 1,
+          number_of_coefficients);
       double t_local =
           constraint.getTime() - spline_information.getStartTime(i);
       setConstraintMatrixPart(t_local, constraint.getDerivativeOrder(),
@@ -128,7 +130,7 @@ PiecewisePolynomial<double> nWaypointCubicSpline(
     const vector<double>& segment_times, double x0, double xd0, double xf,
     double xdf, const Ref<const VectorXd>& xi) {
   const int num_segments = static_cast<int>(xi.size() + 1);
-  assert(segment_times.size() == num_segments + 1);
+  DRAKE_ASSERT(static_cast<int>(segment_times.size()) == (num_segments + 1));
 
   int polynomial_order = 3;
   vector<int> segment_polynomial_orders;

@@ -2,20 +2,17 @@
 
 #include <iostream>
 #include <cmath>
-#include "drake/systems/LCMSystem.h"
+#include <Eigen/Core>
 
 using namespace std;
 
 template <typename ScalarType = double>
-class AcrobotState {  // models the Drake::Vector concept
+class AcrobotState {  // models the drake::Vector concept
  public:
-  typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "AcrobotState"; }
-
   AcrobotState(void) : shoulder(0), elbow(0), shoulder_dot(0), elbow_dot(0) {}
 
   template <typename Derived>
-  AcrobotState(  // NOLINT(runtime/explicit) per Drake::Vector.
+  AcrobotState(  // NOLINT(runtime/explicit) per drake::Vector.
       const Eigen::MatrixBase<Derived>& x)
       : shoulder(x(0)), elbow(x(1)), shoulder_dot(x(2)), elbow_dot(x(3)) {}
 
@@ -57,13 +54,10 @@ class AcrobotState {  // models the Drake::Vector concept
 template <typename ScalarType = double>
 class AcrobotInput {
  public:
-  typedef drake::lcmt_drake_signal LCMMessageType;
-  static std::string channel() { return "AcrobotInput"; }
-
   AcrobotInput(void) : tau(0) {}
 
   template <typename Derived>
-  AcrobotInput(  // NOLINT(runtime/explicit) per Drake::Vector.
+  AcrobotInput(  // NOLINT(runtime/explicit) per drake::Vector.
       const Eigen::MatrixBase<Derived>& x)
       : tau(x(0)) {}
 

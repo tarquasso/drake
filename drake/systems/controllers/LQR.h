@@ -1,13 +1,17 @@
 #pragma once
 
-#include "drake/core/Function.h"
+#include "drake/common/drake_assert.h"
+#include "drake/common/text_logging.h"
 #include "drake/core/Gradient.h"
-#include "drake/core/Vector.h"
+#include "drake/math/autodiff.h"
 #include "drake/systems/LinearSystem.h"
+#include "drake/systems/vector.h"
 #include "drake/util/drakeGradientUtil.h"
 #include "drake/util/drakeUtil.h"
 
-namespace Drake {
+using drake::math::autoDiffToGradientMatrix;
+
+namespace drake {
 
 template <typename System>
 std::shared_ptr<AffineSystem<NullVector, System::template StateVector,
@@ -20,7 +24,7 @@ timeInvariantLQR(const System& sys,
       System::template StateVector<double>::RowsAtCompileTime;
   const int num_inputs =
       System::template InputVector<double>::RowsAtCompileTime;
-  assert(!sys.isTimeVarying());
+  DRAKE_ASSERT(!sys.isTimeVarying());
   static_assert(num_states != 0, "This system has no continuous states");
   using namespace std;
   using namespace Eigen;
@@ -40,8 +44,7 @@ timeInvariantLQR(const System& sys,
   Eigen::MatrixXd K(num_inputs, num_states), S(num_states, num_states);
   lqr(A, B, Q, R, K, S);
 
-  //    cout << "K = " << K << endl;
-  //    cout << "S = " << S << endl;
+  SPDLOG_TRACE(drake::log(), "K = {} S = {}", K, S);
 
   // todo: return the linear system with the affine transform.  But for now,
   // just give the affine controller:

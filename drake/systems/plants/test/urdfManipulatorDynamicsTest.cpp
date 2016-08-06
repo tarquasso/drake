@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 
+#include "drake/common/eigen_types.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 
 using namespace std;
@@ -22,8 +23,8 @@ int main(int argc, char* argv[]) {
   // the order of the bodies may be different in matlab, so print it out once
   // here
   cout << model->bodies.size() << endl;
-  for (int i = 0; i < model->bodies.size(); i++) {
-    cout << model->bodies[i]->name_ << endl;
+  for (const auto& body : model->bodies) {
+    cout << body->get_name() << endl;
   }
 
   VectorXd q = model->getZeroConfiguration();
@@ -46,7 +47,7 @@ int main(int argc, char* argv[]) {
   auto H = model->massMatrix(cache);
   cout << H << endl;
 
-  eigen_aligned_unordered_map<RigidBody const*, Matrix<double, TWIST_SIZE, 1> >
+  eigen_aligned_unordered_map<RigidBody const*, drake::TwistVector<double>>
       f_ext;
   auto C = model->dynamicsBiasTerm(cache, f_ext);
   cout << C << endl;

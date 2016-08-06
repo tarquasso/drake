@@ -6,38 +6,16 @@
 #include <stdexcept>
 #include <thread>
 
-#include "drake/core/Vector.h"
+#include "drake/systems/simulation_options.h"
+#include "drake/systems/vector.h"
 
-namespace Drake {
+namespace drake {
 
 /** @defgroup simulation Simulation
 *@{
 *@brief Algorithms for simulating dynamical systems
 *@}
 */
-
-// simulation options
-struct SimulationOptions {
-  double realtime_factor;  // 1 means try to run at realtime speed, 0 is run as
-                           // fast as possible, < 0 means use default
-  double initial_step_size;
-  double timeout_seconds;
-
-  /**
-   * This variable dermines what happens if the simulation's timing is delayed
-   * by more than timeout_seconds. When this occurs, a warning is printed if
-   * this variable is true, and an exception is raised if this variable is
-   * false.
-   */
-  bool warn_real_time_violation;
-
-  SimulationOptions()
-      : realtime_factor(-1.0),
-        initial_step_size(0.01),
-        timeout_seconds(1.0),
-        warn_real_time_violation(false) {}
-};
-static const SimulationOptions default_simulation_options;
 
 typedef std::chrono::system_clock TimeClock;  // would love to use steady_clock,
                                               // but it seems to not compile on
@@ -84,7 +62,7 @@ inline bool handle_realtime_factor(const TimePoint& wall_clock_start_time,
 }
 
 /** simulate
- * @brief Runs a simulation given a model, it's initial conditions, and a number
+ * @brief Runs a simulation given a model, its initial conditions, and a number
  *of simulation parameters
  * @ingroup simulation
  *
@@ -98,9 +76,10 @@ inline bool handle_realtime_factor(const TimePoint& wall_clock_start_time,
  * @param tf The final time of the simulation.
  * @param xi The state vector of the system being simulated.
  * @param options The simulation options.
+ * @return The final simulation time.
  */
 template <typename System>
-void simulate(const System& sys, double ti, double tf,
+double simulate(const System& sys, double ti, double tf,
               const typename System::template StateVector<double>& xi,
               const SimulationOptions& options) {
   TimePoint start = TimeClock::now();
@@ -113,7 +92,7 @@ void simulate(const System& sys, double ti, double tf,
 
   // Take steps from ti to tf.
   double t = ti;
-  while (t < tf) {
+  while (t < tf && !options.should_stop(t)) {
     double realtime_factor = options.realtime_factor;
     if (realtime_factor < 0.0) {
       realtime_factor = 0.0;
@@ -152,6 +131,8 @@ void simulate(const System& sys, double ti, double tf,
     // 2nd order result: x = x0 + dt (xd0+xd1)/2.
     x = toEigen(x) + (dt / 2) * (toEigen(xdot0) + toEigen(xdot1));
   }
+
+  return t;
 }
 
 /** simulate
@@ -162,7 +143,7 @@ void simulate(const System& sys, double ti, double tf,
 template <typename System>
 void simulate(const System& sys, double t0, double tf,
               const typename System::template StateVector<double>& x0) {
-  simulate(sys, t0, tf, x0, default_simulation_options);
+  simulate(sys, t0, tf, x0, SimulationOptions());
 }
 
 /** simulate
@@ -176,4 +157,4 @@ void simulate(const System& sys, double t0, double tf) {
   simulate(sys, t0, tf, x0);
 }
 
-}  // end namespace Drake
+}  // end namespace drake

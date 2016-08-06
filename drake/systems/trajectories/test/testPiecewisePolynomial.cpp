@@ -20,9 +20,6 @@ using drake::util::MatrixCompareType;
 namespace drake {
 namespace {
 
-default_random_engine generator;
-uniform_real_distribution<double> uniform;
-
 template <typename CoefficientType>
 void testIntegralAndDerivative() {
   int num_coefficients = 5;
@@ -33,6 +30,7 @@ void testIntegralAndDerivative() {
   typedef PiecewisePolynomial<CoefficientType> PiecewisePolynomialType;
   typedef typename PiecewisePolynomialType::CoefficientMatrix CoefficientMatrix;
 
+  default_random_engine generator;
   vector<double> segment_times =
       PiecewiseFunction::randomSegmentTimes(num_segments, generator);
   PiecewisePolynomialType piecewise =
@@ -55,8 +53,8 @@ void testIntegralAndDerivative() {
   // check continuity at knot points
   for (int i = 0; i < piecewise.getNumberOfSegments() - 1; ++i) {
     valuecheck(integral.getPolynomial(i)
-               .evaluateUnivariate(integral.getDuration(i)),
-               integral.getPolynomial(i + 1).evaluateUnivariate(0.0));
+               .EvaluateUnivariate(integral.getDuration(i)),
+               integral.getPolynomial(i + 1).EvaluateUnivariate(0.0));
   }
 }
 
