@@ -15,6 +15,15 @@
 
 %include <typemaps.i>
 %include <std_vector.i>
+
+#define SWIG_SHARED_PTR_NAMESPACE std
+// SWIG has built-in support for shared pointers, and can use either
+// std::shared_ptr or boost::shared_ptr, since they provide similar enough
+// interfaces. Even though the interface file is called 'boost_shared_ptr.i',
+// the above #define tells SWIG to use the std:: implementation instead. Note
+// that this does NOT result in any boost headers being included.
+%include <boost_shared_ptr.i>
+
 %include <eigen.i>
 %include <autodiff.i>
 %import <autodiffutils.i>
@@ -22,9 +31,14 @@
 %template(vectorVectorXd) std::vector<Eigen::VectorXd>;
 %template(vectorMatrixXd) std::vector<Eigen::MatrixXd>;
 %template(vectorString) std::vector<std::string>;
+%shared_ptr(RigidBody)
+%template(vectorRigidBody) std::vector<std::shared_ptr<RigidBody> >;
+%shared_ptr(RigidBodyFrame)
 
 %eigen_typemaps(Eigen::VectorXd)
+%eigen_typemaps(Eigen::Vector3d)
 %eigen_typemaps(Eigen::Matrix<double, SPACE_DIMENSION, 1>)
+%eigen_typemaps(Eigen::Matrix3Xd)
 %eigen_typemaps(Eigen::Matrix<double, SPACE_DIMENSION, Eigen::Dynamic>)
 %eigen_typemaps(Eigen::MatrixXd)
 %eigen_typemaps(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>)
@@ -37,9 +51,27 @@
 %template(AutoDiff3XDynamic) AutoDiffWrapper<Eigen::VectorXd, SPACE_DIMENSION, Eigen::Dynamic>;
 %template(AutoDiff3XMax73) AutoDiffWrapper<Eigen::Matrix<double, Eigen::Dynamic, 1, 0, 73>, SPACE_DIMENSION, Eigen::Dynamic>;
 
+// unique_ptr confuses SWIG, so we'll ignore it for now
+%ignore RigidBody::setJoint(std::unique_ptr<DrakeJoint> joint);
+%include "drake/systems/plants/RigidBody.h"
+
+%include "drake/systems/plants/RigidBodyFrame.h"
+
+%immutable RigidBodyTree::actuators;
+%immutable RigidBodyTree::loops;
+
+// unique_ptr confuses SWIG, so we'll ignore it for now
+%ignore RigidBodyTree::add_rigid_body(std::unique_ptr<RigidBody> body);
+
+// Ignore this member so that it doesn't generate setters/getters.
+// These cause problems since bodies is a vector of unique_ptr's and
+// SWIG doesn't support them.
+%ignore RigidBodyTree::bodies;
 %include "drake/systems/plants/RigidBodyTree.h"
 %extend RigidBodyTree {
-  KinematicsCache<double> doKinematics(const Eigen::MatrixBase<Eigen::VectorXd>& q, const Eigen::MatrixBase<Eigen::VectorXd>& v) {
+  KinematicsCache<double> doKinematics(
+    const Eigen::MatrixBase<Eigen::VectorXd>& q,
+    const Eigen::MatrixBase<Eigen::VectorXd>& v) {
     return $self->doKinematics(q, v);
   }
 
@@ -69,8 +101,17 @@
     return $self->transformPoints(cache, points, current_body_or_frame_ind, new_body_or_frame_ind);
   }
 
-  Eigen::Matrix<double, SPACE_DIMENSION, 1> centerOfMass(KinematicsCache<double> &cache, const std::set<int> &robotnum = default_robot_num_set) const {
-    return $self->centerOfMass(cache, robotnum);
+  Eigen::Matrix<double, SPACE_DIMENSION, 1> centerOfMass(KinematicsCache<double> &cache, const std::set<int> &model_instance_id = default_model_instance_id_set) const {
+    return $self->centerOfMass(cache, model_instance_id);
+  }
+
+  Eigen::Matrix<double, SPACE_DIMENSION, Eigen::Dynamic> centerOfMassJacobian(KinematicsCache<double>& cache, const std::set<int>& model_instance_ids = default_model_instance_id_set, bool in_terms_of_qdot = false) const {
+    return $self->centerOfMassJacobian(cache, model_instance_ids, in_terms_of_qdot);
+  }
+
+  Eigen::VectorXd getRandomConfiguration() const {
+    std::default_random_engine generator(std::random_device{}());
+    return $self->getRandomConfiguration(generator);
   }
 }
 

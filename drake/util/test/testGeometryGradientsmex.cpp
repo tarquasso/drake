@@ -1,20 +1,28 @@
-#include "drake/util/drakeGeometryUtil.h"
-#include "mex.h"
-#include "drake/util/drakeMexUtil.h"
-using namespace Eigen;
+#include <mex.h>
 
-void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
-{
+#include "drake/common/eigen_types.h"
+#include "drake/util/drakeGeometryUtil.h"
+#include "drake/util/drakeMexUtil.h"
+
+using Eigen::Isometry3d;
+using Eigen::Vector4d;
+
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   if (nrhs != 6 || nlhs != 7) {
-    mexErrMsgIdAndTxt("Drake:testGeometryGradientsmex:BadInputs","Usage [dT, dTInv, dAdT, dAdT_transpose, x_norm, dx_norm, ddx_norm] = testGeometryGradientsmex(T, S, qdot_to_v, X, dX, x)");
+    mexErrMsgIdAndTxt("Drake:testGeometryGradientsmex:BadInputs",
+                      "Usage [dT, dTInv, dAdT, dAdT_transpose, x_norm, "
+                      "dx_norm, ddx_norm] = testGeometryGradientsmex(T, S, "
+                      "qdot_to_v, X, dX, x)");
   }
 
   int argnum = 0;
   Isometry3d T;
-  memcpy(T.data(),mxGetPr(prhs[argnum++]), sizeof(double)*HOMOGENEOUS_TRANSFORM_SIZE);
-  auto S = matlabToEigen<TWIST_SIZE, Eigen::Dynamic>(prhs[argnum++]);
-  auto qdot_to_v = matlabToEigen<Eigen::Dynamic, Eigen::Dynamic>(prhs[argnum++]);
-  auto X = matlabToEigen<TWIST_SIZE, Eigen::Dynamic>(prhs[argnum++]);
+  memcpy(T.data(), mxGetPr(prhs[argnum++]),
+         sizeof(double) * HOMOGENEOUS_TRANSFORM_SIZE);
+  auto S = matlabToEigen<drake::kTwistSize, Eigen::Dynamic>(prhs[argnum++]);
+  auto qdot_to_v =
+      matlabToEigen<Eigen::Dynamic, Eigen::Dynamic>(prhs[argnum++]);
+  auto X = matlabToEigen<drake::kTwistSize, Eigen::Dynamic>(prhs[argnum++]);
   auto dX = matlabToEigen<Eigen::Dynamic, Eigen::Dynamic>(prhs[argnum++]);
   auto x = matlabToEigen<4, 1>(prhs[argnum++]);
 

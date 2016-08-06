@@ -1,0 +1,18 @@
+add_executable(dynamic_constraint_test dynamic_constraint_test.cc)
+target_link_libraries(dynamic_constraint_test drakeDynamicConstraint
+  ${GTEST_BOTH_LIBRARIES})
+add_test(NAME dynamic_constraint_test COMMAND dynamic_constraint_test)
+
+add_matlab_test(NAME systems/plants/constraint/test/AllBodiesClosestDistanceConstraintTest COMMAND AllBodiesClosestDistanceConstraintTest)
+add_matlab_test(NAME systems/plants/constraint/test/RelativeGazeTargetConstraintTest COMMAND RelativeGazeTargetConstraintTest)
+add_matlab_test(NAME systems/plants/constraint/test/RelativePositionConstraintTest COMMAND RelativePositionConstraintTest)
+add_matlab_test(NAME systems/plants/constraint/test/RelativeQuatConstraintTest COMMAND RelativeQuatConstraintTest)
+add_matlab_test(NAME systems/plants/constraint/test/WorldPositionInFrameConstraintTest COMMAND WorldPositionInFrameConstraintTest)
+add_matlab_test(NAME systems/plants/constraint/test/testMultipleTimeLinearPostureConstraint COMMAND testMultipleTimeLinearPostureConstraint)
+add_matlab_test(NAME systems/plants/constraint/test/testPostureConstraint COMMAND testPostureConstraint)
+add_matlab_test(NAME systems/plants/constraint/test/testQuasiStaticConstraint COMMAND testQuasiStaticConstraint)
+add_matlab_test(NAME systems/plants/constraint/test/testSingleTimeLinearPostureConstraint COMMAND testSingleTimeLinearPostureConstraint)
+
+if(LONG_RUNNING_TESTS)
+  # add_matlab_test(NAME systems/plants/constraint/test/testKinCnst COMMAND testKinCnst PROPERTIES TIMEOUT 1500)  # FIXME: see #2339
+endif()

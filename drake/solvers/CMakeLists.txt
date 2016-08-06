@@ -1,15 +1,11 @@
-
-# todo: still build something useful if gurobi does not exist
-
 pods_find_pkg_config(gurobi)
 
-if (gurobi_FOUND)
+if(gurobi_FOUND)
 
-  add_library_with_exports(LIB_NAME drakeQP SOURCE_FILES QP.cpp)
-  set_target_properties(drakeQP PROPERTIES COMPILE_FLAGS -fPIC)
+  add_library_with_exports(LIB_NAME drakeQP SOURCE_FILES qp.cc)
   pods_use_pkg_config_packages(drakeQP gurobi)
 
-  if (MATLAB_FOUND)
+  if(MATLAB_FOUND)
     add_mex(fastQPmex fastQPmex.cpp)
     target_link_libraries(fastQPmex drakeQP)
     add_mex(gurobiQPmex gurobiQPmex.cpp)
@@ -17,15 +13,12 @@ if (gurobi_FOUND)
   endif()
 
   pods_install_libraries(drakeQP)
-  drake_install_headers(fastQP.h gurobiQP.h)
+  drake_install_headers(fast_qp.h gurobi_qp.h)
   pods_install_pkg_config_file(drake-qp
     LIBS -ldrakeQP
     REQUIRES gurobi
     VERSION 0.0.1)
-
 endif()
-
-pods_find_pkg_config(snopt_c)
 
 if(MATLAB_FOUND)
   add_mex(lqrmex lqrmex.cpp)
@@ -33,22 +26,103 @@ if(MATLAB_FOUND)
 endif()
 
 set(optimization_files)
-if (snopt_c_FOUND)
-  list(APPEND optimization_files SNOPTWrapper.cpp)
+list(APPEND optimization_files
+  mathematical_program.cc moby_lcp_solver.cc
+  system_identification.cpp linear_system_solver.cc
+  equality_constrained_qp_solver.cc)
+pods_find_pkg_config(ipopt)
+if (ipopt_FOUND)
+ list(APPEND optimization_files ipopt_solver.cc)
 else()
-  list(APPEND optimization_files NoSNOPT.cpp)
-endif(snopt_c_FOUND)
+  list(APPEND optimization_files no_ipopt.cc)
+endif(ipopt_FOUND)
+pods_find_pkg_config(nlopt)
+if(nlopt_FOUND)
+  list(APPEND optimization_files nlopt_solver.cc)
+else()
+  list(APPEND optimization_files no_nlopt.cc)
+endif()
+pods_find_pkg_config(snopt_c)
+if(snopt_c_FOUND)
+  list(APPEND optimization_files snopt_solver.cc)
+else()
+  list(APPEND optimization_files no_snopt.cc)
+endif()
+pods_find_pkg_config(mosek)
+if(mosek_FOUND)
+  list(APPEND optimization_files mosek_solver.cc mosek_wrapper.cc)
+else()
+  list(APPEND optimization_files no_mosek.cc)
+endif()
+if(gurobi_FOUND)
+  list(APPEND optimization_files gurobi_solver.cc)
+else()
+  list(APPEND optimization_files no_gurobi.cc)
+endif()
+
+
 add_library_with_exports(LIB_NAME drakeOptimization SOURCE_FILES ${optimization_files})
-set_target_properties(drakeOptimization PROPERTIES COMPILE_FLAGS -fPIC)
-if (snopt_c_FOUND)
+target_link_libraries(drakeOptimization drakeCommon)
+drake_install_headers(
+  constraint.h
+  Function.h
+  mathematical_program.h
+  optimization.h
+  decision_variable.h
+  solution_result.h
+  system_identification.h
+  )
+pods_install_libraries(drakeOptimization)
+pods_install_pkg_config_file(drake-optimization
+  LIBS -ldrakeOptimization
+  REQUIRES
+  VERSION 0.0.1)
+
+if(ipopt_FOUND)
+  pods_use_pkg_config_packages(drakeOptimization ipopt)
+  # IPOPT builds its own version of BLAS during compilation, and links
+  # it into the output library.  On (at least some) ELF systems, you
+  # wind up with a symbol name collision between IPOPT's BLAS and
+  # other BLAS implementations in other dynamic libraries (MATLAB, I'm
+  # looking in your direction...)  Since the actual implementations
+  # are incompatible, this does not end well.  Linking with the
+  # -Bsymbolic flags causes the internal references to these symbols
+  # inside libdrakeOptimization to be handled at compile time, and
+  # prevents the dynamic linker from hijacking IPOPT's calls into
+  # BLAS.
+  #
+  # This should probably be a test for the GNU linker instead of a platform.
+  if (NOT (APPLE OR WIN32))
+    set(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic -Wl,-Bsymbolic-functions")
+  endif()
+endif()
+if(nlopt_FOUND)
+  pods_use_pkg_config_packages(drakeOptimization nlopt)
+endif()
+if(snopt_c_FOUND)
   pods_use_pkg_config_packages(drakeOptimization snopt_c)
-endif(snopt_c_FOUND)
+endif()
+if(gurobi_FOUND)
+  pods_use_pkg_config_packages(drakeOptimization gurobi)
+endif()
 
 if(snopt_c_FOUND AND MATLAB_FOUND)
   add_mex(NonlinearProgramSnoptmex NonlinearProgramSnoptmex.cpp)
   pods_use_pkg_config_packages(NonlinearProgramSnoptmex snopt_c)
-  set_target_properties(NonlinearProgramSnoptmex PROPERTIES COMPILE_FLAGS -fPIC)
+
+  # These warnings are not worth fixing.
+  set_target_properties(
+    NonlinearProgramSnoptmex
+    PROPERTIES COMPILE_FLAGS ${CXX_FLAGS_NO_ERROR_SHADOW})
+endif()
+
+if(mosek_FOUND)
+  pods_use_pkg_config_packages(drakeOptimization mosek)
 endif()
 
 add_subdirectory(qpSpline)
 add_subdirectory(test)
+add_subdirectory(+drakeFunction)
+add_subdirectory(BMI)
+add_subdirectory(trajectoryOptimization)

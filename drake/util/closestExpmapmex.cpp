@@ -1,33 +1,42 @@
-#include "mex.h"
-#include "drake/util/drakeMexUtil.h"
-#include "drake/util/drakeGeometryUtil.h"
+#include <Eigen/Core>
+
+#include "drake/math/autodiff.h"
+#include "drake/math/expmap.h"
+#include "drake/util/mexify.h"
+#include "drake/util/standardMexConversions.h"
+#include "drake/util/makeFunction.h"
+#include "drake/core/Gradient.h"
 
 using namespace std;
 using namespace Eigen;
+using namespace drake;
 
-void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
-{
-  if (nrhs != 2) {
-    mexErrMsgIdAndTxt("Drake:closestExpmapmex:InvalidInputs","Usage is closestExpmap(expmap1,expmap2)");
-  }
-  if (mxGetM(prhs[0]) != 3 || mxGetN(prhs[0]) != 1) {
-    mexErrMsgIdAndTxt("Drake:closestExpmapmex:InvalidInputs","expmap1 should be a 3 x 1 vector");
-  }
-  Map<Vector3d> expmap1(mxGetPr(prhs[0]));
-  if (mxGetM(prhs[1]) != 3 || mxGetN(prhs[1]) != 1) {
-    mexErrMsgIdAndTxt("Drake:closestExpmapmex:InvalidInputs","expmap2 should be a 3 x 1 vector");
-  }
-  Map<Vector3d> expmap2(mxGetPr(prhs[1]));
-  int gradient_order;
-  if (nlhs>1) {
-    gradient_order = 1;
-  }
-  else {
-    gradient_order = 0;
-  }
-  GradientVar<double,3,1> ret = closestExpmap(expmap1, expmap2,gradient_order);
-  plhs[0] = eigenToMatlab(ret.value());
-  if (nlhs>1) {
-    plhs[1] = eigenToMatlab(ret.gradient().value());
+using drake::math::autoDiffToValueMatrix;
+using drake::math::autoDiffToGradientMatrix;
+
+// note: gradient only w.r.t. expmap2...
+pair<Vector3d, typename Gradient<Vector3d, 3>::type> closestExpmapWithGradient(
+    const MatrixBase<Map<const Vector3d>>& expmap1,
+    const MatrixBase<Map<const Vector3d>>& expmap2) {
+  auto expmap2_autodiff = initializeAutoDiff(expmap2);
+  auto expmap1_autodiff =
+      (expmap1.cast<decltype(expmap2_autodiff)::Scalar>()).eval();
+  auto closest_autodiff = drake::math::closestExpmap(expmap1_autodiff,
+                                                     expmap2_autodiff);
+  return make_pair(autoDiffToValueMatrix(closest_autodiff),
+                   autoDiffToGradientMatrix(closest_autodiff));
+}
+
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+  if (nlhs == 1) {
+    auto func = make_function(
+        &drake::math::closestExpmap<Map<const Vector3d>, Map<const Vector3d>>);
+    mexCallFunction(nlhs, plhs, nrhs, prhs, true, func);
+  } else if (nlhs == 2) {
+    auto func = make_function(&closestExpmapWithGradient);
+    mexCallFunction(nlhs, plhs, nrhs, prhs, true, func);
+  } else {
+    throw std::runtime_error(
+        "can't handle requested number of output arguments");
   }
 }
