@@ -5,8 +5,8 @@
 #include <Eigen/Dense>
 #include "gtest/gtest.h"
 
-#include "drake/core/functional_form.h"
-#include "drake/util/Polynomial.h"
+#include "drake/common/functional_form.h"
+#include "drake/common/polynomial.h"
 #include "drake/util/eigen_matrix_compare.h"
 
 using drake::util::CompareMatrices;
@@ -37,7 +37,7 @@ GTEST_TEST(BasicVectorTest, IntInitiallyZero) {
 // Tests that the BasicVector<Polynomiald> is initialized to zero.
 GTEST_TEST(BasicVectorTest, PolynomialInitiallyZero) {
   BasicVector<Polynomiald> vec(1);
-  EXPECT_TRUE(vec.get_value()[0].isApprox(Polynomiald(0.0),
+  EXPECT_TRUE(vec.get_value()[0].IsApprox(Polynomiald(0.0),
                                           Eigen::NumTraits<double>::epsilon()));
 }
 
@@ -70,6 +70,18 @@ GTEST_TEST(BasicVectorTest, SetWholeVector) {
   next_value << 3, 4;
   vec.set_value(next_value);
   EXPECT_EQ(next_value, vec.get_value());
+}
+
+// Tests that when BasicVector is cloned, its type and data are preserved.
+GTEST_TEST(BasicVectorTest, Clone) {
+  BasicVector<int> vec(2);
+  vec.get_mutable_value() << 1, 2;
+  std::unique_ptr<VectorInterface<int>> clone = vec.Clone();
+
+  BasicVector<int>* typed_clone = dynamic_cast<BasicVector<int>*>(clone.get());
+  Eigen::Vector2i expected;
+  expected << 1, 2;
+  EXPECT_EQ(expected, typed_clone->get_value());
 }
 
 // Tests that an error is thrown when the BasicVector is set from a vector

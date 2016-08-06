@@ -11,15 +11,15 @@ robot = pydrake.rbtree.RigidBodyTree(os.path.join(pydrake.getDrakePath(),
 # along that link's x axis
 robot.addFrame(
            pydrake.rbtree.RigidBodyFrame("r_hand_frame",
-                                         robot.findLink("r_gripper_palm_link"),
+                                         robot.FindBody("r_gripper_palm_link"),
                                          np.array([0.1, 0, 0]),
                                          np.array([0., 0, 0])))
 
 # Make sure attribute access works on bodies
-assert robot.world().name() == "world"
+assert robot.world().get_name() == "world"
 
-hand_frame_id = robot.findFrame("r_hand_frame").frame_index
-base_body_id = robot.findLink('base_footprint').body_index
+hand_frame_id = robot.findFrame("r_hand_frame").get_frame_index()
+base_body_id = robot.FindBody('base_footprint').get_body_index()
 
 constraints = [
                # These three constraints ensure that the base of the robot is
@@ -61,9 +61,9 @@ q_seed = robot.getZeroConfiguration()
 options = ik.IKoptions(robot)
 results = ik.inverseKinSimple(robot, q_seed, q_seed, constraints, options)
 
-# results.INFO gives the output status of SNOPT. INFO = 1 is good, anything
+# results.info gives the output status of SNOPT. info = 1 is good, anything
 # less than 10 is OK, and any info >= 10 indicates an infeasibility or failure
 # of the optimizer.
-assert results.INFO == 1
+assert results.info == 1
 
 print repr(results.q_sol)

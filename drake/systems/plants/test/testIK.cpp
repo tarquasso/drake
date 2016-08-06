@@ -1,20 +1,27 @@
 #include <cstdlib>
 #include <Eigen/Dense>
 
+#include "gtest/gtest.h"
+
+#include "drake/common/drake_path.h"
 #include "drake/systems/plants/constraint/RigidBodyConstraint.h"
 #include "drake/systems/plants/IKoptions.h"
 #include "drake/systems/plants/RigidBodyIK.h"
 #include "drake/systems/plants/RigidBodyTree.h"
+#include "drake/systems/vector.h"
 #include "drake/util/eigen_matrix_compare.h"
-#include "gtest/gtest.h"
 
-using namespace std;
-using namespace Eigen;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
+using Eigen::VectorXd;
+
+using drake::GetDrakePath;
 using drake::util::CompareMatrices;
 using drake::util::MatrixCompareType;
 
-GTEST_TEST(testIK, simpleIK) {
-  RigidBodyTree model("examples/Atlas/urdf/atlas_minimal_contact.urdf");
+GTEST_TEST(testIK, atlasIK) {
+  RigidBodyTree model(
+      GetDrakePath() + "/examples/Atlas/urdf/atlas_minimal_contact.urdf");
 
   Vector2d tspan;
   tspan << 0, 1;
@@ -32,11 +39,12 @@ GTEST_TEST(testIK, simpleIK) {
   constraint_array.push_back(&com_kc);
   IKoptions ikoptions(&model);
   VectorXd q_sol(model.number_of_positions());
-  int info;
-  vector<string> infeasible_constraint;
+  q_sol.setZero();
+  int info = 0;
+  std::vector<std::string> infeasible_constraint;
   inverseKin(&model, q0, q0, constraint_array.size(), constraint_array.data(),
              ikoptions, &q_sol, &info, &infeasible_constraint);
-  printf("INFO = %d\n", info);
+  printf("info = %d\n", info);
   EXPECT_EQ(info, 1);
 
   KinematicsCache<double> cache = model.doKinematics(q_sol);
@@ -45,11 +53,61 @@ GTEST_TEST(testIK, simpleIK) {
   EXPECT_TRUE(
       CompareMatrices(com, Vector3d(0, 0, 1), 1e-6,
                       MatrixCompareType::absolute));
+}
 
-  /*MATFile *presultmat;
-  presultmat = matOpen("q_sol.mat","w");
-  mxArray* pqsol = mxCreateDoubleMatrix(model.num_dof, 1, mxREAL);
-  memcpy(mxGetPrSafe(pqsol), q_sol.data(), sizeof(double)model.num_dof);
-  matPutVariable(presultmat,"q_sol", pqsol);
-  matClose(presultmat);*/
+GTEST_TEST(testIK, iiwaIK) {
+  RigidBodyTree model(
+      GetDrakePath() + "/examples/kuka_iiwa_arm/urdf/iiwa14.urdf");
+
+  // Create a timespan for the constraints.  It's not particularly
+  // meaningful in this test since inverseKin() only tests a single
+  // point, but the constructors need something.
+  Vector2d tspan;
+  tspan << 0, 1;
+
+  // Start the robot in the zero configuration (all joints zeroed,
+  // pointing straight up).
+  VectorXd q0 = model.getZeroConfiguration();
+
+  // Constrain iiwa_link_7 (the end effector) to move 0.58 on the X
+  // axis and down slightly (to make room for the X axis motion).
+  Vector3d pos_end;
+  pos_end << 0.58, 0, 0.77;
+  const double pos_tol = 0.01;
+  Vector3d pos_lb = pos_end - Vector3d::Constant(pos_tol);
+  Vector3d pos_ub = pos_end + Vector3d::Constant(pos_tol);
+  const int link_7_idx = model.FindBodyIndex("iiwa_link_7");
+  WorldPositionConstraint wpc(&model, link_7_idx,
+                              Vector3d(0, 0, 0), pos_lb, pos_ub, tspan);
+
+  // Constrain iiwa_joint_4 between 0.9 and 1.0.
+  PostureConstraint pc(&model, tspan);
+  drake::Vector1d joint_lb(0.9);
+  drake::Vector1d joint_ub(1.0);
+  Eigen::VectorXi joint_idx(1);
+  joint_idx(0) = model.findJoint("iiwa_joint_4")->get_position_start_index();
+  pc.setJointLimits(joint_idx, joint_lb, joint_ub);
+
+  std::vector<RigidBodyConstraint*> constraint_array;
+  constraint_array.push_back(&wpc);
+  constraint_array.push_back(&pc);
+  IKoptions ikoptions(&model);
+
+  VectorXd q_sol(model.number_of_positions());
+  q_sol.setZero();
+  int info = 0;
+  std::vector<std::string> infeasible_constraint;
+  inverseKin(&model, q0, q0, constraint_array.size(), constraint_array.data(),
+             ikoptions, &q_sol, &info, &infeasible_constraint);
+  EXPECT_EQ(info, 1);
+
+  // Check that our constrained joint is within where we tried to constrain it.
+  EXPECT_GE(q_sol(joint_idx(0)), joint_lb(0));
+  EXPECT_LE(q_sol(joint_idx(0)), joint_ub(0));
+
+  // Check that the link we were trying to position wound up where we expected.
+  KinematicsCache<double> cache = model.doKinematics(q_sol);
+  EXPECT_TRUE(CompareMatrices(
+      pos_end, model.relativeTransform(cache, 0, link_7_idx).translation(),
+      pos_tol + 1e-6, MatrixCompareType::absolute));
 }

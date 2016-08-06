@@ -1,36 +1,40 @@
 #include <cstdlib>
-#include <iostream>
 #include <numeric>  // for iota
 
 #include <Eigen/Dense>
 
+#include "gtest/gtest.h"
+
+#include "drake/common/drake_path.h"
 #include "drake/systems/plants/constraint/RigidBodyConstraint.h"
 #include "drake/systems/plants/IKoptions.h"
 #include "drake/systems/plants/RigidBodyIK.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "drake/util/eigen_matrix_compare.h"
-#include "gtest/gtest.h"
 
-using namespace std;
-using namespace Eigen;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
+using Eigen::VectorXd;
+
+using drake::GetDrakePath;
 using drake::util::CompareMatrices;
 using drake::util::MatrixCompareType;
 
 // Find the joint position indices corresponding to 'name'
-vector<int> getJointPositionVectorIndices(const RigidBodyTree& model,
-                                          const std::string& name) {
+std::vector<int> getJointPositionVectorIndices(const RigidBodyTree& model,
+                                               const std::string& name) {
   RigidBody* joint_parent_body = model.findJoint(name);
   int num_positions = joint_parent_body->getJoint().getNumPositions();
-  vector<int> ret(static_cast<size_t>(num_positions));
+  std::vector<int> ret(static_cast<size_t>(num_positions));
 
   // fill with sequentially increasing values, starting at
-  // joint_parent_body->position_num_start:
-  iota(ret.begin(), ret.end(), joint_parent_body->position_num_start);
+  // joint_parent_body->get_position_start_index():
+  iota(ret.begin(), ret.end(), joint_parent_body->get_position_start_index());
   return ret;
 }
 
 void findJointAndInsert(const RigidBodyTree& model, const std::string& name,
-                        vector<int>& position_list) {
+                        std::vector<int>& position_list) {
   auto position_indices = getJointPositionVectorIndices(model, name);
 
   position_list.insert(position_list.end(), position_indices.begin(),
@@ -38,7 +42,8 @@ void findJointAndInsert(const RigidBodyTree& model, const std::string& name,
 }
 
 GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
-  RigidBodyTree model("examples/Atlas/urdf/atlas_minimal_contact.urdf");
+  RigidBodyTree model(
+      GetDrakePath() + "/examples/Atlas/urdf/atlas_minimal_contact.urdf");
 
   Vector2d tspan;
   tspan << 0, 1;
@@ -95,7 +100,7 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   kc_posture_larm.setJointLimits(7, larm_idx.data(), larm_lb, larm_ub);
 
   // 4 Left Foot Position and Orientation Constraints
-  int l_foot = model.findLinkId("l_foot");
+  int l_foot = model.FindBodyIndex("l_foot");
   Vector3d l_foot_pt = Vector3d::Zero();
   Vector3d lfoot_pos0;
   lfoot_pos0(0) = 0;
@@ -107,7 +112,6 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   lfoot_pos_lb(2) += 0.001;
   Vector3d lfoot_pos_ub = lfoot_pos_lb;
   lfoot_pos_ub(2) += 0.01;
-  // std::cout << lfoot_pos0.transpose() << " lfoot\n" ;
   WorldPositionConstraint kc_lfoot_pos(&model, l_foot, l_foot_pt, lfoot_pos_lb,
                                        lfoot_pos_ub, tspan);
   Eigen::Vector4d quat_des(1, 0, 0, 0);
@@ -115,7 +119,7 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   WorldQuatConstraint kc_lfoot_quat(&model, l_foot, quat_des, tol, tspan);
 
   // 5 Right Foot Position and Orientation Constraints
-  int r_foot = model.findLinkId("r_foot");
+  int r_foot = model.FindBodyIndex("r_foot");
   Vector3d r_foot_pt = Vector3d::Zero();
   Vector3d rfoot_pos0;
   rfoot_pos0(0) = 0;
@@ -127,13 +131,12 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   rfoot_pos_lb(2) += 0.001;
   Vector3d rfoot_pos_ub = rfoot_pos_lb;
   rfoot_pos_ub(2) += 0.001;
-  // std::cout << rfoot_pos0.transpose() << " lfoot\n" ;
   WorldPositionConstraint kc_rfoot_pos(&model, r_foot, r_foot_pt, rfoot_pos_lb,
                                        rfoot_pos_ub, tspan);
   WorldQuatConstraint kc_rfoot_quat(&model, r_foot, quat_des, tol, tspan);
 
   // 6 Right Position Constraints (actual reaching constraint)
-  int r_hand = model.findLinkId("r_hand");
+  int r_hand = model.FindBodyIndex("r_hand");
   Vector3d r_hand_pt = Vector3d::Zero();
   Vector3d rhand_pos0;
   // Vector3d rhand_pos0 = model.forwardKin(r_hand_pt, r_hand, 0, 0, 0).value();
@@ -146,7 +149,6 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   rhand_pos_lb(2) += 0.05;
   Vector3d rhand_pos_ub = rhand_pos_lb;
   rhand_pos_ub(2) += 0.05;
-  // std::cout << rhand_pos_ub.transpose() << " rhand\n" ;
   WorldPositionConstraint kc_rhand(&model, r_hand, r_hand_pt, rhand_pos_lb,
                                    rhand_pos_ub, tspan);
 
@@ -177,17 +179,19 @@ GTEST_TEST(testIKMoreConstraints, IKMoreConstraints) {
   IKoptions ikoptions(&model);
   VectorXd q_sol(model.number_of_positions());
   int info;
-  vector<string> infeasible_constraint;
+  std::vector<std::string> infeasible_constraint;
   inverseKin(&model, qstar, qstar, constraint_array.size(),
              constraint_array.data(), ikoptions,
              &q_sol, &info, &infeasible_constraint);
-  printf("INFO = %d\n", info);
+  printf("info = %d\n", info);
   EXPECT_EQ(info, 1);
 
   /////////////////////////////////////////
   KinematicsCache<double> cache = model.doKinematics(q_sol);
   Vector3d com = model.centerOfMass(cache);
   printf("%5.6f\n%5.6f\n%5.6f\n", com(0), com(1), com(2));
+  // SNOPT and IPOPT diverge slightly in their output, so use a
+  // slightly reduced tolerance.
   EXPECT_TRUE(CompareMatrices(com, Vector3d(0.074890, -0.037551, 1.008913),
-                              1e-6, MatrixCompareType::absolute));
+                              1e-4, MatrixCompareType::absolute));
 }

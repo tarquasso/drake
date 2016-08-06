@@ -2,8 +2,9 @@
 
 #include <cmath>
 
-#include "drake/Path.h"
+#include "drake/common/drake_path.h"
 
+#include "drake/examples/Cars/car_simulation.h"
 #include "drake/examples/Cars/gen/euler_floating_joint_state.h"
 #include "drake/examples/Cars/lcm_tap.h"
 #include "drake/systems/LCMSystem.h"
@@ -11,47 +12,27 @@
 #include "drake/systems/plants/BotVisualizer.h"
 #include "lcmtypes/drake/lcmt_driving_command_t.hpp"
 
-using Drake::AffineSystem;
-using Drake::BotVisualizer;
-using Drake::NullVector;
-using Drake::cascade;
+using drake::AffineSystem;
+using drake::BotVisualizer;
+using drake::NullVector;
+using drake::cascade;
 
 namespace drake {
+namespace examples {
+namespace cars {
 namespace {
 
 int do_main(int argc, const char* argv[]) {
   std::shared_ptr<lcm::LCM> lcm = std::make_shared<lcm::LCM>();
 
   auto car = std::make_shared<SimpleCar>();
-
-  //
-  // Make a linear system to map simple car state to the state vector of a
-  // floating joint, allowing motion and steering in the x-y plane only.
-  //
-  const int insize = SimpleCarState<double>().size();
-  const int outsize = EulerFloatingJointState<double>().size();
-  Eigen::MatrixXd D;
-  D.setZero(outsize, insize);
-  D(EulerFloatingJointStateIndices::kX, SimpleCarStateIndices::kX) = 1;
-  D(EulerFloatingJointStateIndices::kY, SimpleCarStateIndices::kY) = 1;
-  D(EulerFloatingJointStateIndices::kYaw, SimpleCarStateIndices::kHeading) = 1;
-  EulerFloatingJointState<double> y0;
-  auto adapter = std::make_shared<
-      AffineSystem<
-        NullVector,
-        SimpleCarState,
-        EulerFloatingJointState> >(
-            Eigen::MatrixXd::Zero(0, 0),
-            Eigen::MatrixXd::Zero(0, insize),
-            Eigen::VectorXd::Zero(0),
-            Eigen::MatrixXd::Zero(outsize, 0), D,
-            toEigen(y0));
+  auto adapter = CreateSimpleCarVisualizationAdapter();
 
   //
   // Load a simplistic rendering from accompanying URDF file.
   //
   auto tree = std::make_shared<RigidBodyTree>(
-      Drake::getDrakePath() + "/examples/Cars/models/boxcar.urdf");
+      drake::GetDrakePath() + "/examples/Cars/models/boxcar.urdf");
 
   auto viz =
       std::make_shared<BotVisualizer<EulerFloatingJointState> >(
@@ -74,8 +55,10 @@ int do_main(int argc, const char* argv[]) {
 }
 
 }  // namespace
+}  // namespace cars
+}  // namespace examples
 }  // namespace drake
 
 int main(int argc, const char* argv[]) {
-  return drake::do_main(argc, argv);
+  return drake::examples::cars::do_main(argc, argv);
 }

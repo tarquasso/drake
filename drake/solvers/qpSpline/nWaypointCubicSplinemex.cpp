@@ -44,7 +44,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         acceleration_squared_integral.scalarValue(spline.getEndTime()) -
         acceleration_squared_integral.scalarValue(spline.getStartTime());
 
-    for (mwSize segment_index = 0; segment_index < spline.getNumberOfSegments();
+    for (mwSize segment_index = 0;
+         segment_index < static_cast<mwSize>(spline.getNumberOfSegments());
          segment_index++) {
       for (mwSize coefficient_index = 0;
            coefficient_index < num_coeffs_per_segment; coefficient_index++) {
@@ -53,7 +54,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
                             1};  // Matlab's reverse coefficient indexing...
         *(mxGetPr(plhs[0]) + sub2ind(3, dims, sub)) =
             spline.getPolynomial(static_cast<int>(segment_index))
-                .getCoefficients()[coefficient_index];
+                .GetCoefficients()[coefficient_index];
       }
     }
   }
