@@ -4,6 +4,7 @@
 #include "drake/common/eigen_autodiff_types.h"
 #include "drake/common/eigen_types.h"
 #include "drake/math/autodiff.h"
+#include "drake/math/autodiff_gradient.h"
 #include "drake/math/gradient.h"
 #include "drake/systems/plants/joints/DrakeJoints.h"
 #include "drake/systems/plants/joints/FixedJoint.h"
@@ -41,7 +42,7 @@ using drake::math::autoDiffToGradientMatrix;
 using drake::math::Gradient;
 
 const set<int> RigidBodyTree::default_model_instance_id_set = {0};
-const char* const RigidBodyTree::kWorldLinkName = "world";
+const char* const RigidBodyTree::kWorldName = "world";
 
 template <typename T>
 void getFiniteIndexes(T const& v, std::vector<int>& finite_indexes) {
@@ -74,7 +75,7 @@ RigidBodyTree::RigidBodyTree(void)
 
   // Adds the rigid body representing the world.
   std::unique_ptr<RigidBody> b(new RigidBody());
-  b->set_name(RigidBodyTree::kWorldLinkName);
+  b->set_name(RigidBodyTree::kWorldName);
   bodies.push_back(std::move(b));
 }
 
@@ -2044,7 +2045,7 @@ int RigidBodyTree::AddFloatingJoint(
     // use the transform_to_body variable within weld_to_frame to initialize
     // the robot at the desired location in the world.
     if (weld_to_frame->get_name()
-          == std::string(RigidBodyTree::kWorldLinkName)) {
+          == std::string(RigidBodyTree::kWorldName)) {
       if (!weld_to_frame->has_as_rigid_body(nullptr)) {
         throw std::runtime_error(
             "RigidBodyTree::AddFloatingJoint: "
