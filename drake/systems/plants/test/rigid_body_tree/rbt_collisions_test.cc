@@ -1,8 +1,9 @@
 #include <memory>
 
 #include "drake/common/drake_path.h"
-#include "drake/systems/plants/parser_sdf.h"
 #include "drake/systems/plants/RigidBodyTree.h"
+#include "drake/systems/plants/joints/floating_base_types.h"
+#include "drake/systems/plants/parser_sdf.h"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -46,10 +47,10 @@ class RBTCollisionTest: public ::testing::Test {
 
  protected:
   void SetUp() override {
-    drake::parsers::sdf::AddRobotFromSDFInWorldFrame(
+    drake::parsers::sdf::AddModelInstancesFromSdfFileInWorldFrame(
         drake::GetDrakePath() +
         "/systems/plants/test/rigid_body_tree/small_sphere_on_large_box.sdf",
-        DrakeJoint::QUATERNION, &tree_);
+            drake::systems::plants::joints::kQuaternion, &tree_);
 
     small_sphere_ = tree_.FindBody("small_sphere");
     large_box_ = tree_.FindBody("large_box");

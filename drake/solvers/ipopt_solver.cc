@@ -11,8 +11,7 @@
 #undef HAVE_CSTDDEF
 
 #include "drake/common/drake_assert.h"
-#include "drake/core/Gradient.h"
-#include "drake/solvers/optimization.h"
+#include "drake/math/autodiff.h"
 
 using Ipopt::Index;
 using Ipopt::IpoptCalculatedQuantities;
@@ -115,7 +114,7 @@ size_t EvaluateConstraint(
     var_count += v.size();
   }
 
-  auto tx = drake::initializeAutoDiff(xvec);
+  auto tx = math::initializeAutoDiff(xvec);
   TaylorVecXd this_x(var_count);
   size_t index = 0;
   for (const DecisionVariableView& v : variable_list) {
@@ -178,7 +177,7 @@ struct ResultCache {
 // the duration of the Solve() call.
 class IpoptSolver_NLP : public Ipopt::TNLP {
  public:
-  explicit IpoptSolver_NLP(OptimizationProblem* problem)
+  explicit IpoptSolver_NLP(MathematicalProgram* problem)
       : problem_(problem),
         result_(SolutionResult::kUnknownError) {}
 
@@ -394,7 +393,7 @@ class IpoptSolver_NLP : public Ipopt::TNLP {
   void EvaluateCosts(Index n, const Number* x) {
     const Eigen::VectorXd xvec = MakeEigenVector(n, x);
 
-    auto tx = drake::initializeAutoDiff(xvec);
+    auto tx = math::initializeAutoDiff(xvec);
     TaylorVecXd ty(1);
     TaylorVecXd this_x;
 
@@ -445,7 +444,7 @@ class IpoptSolver_NLP : public Ipopt::TNLP {
     }
   }
 
-  OptimizationProblem* const problem_;
+  MathematicalProgram* const problem_;
   std::unique_ptr<ResultCache> cost_cache_;
   std::unique_ptr<ResultCache> constraint_cache_;
   SolutionResult result_;
@@ -458,7 +457,7 @@ bool IpoptSolver::available() const {
   return true;
 }
 
-SolutionResult IpoptSolver::Solve(OptimizationProblem &prog) const {
+SolutionResult IpoptSolver::Solve(MathematicalProgram &prog) const {
   DRAKE_ASSERT(prog.linear_complementarity_constraints().empty());
 
   Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();

@@ -1,11 +1,14 @@
 # Source files used to build drakeMath.
 set(sources
   autodiff.cc
+  autodiff_gradient.cc
   axis_angle.cc
+  cross_product.cc
   cylindrical.cc
   expmap.cc
   gradient.cc
   quaternion.cc
+  random_rotation.cc
   roll_pitch_yaw.cc
   rotation_matrix.cc)
 
@@ -13,11 +16,14 @@ set(sources
 # are available elsewhere via #include.
 set(installed_headers
   autodiff.h
+  autodiff_gradient.h
   axis_angle.h
+  cross_product.h
   cylindrical.h
   expmap.h
   gradient.h
   quaternion.h
+  random_rotation.h
   roll_pitch_yaw.h
   rotation_matrix.h)
 

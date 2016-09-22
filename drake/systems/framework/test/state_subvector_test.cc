@@ -5,27 +5,22 @@
 #include <Eigen/Dense>
 #include "gtest/gtest.h"
 
-#include "drake/systems/framework/basic_state_vector.h"
 #include "drake/systems/framework/basic_vector.h"
-#include "drake/systems/framework/state_vector.h"
+#include "drake/systems/framework/vector_base.h"
 
 namespace drake {
 namespace systems {
 namespace {
 
-const int kLength = 4;
 const int kSubVectorLength = 2;
 
 class StateSubvectorTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    std::unique_ptr<VectorInterface<int>> vec;
-    vec.reset(new BasicVector<int>(kLength));
-    vec->get_mutable_value() << 1, 2, 3, 4;
-    state_vector_.reset(new BasicStateVector<int>(std::move(vec)));
+    state_vector_ = BasicVector<int>::Make({1, 2, 3, 4});
   }
 
-  std::unique_ptr<StateVector<int>> state_vector_;
+  std::unique_ptr<VectorBase<int>> state_vector_;
 };
 
 TEST_F(StateSubvectorTest, NullptrVector) {
@@ -73,9 +68,9 @@ TEST_F(StateSubvectorTest, Mutation) {
   EXPECT_EQ(4, state_vector_->GetAtIndex(3));
 }
 
-// Tests that a StateVector can be added to a StateSubvector.
+// Tests that a VectorBase can be added to a StateSubvector.
 TEST_F(StateSubvectorTest, PlusEq) {
-  BasicStateVector<int> addend(2);
+  BasicVector<int> addend(2);
   addend.SetAtIndex(0, 7);
   addend.SetAtIndex(1, 8);
 
@@ -106,7 +101,7 @@ TEST_F(StateSubvectorTest, ScaleAndAddToVector) {
 // ScaleAndAddToVector on the addend.
 
 TEST_F(StateSubvectorTest, PlusEqInvalidSize) {
-  BasicStateVector<int> addend(1);
+  BasicVector<int> addend(1);
   StateSubvector<int> subvec(state_vector_.get(), 1, kSubVectorLength);
   EXPECT_THROW(subvec += addend, std::out_of_range);
 }

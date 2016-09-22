@@ -1,23 +1,20 @@
 #include "drake/common/polynomial.h"
 
 #include <cstddef>
-#include <sstream>
 #include <map>
+#include <sstream>
 
 #include <Eigen/Dense>
 #include "gtest/gtest.h"
 
-#include "drake/util/eigen_matrix_compare.h"
-#include "drake/util/testUtil.h"
+#include "drake/common/eigen_matrix_compare.h"
 
-using drake::util::MatrixCompareType;
 using Eigen::VectorXd;
 using std::default_random_engine;
 using std::uniform_int_distribution;
 using std::uniform_real_distribution;
 
 namespace drake {
-namespace util {
 namespace {
 
 template <typename CoefficientType>
@@ -76,22 +73,26 @@ void testOperators() {
     poly1_times_poly1 *= poly1_times_poly1;
 
     double t = uniform(generator);
-    valuecheck(sum.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) + poly2.EvaluateUnivariate(t), 1e-8);
-    valuecheck(difference.EvaluateUnivariate(t),
-               poly2.EvaluateUnivariate(t) - poly1.EvaluateUnivariate(t), 1e-8);
-    valuecheck(product.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) * poly2.EvaluateUnivariate(t), 1e-8);
-    valuecheck(poly1_plus_scalar.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) + scalar, 1e-8);
-    valuecheck(poly1_minus_scalar.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) - scalar, 1e-8);
-    valuecheck(poly1_scaled.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) * scalar, 1e-8);
-    valuecheck(poly1_div.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) / scalar, 1e-8);
-    valuecheck(poly1_times_poly1.EvaluateUnivariate(t),
-               poly1.EvaluateUnivariate(t) * poly1.EvaluateUnivariate(t), 1e-8);
+    EXPECT_NEAR(sum.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) + poly2.EvaluateUnivariate(t),
+                1e-8);
+    EXPECT_NEAR(difference.EvaluateUnivariate(t),
+                poly2.EvaluateUnivariate(t) - poly1.EvaluateUnivariate(t),
+                1e-8);
+    EXPECT_NEAR(product.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) * poly2.EvaluateUnivariate(t),
+                1e-8);
+    EXPECT_NEAR(poly1_plus_scalar.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) + scalar, 1e-8);
+    EXPECT_NEAR(poly1_minus_scalar.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) - scalar, 1e-8);
+    EXPECT_NEAR(poly1_scaled.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) * scalar, 1e-8);
+    EXPECT_NEAR(poly1_div.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) / scalar, 1e-8);
+    EXPECT_NEAR(poly1_times_poly1.EvaluateUnivariate(t),
+                poly1.EvaluateUnivariate(t) * poly1.EvaluateUnivariate(t),
+                1e-8);
 
     // Check the '==' operator.
     EXPECT_TRUE(poly1 + poly2 == sum);
@@ -110,10 +111,10 @@ void testRoots() {
     VectorXd coeffs = VectorXd::Random(int_distribution(generator));
     Polynomial<CoefficientType> poly(coeffs);
     auto roots = poly.Roots();
-    valuecheck<Eigen::Index>(roots.rows(), poly.GetDegree());
+    EXPECT_EQ(roots.rows(), poly.GetDegree());
     for (int k = 0; k < roots.size(); k++) {
       auto value = poly.EvaluateUnivariate(roots[k]);
-      valuecheck(std::abs(value), 0.0, 1e-8);
+      EXPECT_NEAR(std::abs(value), 0.0, 1e-8);
     }
   }
 }
@@ -126,14 +127,11 @@ void testEvalType() {
   Polynomial<double> poly(coeffs);
 
   auto valueIntInput = poly.EvaluateUnivariate(1);
-  const auto& double_type = typeid(double);  // NOLINT(readability/function)
-  valuecheck(typeid(decltype(valueIntInput)) == double_type, true);
+  EXPECT_EQ(typeid(decltype(valueIntInput)), typeid(double));
 
   auto valueComplexInput =
       poly.EvaluateUnivariate(std::complex<double>(1.0, 2.0));
-  valuecheck(
-      typeid(decltype(valueComplexInput)) == typeid(std::complex<double>),
-      true);
+  EXPECT_EQ(typeid(decltype(valueComplexInput)), typeid(std::complex<double>));
 }
 
 template <typename CoefficientType>
@@ -375,5 +373,4 @@ GTEST_TEST(PolynomialTest, EvaluatePartial) {
 }
 
 }  // anonymous namespace
-}  // namespace test
 }  // namespace drake
