@@ -8,15 +8,21 @@ set(CMAKE_SWIG_FLAGS ${CMAKE_SWIG_FLAGS} "-w315,-401")
 # Ignore SWIG errors about not being able to wrap operator <<
 set(CMAKE_SWIG_FLAGS ${CMAKE_SWIG_FLAGS} "-w503")
 # The autodiff.i in swig has for-loop variable warnings.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_NO_SIGN_COMPARE}")
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} APPEND PROPERTY
+  COMPILE_OPTIONS ${CXX_FLAGS_NO_SIGN_COMPARE})
 # SWIG output code makes expansive use of variable shadowing.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_NO_ERROR_SHADOW}")
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} APPEND PROPERTY
+  COMPILE_OPTIONS ${CXX_FLAGS_NO_ERROR_SHADOW})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Suppresses warnings due to the existence of deprecated methods. These
   # deprecated methods should still be made available through the SWIG-generated
   # APIs until they are actually removed from the original C++ APIs.
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+
+  # Swig sometimes emits code which appears to have uninitialized
+  # variables.  Err on the side of swig being correct.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
 endif()
 
 if(PYTHON_EXECUTABLE)

@@ -8,8 +8,7 @@
 
 #include "drake/common/drake_assert.h"
 #include "drake/common/eigen_autodiff_types.h"
-#include "drake/core/Gradient.h"
-#include "drake/solvers/optimization.h"
+#include "drake/math/autodiff.h"
 
 namespace drake {
 namespace solvers {
@@ -30,7 +29,7 @@ TaylorVecXd MakeInputTaylorVec(const Eigen::VectorXd& xvec,
     var_count += v.size();
   }
 
-  auto tx = drake::initializeAutoDiff(xvec);
+  auto tx = math::initializeAutoDiff(xvec);
   TaylorVecXd this_x(var_count);
   size_t index = 0;
   for (const DecisionVariableView& v : variable_list) {
@@ -48,13 +47,13 @@ TaylorVecXd MakeInputTaylorVec(const Eigen::VectorXd& xvec,
 double EvaluateCosts(const std::vector<double>& x,
                      std::vector<double>& grad,
                      void* f_data) {
-  const OptimizationProblem* prog =
-      reinterpret_cast<const OptimizationProblem*>(f_data);
+  const MathematicalProgram* prog =
+      reinterpret_cast<const MathematicalProgram*>(f_data);
 
   double cost = 0;
   Eigen::VectorXd xvec = MakeEigenVector(x);
 
-  auto tx = drake::initializeAutoDiff(xvec);
+  auto tx = math::initializeAutoDiff(xvec);
   TaylorVecXd ty(1);
   TaylorVecXd this_x;
 
@@ -289,7 +288,7 @@ bool NloptSolver::available() const {
   return true;
 }
 
-SolutionResult NloptSolver::Solve(OptimizationProblem &prog) const {
+SolutionResult NloptSolver::Solve(MathematicalProgram &prog) const {
   int nx = prog.num_vars();
 
   // Load the algo to use and the size.

@@ -1,18 +1,18 @@
 #include "ros/ros.h"
 
-#include "drake/examples/Cars/car_simulation.h"
-#include "drake/examples/Cars/gen/driving_command.h"
+#include "drake/automotive/car_simulation.h"
+#include "drake/automotive/gen/driving_command.h"
+#include "drake/ros/systems/ros_tf_publisher.h"
+#include "drake/ros/systems/ros_vehicle_system.h"
+#include "drake/ros/systems/ros_sensor_publisher_joint_state.h"
+#include "drake/ros/systems/ros_sensor_publisher_lidar.h"
+#include "drake/ros/systems/ros_sensor_publisher_odometry.h"
 #include "drake/systems/LCMSystem.h"
 #include "drake/systems/LinearSystem.h"
 #include "drake/systems/pd_control_system.h"
 #include "drake/systems/plants/BotVisualizer.h"
 #include "drake/systems/plants/RigidBodySystem.h"
 #include "drake/util/drakeAppUtil.h"
-#include "drake_ros/ros_tf_publisher.h"
-#include "drake_ros/ros_vehicle_system.h"
-#include "drake_ros/ros_sensor_publisher_joint_state.h"
-#include "drake_ros/ros_sensor_publisher_lidar.h"
-#include "drake_ros/ros_sensor_publisher_odometry.h"
 
 using drake::BotVisualizer;
 using drake::SimulationOptions;
@@ -22,13 +22,19 @@ using Eigen::VectorXd;
 
 namespace drake {
 namespace ros {
-namespace cars {
+namespace automotive {
 namespace {
 
-using drake::examples::cars::CreateRigidBodySystem;
-using drake::examples::cars::CreateVehicleSystem;
-using drake::examples::cars::GetCarSimulationDefaultOptions;
-using drake::examples::cars::ParseDuration;
+using drake::automotive::CreateRigidBodySystem;
+using drake::automotive::CreateVehicleSystem;
+using drake::automotive::GetCarSimulationDefaultOptions;
+using drake::automotive::ParseDuration;
+
+using drake::ros::systems::DrakeRosTfPublisher;
+using drake::ros::systems::run_ros_vehicle_sim;
+using drake::ros::systems::SensorPublisherJointState;
+using drake::ros::systems::SensorPublisherLidar;
+using drake::ros::systems::SensorPublisherOdometry;
 
 /** Driving Simulator
  * Usage:  car_sim_lcm_and_ros vehicle_model_file [world_model files ...]
@@ -43,8 +49,13 @@ int do_main(int argc, const char* argv[]) {
   // CreateRigidBodySystem() below.
   double duration = std::numeric_limits<double>::infinity();
 
+  // Instantiates a data structure that maps model instance names to their model
+  // instance IDs.
+  drake::parsers::ModelInstanceIdTable model_instances;
+
   // Initializes the rigid body system.
-  auto rigid_body_sys = CreateRigidBodySystem(argc, argv, &duration);
+  auto rigid_body_sys = CreateRigidBodySystem(argc, argv, &duration,
+      &model_instances);
 
   auto const& tree = rigid_body_sys->getRigidBodyTree();
 
@@ -55,18 +66,18 @@ int do_main(int argc, const char* argv[]) {
       std::make_shared<BotVisualizer<RigidBodySystem::StateVector>>(lcm, tree);
 
   auto lidar_publisher = std::make_shared<
-      ::drake::ros::SensorPublisherLidar<RigidBodySystem::StateVector>>(
+      SensorPublisherLidar<RigidBodySystem::StateVector>>(
       rigid_body_sys);
 
   auto odometry_publisher = std::make_shared<
-      ::drake::ros::SensorPublisherOdometry<RigidBodySystem::StateVector>>(
+      SensorPublisherOdometry<RigidBodySystem::StateVector>>(
       rigid_body_sys);
 
   auto tf_publisher = std::make_shared<
-      ::drake::ros::DrakeRosTfPublisher<RigidBodySystem::StateVector>>(tree);
+      DrakeRosTfPublisher<RigidBodySystem::StateVector>>(tree);
 
   auto joint_state_publisher = std::make_shared<
-      ::drake::ros::SensorPublisherJointState<RigidBodySystem::StateVector>>(
+      SensorPublisherJointState<RigidBodySystem::StateVector>>(
       rigid_body_sys);
 
   auto sys =
@@ -95,16 +106,16 @@ int do_main(int argc, const char* argv[]) {
   const double kStartTime = 0;
 
   // Starts the simulation.
-  drake::ros::run_ros_vehicle_sim(sys, kStartTime, duration, x0, options);
+  run_ros_vehicle_sim(sys, kStartTime, duration, x0, options);
 
   return 0;
 }
 
 }  // namespace
-}  // namespace cars
+}  // namespace automotive
 }  // namespace ros
 }  // namespace drake
 
 int main(int argc, const char* argv[]) {
-  return drake::ros::cars::do_main(argc, argv);
+  return drake::ros::automotive::do_main(argc, argv);
 }

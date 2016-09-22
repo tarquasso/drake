@@ -5,15 +5,12 @@
 #include "drake/math/roll_pitch_yaw.h"
 #include "drake/common/drake_path.h"
 #include "drake/systems/plants/RigidBodySystem.h"
+#include "drake/systems/plants/joints/floating_base_types.h"
 
 namespace drake {
 namespace systems {
 namespace plants {
-namespace test {
-namespace rigid_body_system {
 namespace {
-
-using drake::RigidBodySystem;
 
 // Tests the ability to load a URDF as part of the world of a rigid body system.
 GTEST_TEST(RigidBodySystemTest, TestLoadURDFWorld) {
@@ -23,10 +20,10 @@ GTEST_TEST(RigidBodySystemTest, TestLoadURDFWorld) {
   // Adds a URDF to the rigid body system. This URDF contains only fixed joints
   // and is attached to the world via a fixed joint. Thus, everything in the
   // URDF becomes part of the world.
-  rigid_body_sys->addRobotFromFile(
+  rigid_body_sys->AddModelInstanceFromFile(
       drake::GetDrakePath() +
           "/systems/plants/test/rigid_body_system/world.urdf",
-      DrakeJoint::FIXED);
+      drake::systems::plants::joints::kFixed);
 
   // Verifies that the number of states, inputs, and outputs are all zero.
   EXPECT_EQ(rigid_body_sys->getNumStates(), 0u);
@@ -58,7 +55,7 @@ GTEST_TEST(RigidBodySystemTest, TestLoadSDFMultipleTimes) {
   // to the world using a quaternion joint. The first model's root frame matches
   // the world's coordinate frame. The second model's root frame is offset from
   // the world's coordinate frame by X = 1, Y = 1, and Z = 1.
-  rigid_body_sys->addRobotFromFile(
+  rigid_body_sys->AddModelInstanceFromFile(
       drake::GetDrakePath() +
       "/systems/plants/test/rigid_body_system/dual_model_with_sensors.sdf");
 
@@ -75,10 +72,10 @@ GTEST_TEST(RigidBodySystemTest, TestLoadSDFMultipleTimes) {
       Eigen::aligned_allocator<RigidBodyFrame>(), "world", nullptr,
       T_second_model_to_world);
 
-  rigid_body_sys->addRobotFromFile(
+  rigid_body_sys->AddModelInstanceFromFile(
       drake::GetDrakePath() +
           "/systems/plants/test/rigid_body_system/dual_model_with_sensors.sdf",
-      DrakeJoint::QUATERNION, weld_to_frame);
+      drake::systems::plants::joints::kQuaternion, weld_to_frame);
 
   // Checks that the rigid body system has the correct number of states. The
   // rigid body system has 36 positions + 32 velocities = 68 states.
@@ -162,23 +159,24 @@ GTEST_TEST(RigidBodySystemTest, TestLoadSDFMultipleTimes) {
   EXPECT_NE(tree->FindBody("link_3", "model_2", 3), nullptr);
 
   // Checks that we cannot access a non-existent joint.
-  EXPECT_THROW(tree->findJoint("non-existent-joint"), std::logic_error);
+  EXPECT_THROW(tree->FindChildBodyOfJoint("non-existent-joint"),
+      std::runtime_error);
 
   // Checks that we cannot access a joint using just the joint name.
   // This is impossible because there are multiple joints with the same name.
-  EXPECT_THROW(tree->findJoint("joint_1"), std::logic_error);
-  EXPECT_THROW(tree->findJoint("joint_2"), std::logic_error);
+  EXPECT_THROW(tree->FindChildBodyOfJoint("joint_1"), std::runtime_error);
+  EXPECT_THROW(tree->FindChildBodyOfJoint("joint_2"), std::runtime_error);
 
   // Checks that we can access a joint using the joint name and model instance
   // ID.
-  EXPECT_NE(tree->findJoint("joint_1", 0), nullptr);
-  EXPECT_NE(tree->findJoint("joint_1", 1), nullptr);
-  EXPECT_NE(tree->findJoint("joint_1", 2), nullptr);
-  EXPECT_NE(tree->findJoint("joint_1", 3), nullptr);
-  EXPECT_NE(tree->findJoint("joint_2", 0), nullptr);
-  EXPECT_NE(tree->findJoint("joint_2", 1), nullptr);
-  EXPECT_NE(tree->findJoint("joint_2", 2), nullptr);
-  EXPECT_NE(tree->findJoint("joint_2", 3), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_1", 0), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_1", 1), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_1", 2), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_1", 3), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_2", 0), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_2", 1), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_2", 2), nullptr);
+  EXPECT_NE(tree->FindChildBodyOfJoint("joint_2", 3), nullptr);
 }
 
 // Tests whether the URDF parser is robust against an improperly specified
@@ -194,26 +192,24 @@ GTEST_TEST(RigidBodySystemTest, TestLoadURDFWithBadTransmission) {
   // verifying that an exception is thrown, and then verifying that the thrown
   // exception is the correct one.
   EXPECT_THROW(
-      rigid_body_sys->addRobotFromFile(drake::GetDrakePath() +
+      rigid_body_sys->AddModelInstanceFromFile(drake::GetDrakePath() +
                                        "/systems/plants/test/rigid_body_system/"
                                        "bad_transmission_no_joint.urdf"),
       std::runtime_error);
 
   try {
-    rigid_body_sys->addRobotFromFile(drake::GetDrakePath() +
+    rigid_body_sys->AddModelInstanceFromFile(drake::GetDrakePath() +
                                      "/systems/plants/test/rigid_body_system/"
                                      "bad_transmission_no_joint.urdf");
   } catch (std::runtime_error& error) {
-    // Asserts that the exception is thrown when FindBodyIndexByJointName()
-    // fails to find a non-existing joint.
-    EXPECT_TRUE(std::string(error.what()).find("FindBodyIndexByJointName") !=
+    // Asserts that the exception is thrown when FindBodyOfJoint() fails to find
+    // find a non-existing joint.
+    EXPECT_TRUE(std::string(error.what()).find("FindChildBodyOfJoint") !=
                 std::string::npos);
   }
 }
 
 }  // namespace
-}  // namespace rigid_body_system
-}  // namespace test
 }  // namespace plants
 }  // namespace systems
 }  // namespace drake

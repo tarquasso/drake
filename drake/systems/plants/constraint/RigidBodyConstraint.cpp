@@ -3,16 +3,18 @@
 #include <map>
 #include <stdexcept>
 
-#include "drake/core/Gradient.h"
 #include "drake/math/autodiff.h"
+#include "drake/math/autodiff_gradient.h"
+#include "drake/math/gradient.h"
 #include "drake/math/quaternion.h"
 #include "drake/systems/plants/RigidBodyTree.h"
 #include "drake/util/drakeGeometryUtil.h"
 
 using namespace Eigen;
 
-using drake::math::autoDiffToValueMatrix;
 using drake::math::autoDiffToGradientMatrix;
+using drake::math::autoDiffToValueMatrix;
+using drake::math::initializeAutoDiffTuple;
 using drake::math::quatDiff;
 using drake::math::quatDiffAxisInvar;
 
@@ -1069,8 +1071,13 @@ void GazeOrientConstraint::eval(const double* t, KinematicsCache<double>& cache,
     auto axis_err = e_autodiff.value();
     auto daxis_err = e_autodiff.derivatives().transpose().eval();
 
-    MatrixXd daxis_err_dq(1, nq);
-    daxis_err_dq = daxis_err.block(0, 0, 1, 4) * dquat;
+    // Note: don't do:
+    // MatrixXd daxis_err_dq(nq, 1)
+    // daxis_err_dq = daxis_err.block(0, 0, 1, 4) * dquat;
+    // due to http://eigen.tuxfamily.org/bz/show_bug.cgi?id=1283
+    // (no reason you'd want to do this anyway, but it resulted in an issue
+    // while updating Eigen, see #3300.)
+    MatrixXd daxis_err_dq = daxis_err.block(0, 0, 1, 4) * dquat;
 
     auto quat_diff_autodiff_args = initializeAutoDiffTuple(quat, quat_des_);
     auto q_diff_autodiff = quatDiff(get<0>(quat_diff_autodiff_args),
@@ -1473,13 +1480,13 @@ void Point2PointDistanceConstraint::name(
       if (bodyA_ != 0) {
         bodyA_name = getRobotPointer()->bodies[bodyA_]->get_name();
       } else {
-        bodyA_name = std::string(RigidBodyTree::kWorldLinkName);
+        bodyA_name = std::string(RigidBodyTree::kWorldName);
       }
       std::string bodyB_name;
       if (bodyB_ != 0) {
         bodyB_name = getRobotPointer()->bodies[bodyB_]->get_name();
       } else {
-        bodyB_name = std::string(RigidBodyTree::kWorldLinkName);
+        bodyB_name = std::string(RigidBodyTree::kWorldName);
       }
       name_str.push_back("Distance from " + bodyA_name + " pt " +
                          std::to_string(i) + " to " + bodyB_name + " pt " +
@@ -2289,10 +2296,9 @@ void GravityCompensationTorqueConstraint::eval(const double* t,
       q);
   KinematicsCache<Scalar> cache_with_gradients =
       getRobotPointer()->doKinematics(q);
-  eigen_aligned_unordered_map<RigidBody const*, drake::TwistVector<Scalar>>
-      f_ext;
-  auto G_autodiff =
-      getRobotPointer()->dynamicsBiasTerm(cache_with_gradients, f_ext, false);
+  const RigidBodyTree::BodyToWrenchMap<Scalar> no_external_wrenches;
+  auto G_autodiff = getRobotPointer()->dynamicsBiasTerm(
+      cache_with_gradients, no_external_wrenches, false);
   auto G = autoDiffToValueMatrix(G_autodiff);
   auto dG = autoDiffToGradientMatrix(G_autodiff);
 

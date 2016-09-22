@@ -1,4 +1,7 @@
-drake_install_headers(LQR.h)
+drake_install_headers(
+  LQR.h
+  open_loop_trajectory_controller.h
+  simple_feedback_trajectory_controller.h)
 
 add_library_with_exports(LIB_NAME drakeControlUtil SOURCE_FILES controlUtil.cpp)
 target_link_libraries(drakeControlUtil drakeRBM drakeUtil drakeTrajectories)
@@ -10,9 +13,11 @@ pods_install_pkg_config_file(drake-control-util
   VERSION 0.0.1)
 
 pods_find_pkg_config(gurobi)
+find_package(yaml-cpp)
 if(gurobi_FOUND AND lcm_FOUND AND yaml-cpp_FOUND)
   add_library_with_exports(LIB_NAME drakeQPCommon SOURCE_FILES InstantaneousQPController.cpp)
   target_link_libraries(drakeQPCommon drakeControlUtil drakeQP drakeTrajectories drakeLCMUtil drakeSide drakeYAMLUtil lcm)
+  pods_use_pkg_config_packages(drakeQPCommon gurobi)
   pods_install_libraries(drakeQPCommon)
   drake_install_headers(QPCommon.h InstantaneousQPController.h)
   pods_install_pkg_config_file(drake-qp-common
@@ -35,7 +40,7 @@ if(MATLAB_FOUND)
   if(gurobi_FOUND AND lcm_FOUND AND yaml-cpp_FOUND)
 
     add_mex(instantaneousQPControllermex instantaneousQPControllermex.cpp)
-    target_link_libraries(instantaneousQPControllermex drakeQP drakeControlUtil drakeQPCommon drakeMexUtil drakeSide)
+    target_link_libraries(instantaneousQPControllermex drakeQP drakeControlUtil drakeQPCommon drakeMexUtil drakeSide drakeYAMLUtil)
     pods_use_pkg_config_packages(instantaneousQPControllermex gurobi)
 
     add_mex(constructQPDataPointerMex constructQPDataPointerMex.cpp)

@@ -20,6 +20,7 @@
 #include <Eigen/src/SparseCore/SparseMatrix.h>
 
 #include "drake/math/autodiff.h"
+#include "drake/math/autodiff_gradient.h"
 #include "drake/util/drakeGradientUtil.h"
 
 using drake::math::autoDiffToValueMatrix;
@@ -33,6 +34,8 @@ using drake::math::Gradient;
 #else
 #define DLLEXPORT __declspec(dllimport)
 #endif
+#elif __GNUC__ >= 4
+#define DLLEXPORT __attribute__((visibility("default")))
 #else
 #define DLLEXPORT
 #endif

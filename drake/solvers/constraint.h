@@ -65,7 +65,16 @@ class Constraint {
   size_t num_constraints() const { return lower_bound_.size(); }
 
  protected:
-  Eigen::VectorXd lower_bound_, upper_bound_;
+  void set_bounds(const Eigen::VectorXd& lower_bound,
+                  const Eigen::VectorXd& upper_bound) {
+    DRAKE_ASSERT(lower_bound.size() == upper_bound.size());
+    lower_bound_ = lower_bound;
+    upper_bound_ = upper_bound;
+  }
+
+ private:
+  Eigen::VectorXd lower_bound_;
+  Eigen::VectorXd upper_bound_;
 };
 
 /**
@@ -107,6 +116,49 @@ class QuadraticConstraint : public Constraint {
   Eigen::VectorXd b_;
 };
 
+/** A semidefinite constraint  that takes a symmetric matrix as
+ well as a linear component.
+ <pre>
+ lb <= b'*x + Trace(G'*X) <= ub
+ </pre>
+ */
+class SemidefiniteConstraint : public Constraint {
+ public:
+  static const int kNumConstraints = 1;
+  // TODO(naveenoid) : ASSERT check on dimensions of G and b.
+  // TODO(alexdunyak) : Implement Eval().
+  template <typename DerivedQ, typename Derivedb>
+  SemidefiniteConstraint(const Eigen::MatrixBase<DerivedQ>& G,
+                         const Eigen::MatrixBase<Derivedb>& b, double lb,
+                         double ub)
+      : Constraint(kNumConstraints, drake::Vector1d::Constant(lb),
+                   drake::Vector1d::Constant(ub)),
+        G_(G),
+        b_(b) {}
+
+  ~SemidefiniteConstraint() override {}
+
+  void Eval(const Eigen::Ref<const Eigen::VectorXd>& x,
+            Eigen::VectorXd& y) const override {
+    throw std::runtime_error(
+        "Eval is not implemented in SemidefiniteConstraint.");
+  };
+  void Eval(const Eigen::Ref<const TaylorVecXd>& x,
+            TaylorVecXd& y) const override {
+    throw std::runtime_error(
+        "Eval is not implemented in SemidefiniteConstraint.");
+  };
+
+
+  virtual const Eigen::MatrixXd& G() const { return G_; }
+
+  virtual const Eigen::VectorXd& b() const { return b_; }
+
+ private:
+  Eigen::MatrixXd G_;
+  Eigen::VectorXd b_;
+};
+
 /**
  *  lb[i] <= P[i](x, y...) <= ub[i], where each P[i] is a multivariate
  *  polynomial in x, y...
@@ -115,7 +167,7 @@ class QuadraticConstraint : public Constraint {
  *
  * The Polynomial class uses a different variable naming scheme; thus the
  * caller must provide a list of Polynomial::VarType variables that correspond
- * to the members of the OptimizationProblem::Binding (the individual scalar
+ * to the members of the MathematicalProgram::Binding (the individual scalar
  * elements of the given VariableList).
  */
 class PolynomialConstraint : public Constraint {
@@ -233,10 +285,7 @@ class LinearEqualityConstraint : public LinearConstraint {
       throw std::runtime_error("Can't change the number of decision variables");
     A_.resize(Aeq.rows(), Eigen::NoChange);
     A_ = Aeq;
-    lower_bound_.conservativeResize(beq.rows());
-    lower_bound_ = beq;
-    upper_bound_.conservativeResize(beq.rows());
-    upper_bound_ = beq;
+    set_bounds(beq, beq);
   }
 };
 
