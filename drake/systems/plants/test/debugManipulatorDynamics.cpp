@@ -1,42 +1,40 @@
-#include "RigidBodyManipulator.h"
 #include <iostream>
 #include <cstdlib>
 #include <memory>
 
+#include "drake/common/eigen_types.h"
+#include "drake/systems/plants/RigidBodyTree.h"
+
 using namespace std;
-using namespace Eigen;
-int main()
-{
-  RigidBodyManipulator model("examples/Atlas/urdf/atlas_minimal_contact.urdf");
 
-  int gradient_order = 1;
-  int nq = model.num_positions;
-  int nv = model.num_velocities;
+using Eigen::VectorXd;
 
-  VectorXd q = VectorXd::Random(model.num_positions);
-  VectorXd v = VectorXd::Random(model.num_velocities);
-  KinematicsCache<double> cache = model.doKinematics(q, v, 1);
+int main() {
+  RigidBodyTree model("examples/Atlas/urdf/atlas_minimal_contact.urdf");
 
-  auto points = Matrix<double, 3, Eigen::Dynamic>::Random(3, 5).eval();
+  default_random_engine generator;
+  VectorXd q = model.getRandomConfiguration(generator);
+  VectorXd v = VectorXd::Random(model.number_of_velocities());
+  KinematicsCache<double> cache = model.doKinematics(q, v);
+
+  auto points = drake::Matrix3X<double>::Random(3, 5).eval();
   int body_or_frame_ind = 8;
   int base_or_frame_ind = 0;
-  int rotation_type = 0;
-  model.forwardJacDotTimesV(cache, points, body_or_frame_ind, base_or_frame_ind, rotation_type, gradient_order);
+  model.transformPointsJacobianDotTimesV(cache, points, body_or_frame_ind,
+                                         base_or_frame_ind);
 
-  auto M = model.massMatrix<double>(cache, gradient_order);
-  cout << M.value() << endl << endl;
+  auto M = model.massMatrix<double>(cache);
+  cout << M << endl << endl;
 
-  map<int, unique_ptr<GradientVar<double, TWIST_SIZE, 1>> > f_ext;
-  f_ext[3] = unique_ptr< GradientVar<double, TWIST_SIZE, 1> >(new GradientVar<double, TWIST_SIZE, 1>(TWIST_SIZE, 1, nq + nv, gradient_order));
-  f_ext[3]->value().setRandom();
-  f_ext[3]->gradient().value().setRandom();
+  RigidBodyTree::BodyToWrenchMap<double> external_wrenches;
+  drake::WrenchVector<double> f_ext_r_foot;
+  f_ext_r_foot.setRandom();
+  external_wrenches.insert({model.FindBody("r_foot"), f_ext_r_foot});
 
-  GradientVar<double, Eigen::Dynamic, 1> vd(model.num_velocities, 1, nq + nv, gradient_order);
-  vd.value().setRandom();
-  if (vd.hasGradient())
-    vd.gradient().value().setRandom();
+  VectorXd vd(model.number_of_velocities());
+  vd.setRandom();
 
-  auto C = model.inverseDynamics(cache, f_ext, &vd, gradient_order);
-  cout << C.value() << endl << endl;
+  auto C = model.inverseDynamics(cache, external_wrenches, vd);
+  cout << C << endl << endl;
   return 0;
 }

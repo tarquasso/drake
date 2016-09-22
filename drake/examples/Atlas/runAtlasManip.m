@@ -83,9 +83,9 @@ manip_plan_data = QPLocomotionPlanCPPWrapper(plan_settings);
 %         'translation_task_to_world',randn(3,2),...
 %         'track_com_traj',true));
 
-control = atlasControllers.InstantaneousQPController(r, []);
-planeval = atlasControllers.AtlasPlanEval(r, manip_plan_data);
-plancontroller = atlasControllers.AtlasPlanEvalAndControlSystem(r, control, planeval);
+control = bipedControllers.InstantaneousQPController(r.getManipulator().urdf{1}, r.control_config_file, fullfile(getDrakePath(), 'examples', 'Atlas', 'config', 'urdf_modifications_robotiq_weight.yaml'));
+planeval = bipedControllers.BipedPlanEval(r, manip_plan_data);
+plancontroller = bipedControllers.BipedPlanEvalAndControlSystem(r, control, planeval);
 sys = feedback(r, plancontroller);
 output_select(1).system=1;
 output_select(1).output=1;
@@ -124,3 +124,6 @@ utorso_upright = WorldGazeDirConstraint(r,utorso,[0;0;1],[0;0;1],0.05*pi);
 cnstr = [lfoot_cnstr,rfoot_cnstr,{qsc,utorso_upright}];
 
 end
+
+% TIMEOUT 1500
+

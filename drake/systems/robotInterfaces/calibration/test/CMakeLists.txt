@@ -1,0 +1,1 @@
+drake_add_matlab_test(NAME systems/robotInterfaces/calibration/test/testJointCalibration OPTIONAL bullet COMMAND testJointCalibration SIZE large)

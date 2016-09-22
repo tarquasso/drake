@@ -1,28 +1,44 @@
 
-if (simulink_FOUND)
+if(simulink_FOUND)
   add_mex(DCSFunction DCSFunction.cpp)
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR}/util)
-include_directories(${PROJECT_SOURCE_DIR}/systems)
-include_directories(${PROJECT_SOURCE_DIR}/systems/frames)
+if(lcm_FOUND)
+  add_library_with_exports(LIB_NAME drakeLCMSystem SOURCE_FILES LCMSystem.cpp)
+  add_dependencies(drakeLCMSystem drake_lcmtypes_hpp)
+  target_link_libraries(drakeLCMSystem lcm)
+  if(WIN32)
+    target_link_libraries(drakeLCMSystem ws2_32)
+  endif()
 
+  pods_install_libraries(drakeLCMSystem)
+  drake_install_headers(LCMSystem.h)
+  pods_install_pkg_config_file(drake-lcm-system
+    LIBS -ldrakeLCMSystem
+    REQUIRES lcm
+    VERSION 0.0.1)
+endif()
+
+add_subdirectory(analysis)
 add_subdirectory(frames)
+add_subdirectory(framework)
 add_subdirectory(plants)
 add_subdirectory(trajectories)
 add_subdirectory(controllers)
 add_subdirectory(robotInterfaces)
+add_subdirectory(lcm)
 
-set(coordinate_frame_files)
-if (LCM_FOUND)
-  include_directories(${PROJECT_SOURCE_DIR}/pod-build/lcmgen)
-  list(APPEND coordinate_frame_files frames/LCMCoordinateFrame.cpp)
-endif()
-add_library(drakeSystem DrakeSystem.cpp LinearSystem.cpp ${coordinate_frame_files})
-target_link_libraries(drakeSystem drakeUtil)
-if (LCM_FOUND)
-  add_dependencies(drakeSystem drake_lcmtypes lcmtype_agg_hpp)
-  pods_use_pkg_config_packages(drakeSystem lcm)
-endif()
+drake_install_headers(
+  cascade_system.h
+  feedback_system.h
+  LinearSystem.h
+  pd_control_system.h
+  gravity_compensated_pd_position_control_system.h
+  gravity_compensated_system.h
+  Simulation.h
+  simulation_options.h
+  System.h
+  vector.h
+  trajectory_logger.h)
 
 add_subdirectory(test)

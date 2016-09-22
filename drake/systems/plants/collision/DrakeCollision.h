@@ -1,35 +1,21 @@
-#ifndef __DrakeCollision_H__
-#define __DrakeCollision_H__
+#pragma once
 
-#include <memory>
-#include <set>
-#include <Eigen/Dense>
-#include <Eigen/StdVector>
-
-#include <stdexcept>
 #include <bitset>
+#include <memory>
 
-//#include "Geometry.h"
-#include "PointPair.h"
-#include "Element.h"
-#include "Model.h"
-
-#include "drakeCollisionMacros.h"
+#include "drake/drakeCollision_export.h"
+#include "drake/systems/plants/collision/Model.h"
 
 static const int MAX_NUM_COLLISION_FILTER_GROUPS = 128;
 
-namespace DrakeCollision
-{
+namespace DrakeCollision {
 
-  DLLEXPORT_drakeCollision std::unique_ptr<Model> newModel();
+DRAKECOLLISION_EXPORT std::unique_ptr<Model> newModel();
 
-  typedef std::bitset<MAX_NUM_COLLISION_FILTER_GROUPS> bitmask;
+typedef std::bitset<MAX_NUM_COLLISION_FILTER_GROUPS> bitmask;
 
-  // Constants
-  extern const DLLEXPORT_drakeCollision bitmask ALL_MASK;
-  extern const DLLEXPORT_drakeCollision bitmask NONE_MASK;
-  extern const DLLEXPORT_drakeCollision bitmask DEFAULT_GROUP;
-
+// Constants
+extern const DRAKECOLLISION_EXPORT bitmask ALL_MASK;
+extern const DRAKECOLLISION_EXPORT bitmask NONE_MASK;
+extern const DRAKECOLLISION_EXPORT bitmask DEFAULT_GROUP;
 }
-#endif
-

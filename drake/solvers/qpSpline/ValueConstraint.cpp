@@ -1,24 +1,15 @@
 #include "ValueConstraint.h"
-#include <cassert>
 
-ValueConstraint::ValueConstraint(int derivative_order, double time, double value) :
-  derivative_order(derivative_order), time(time), value(value)
-{
-  assert(derivative_order >= 0);
+#include "drake/common/drake_assert.h"
+
+ValueConstraint::ValueConstraint(int derivative_order, double time,
+                                 double value)
+    : derivative_order_(derivative_order), time_(time), value_(value) {
+  DRAKE_ASSERT(derivative_order >= 0);
 }
 
+int ValueConstraint::getDerivativeOrder() const { return derivative_order_; }
 
-int ValueConstraint::getDerivativeOrder() const
-{
-  return derivative_order;
-}
+double ValueConstraint::getTime() const { return time_; }
 
-double ValueConstraint::getTime() const
-{
-  return time;
-}
-
-double ValueConstraint::getValue() const
-{
-  return value;
-}
+double ValueConstraint::getValue() const { return value_; }

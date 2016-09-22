@@ -8,8 +8,9 @@ if ~checkDependency('gurobi')
   return;
 end
 
+import bipedControllers.*
+
 path_handle = addpathTemporary(fullfile(getDrakePath(), 'examples', 'ZMP'));
-import atlasControllers.*;
 
 % put robot in a random x,y,yaw position and balance for 2 seconds
 if nargin<1, example_options=struct(); end
@@ -95,9 +96,9 @@ manip_plan_data = QPLocomotionPlanSettings.fromQuasistaticQTraj(r,PPTrajectory(q
 r_arm_idx = r.findPositionIndices('r_arm');
 
 manip_plan_data.untracked_joint_inds = r_arm_idx;
-control = atlasControllers.InstantaneousQPController(r, []);
-planeval = atlasControllers.AtlasPlanEval(r, QPLocomotionPlanCPPWrapper(manip_plan_data));
-plancontroller = atlasControllers.AtlasPlanEvalAndControlSystem(r, control, planeval);
+control = bipedControllers.InstantaneousQPController(r.getManipulator().urdf{1}, r.control_config_file, fullfile(getDrakePath(), 'examples', 'Atlas', 'config', 'urdf_modifications_robotiq_weight.yaml'));
+planeval = BipedPlanEval(r, QPLocomotionPlanCPPWrapper(manip_plan_data));
+plancontroller = BipedPlanEvalAndControlSystem(r, control, planeval);
 
 ins(1).system = 2;
 ins(1).input = 2;
@@ -175,3 +176,5 @@ cnstr = [lfoot_cnstr,rfoot_cnstr,{qsc,utorso_upright}];
 end
 
 end
+
+% TIMEOUT 3000

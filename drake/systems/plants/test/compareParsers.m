@@ -19,6 +19,9 @@ for urdf=urdfs'
     if strncmp(ex.identifier,'Drake:MissingDependency:',24)
       disp(' skipping due to a missing dependency'); 
       continue;
+    elseif strcmp(ex.identifier, 'Drake:WorldLinkInURDFModel')
+      disp(' skipping due to a world link being specified in the URDF file');
+      continue;
     end
     rethrow(ex);
   end
@@ -33,6 +36,10 @@ for urdf=urdfs'
   end
   if length(r.force)>0
     disp(' this model had force elements (not implemented in c++ yet)'); 
+    continue;
+  end
+  if r.getNumPositions == 0
+    disp(' this model is completely static (zero degrees of freedom), so will be skipped');
     continue;
   end
   

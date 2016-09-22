@@ -59,7 +59,7 @@ classdef Manipulator < DrakeSystem
         if (obj.num_u>0)
           vdot = Hinv*(B*u-C);
           dtau = matGradMult(dB,u) - dC;
-          dvdot = [zeros(obj.num_positions,1),...
+          dvdot = [zeros(obj.num_velocities,1),...
             -Hinv*matGradMult(dH(:,1:obj.num_positions),vdot) + Hinv*dtau(:,1:obj.num_positions),...
             +Hinv*dtau(:,1+obj.num_positions:end), Hinv*B];
         else
@@ -69,7 +69,8 @@ classdef Manipulator < DrakeSystem
             Hinv*(-dC(:,obj.num_positions+1:end))];
         end
 
-        [VqInv,dVqInv] = vToqdot(obj,q);
+        kinsol = obj.doKinematics(q, [], struct('compute_gradients', true));
+        [VqInv,dVqInv] = vToqdot(obj,kinsol);
         xdot = [VqInv*v;vdot];
         dxdot = [...
           zeros(obj.num_positions,1), matGradMult(dVqInv, v), VqInv, zeros(obj.num_positions,obj.num_u);
@@ -85,24 +86,25 @@ classdef Manipulator < DrakeSystem
         %   vdot = H\tau
         % but I already have and use Hinv, so use it again here
 
-        xdot = [vToqdot(obj,q)*v; vdot];
+        kinsol = obj.doKinematics(q);
+        xdot = [vToqdot(obj,kinsol)*v; vdot];
       end
 
     end
 
-    function [Vq,dVq] = qdotTov(obj, q)
+    function [Vq,dVq] = qdotToV(obj, kinsol)
       % defines the linear map v = Vq * qdot
       % default relationship is that v = qdot
       assert(obj.num_positions==obj.num_velocities);
-      Vq = eye(length(q));
+      Vq = eye(length(kinsol.q));
       dVq = zeros(numel(Vq), obj.num_positions);
     end
 
-    function [VqInv,dVqInv] = vToqdot(obj, q)
+    function [VqInv,dVqInv] = vToqdot(obj, kinsol)
       % defines the linear map qdot = Vqinv * v
       % default relationship is that v = qdot
       assert(obj.num_positions==obj.num_velocities);
-      VqInv = eye(length(q));
+      VqInv = eye(length(kinsol.q));
       dVqInv = zeros(numel(VqInv), obj.num_positions);
     end
 
@@ -122,7 +124,8 @@ classdef Manipulator < DrakeSystem
       beta = 0;    % 1/time constant of velocity constraint satisfaction
 
       phi=[]; psi=[];
-      qd = vToqdot(obj, q) * v;
+      kinsol = obj.doKinematics(q);
+      qd = vToqdot(obj, kinsol) * v;
       if ~isempty(obj.position_constraints) && ~isempty(obj.velocity_constraints)
         [phi,J,dJ] = obj.positionConstraints(q);
         Jdotqd = dJ*reshape(qd*qd',obj.num_positions^2,1);
@@ -151,13 +154,13 @@ classdef Manipulator < DrakeSystem
 
         constraint_force = -dpsidqd'*pinv(dpsidqd*Hinv*dpsidqd')*(dpsidq*qd + dpsidqd*Hinv*tau+beta*psi);
       else
-        constraint_force = 0*q;
+        constraint_force = 0*v;
       end
     end
   end
 
   methods
-    function [obj,id] = addPositionEqualityConstraint(obj,con)
+    function [obj,id] = addPositionEqualityConstraint(obj,con,position_ind)
       % Adds a position constraint of the form phi(q) = constant
       % which can be enforced directly in the manipulator dynamics.
       % This method will also register phi (and it's time derivative)
@@ -165,58 +168,58 @@ classdef Manipulator < DrakeSystem
       if( isa(con, 'DrakeFunctionConstraint') && ~isa(con.fcn, 'drakeFunction.kinematic.RelativePosition'))
         obj.only_loops = false;
       end
+      if (nargin<3 || isempty(position_ind)) 
+        position_ind = 1:getNumPositions(obj);
+      end
       id = numel(obj.position_constraints)+1;
-      obj = updatePositionEqualityConstraint(obj,id,con);
+      obj = updatePositionEqualityConstraint(obj,id,con,position_ind);
     end
     
-    function obj = updatePositionEqualityConstraint(obj,id,con)
-      typecheck(con,'DrakeFunctionConstraint'); % for now
-      assert(con.xdim == obj.num_positions,'DrakeSystem:InvalidPositionConstraint','Position constraints must take a vector that is the same size as the number of positions of this system as an input');
+    function obj = updatePositionEqualityConstraint(obj,id,con,position_ind)
+      typecheck(con,'Constraint'); % for now
       assert(all(con.lb == con.ub));
+      if (nargin<4 || isempty(position_ind)) 
+        position_ind = 1:getNumPositions(obj);
+      end
         
-      pos_fun = con.fcn;
-      state_fun = pos_fun.addInputs(obj.getNumVelocities());
-      state_con = DrakeFunctionConstraint(con.lb,con.ub,state_fun);
-      state_con = state_con.setName(con.name);
-
       if id>numel(obj.position_constraints) % then it's a new constraint
-        [obj,obj.position_constraint_ids(1,id)] = addStateConstraint(obj,state_con);
+        [obj,obj.position_constraint_ids(1,id)] = addStateConstraint(obj,con,position_ind);
       else 
         obj.num_position_constraints = obj.num_position_constraints-obj.position_constraints{id}.num_cnstr;
-        obj = updateStateConstraint(obj,obj.position_constraint_ids(1,id),state_con, 1:2*obj.num_positions);
+        obj = updateStateConstraint(obj,obj.position_constraint_ids(1,id),con,position_ind);
       end
       
       obj.num_position_constraints = obj.num_position_constraints+con.num_cnstr;
       obj.position_constraints{id} = con;
       
-      obj.warning_manager.warnOnce('Drake:Manipulator:Todo','still need to add time derivatives of position constraints');
+%      obj.warning_manager.warnOnce('Drake:Manipulator:Todo','still need to add time derivatives of position constraints');
     end
     
-    function [obj,id] = addVelocityEqualityConstraint(obj,con)
+    function [obj,id] = addVelocityEqualityConstraint(obj,con,velocity_ind)
       % Adds a velocity constraint of the form psi(q,v) = constant
       % (with dpsidv~=0) which can be enforced directly in the manipulator dynamics.
       % This method will also register psi as a state constraint
       % for the dynamical system.
+      if (nargin<3 || isempty(velocity_ind))
+        velocity_ind = 1:getNumVelocities(obj);
+      end
       
       id = numel(obj.position_constraints)+1;
       obj = updatePositionEqualityConstraint(obj,id,con);
       
     end
-    function obj = updateVelocityEqualityConstraint(obj,id,con)
-      typecheck(con,'DrakeFunctionConstraint'); % for now
-      assert(con.xdim == obj.num_velocities,'DrakeSystem:InvalidVelocityConstraint','Velocity constraints must take a vector that is the same size as the number of velocity s of this system as an input');
+    function obj = updateVelocityEqualityConstraint(obj,id,con,velocity_ind)
+      typecheck(con,'Constraint'); % for now
       assert(all(con.lb == con.ub));
+      if (nargin<4 || isempty(velocity_ind))
+        velocity_ind = 1:getNumVelocities(obj);
+      end
         
-      pos_fun = con.fcn;
-      state_fun = pos_fun.addInputFrame(obj.getPositionFrame,false);
-      state_con = DrakeFunctionConstraint(con.lb,con.ub,state_fun);
-      state_con = state_con.setName(con.name);
-
       if id>numel(obj.velocity_constraints) % then it's a new constraint
-        [obj,obj.velocity_constraint_ids(1,id)] = addStateConstraint(obj,state_con);
+        [obj,obj.velocity_constraint_ids(1,id)] = addStateConstraint(obj,con,getNumPositions(obj) + velocity_ind);
       else 
         obj.num_velocity_constraints = obj.num_velocity_constraints-obj.velocity_constraints{id}.num_cnstr;
-        obj = updateStateConstraint(obj,obj.velocity_constraint_ids(1,id),state_con);
+        obj = updateStateConstraint(obj,obj.velocity_constraint_ids(1,id),con,getNumPositions(obj) + velocity_ind);
       end
       
       obj.num_velocity_constraints = obj.num_velocity_constraints+con.num_cnstr;
@@ -354,7 +357,8 @@ classdef Manipulator < DrakeSystem
         q=x(1:obj.num_positions); v=x((obj.num_positions+1):end);
         [~,C,B] = manipulatorDynamics(obj,q,v);
         if (obj.num_u>0) tau=B*u; else tau=zeros(obj.num_u,1); end
-        rhs = [vToqdot(obj,q)*v;tau - C];
+        kinsol = obj.doKinematics(q);
+        rhs = [vToqdot(obj,kinsol)*v;tau - C];
       end
       function lhs = dynamics_lhs(obj,x)
         q=x(1:obj.num_positions); v=x((obj.num_positions+1):end);

@@ -1,28 +1,23 @@
-include_directories ( .. )
-include_directories (../constraint)
-include_directories (../../controllers)
-include_directories (${PROJECT_SOURCE_DIR}/systems/plants)
-include_directories (${PROJECT_SOURCE_DIR}/systems/plants/joints)
-include_directories (${PROJECT_SOURCE_DIR}/systems/trajectories)
-include_directories (${PROJECT_SOURCE_DIR}/util)
-
 macro(add_constraint_mex)
   add_mex(${ARGV} ${ARGV}.cpp)
   target_link_libraries(${ARGV} drakeRBM drakeMexUtil drakeRigidBodyConstraint drakeConstructRigidBodyConstraint)
+  # These warnings are not worth fixing.
+  target_compile_options(${ARGV} PRIVATE ${CXX_FLAGS_NO_SIGN_COMPARE})
 endmacro()
 
-add_library(drakeRigidBodyConstraint SHARED RigidBodyConstraint.cpp)
+add_library_with_exports(LIB_NAME drakeRigidBodyConstraint SOURCE_FILES RigidBodyConstraint.cpp)
 target_link_libraries(drakeRigidBodyConstraint drakeRBM drakeGeometryUtil)
-if (NOT MSVC)
-  set_target_properties(drakeRigidBodyConstraint PROPERTIES COMPILE_FLAGS -fPIC )
-endif()
 pods_install_libraries(drakeRigidBodyConstraint)
-pods_install_headers(RigidBodyConstraint.h DESTINATION drake)
+drake_install_headers(RigidBodyConstraint.h)
+pods_install_pkg_config_file(drake-rigid-body-constraint
+  LIBS -ldrakeRigidBodyConstraint
+  REQUIRES
+  VERSION 0.0.1)
 
-
-if (MATLAB_FOUND)
+if(MATLAB_FOUND)
   add_mex(drakeConstructRigidBodyConstraint SHARED constructPtrRigidBodyConstraint.cpp)
   target_link_libraries(drakeConstructRigidBodyConstraint drakeRigidBodyConstraint drakeRBM drakeMexUtil drakeGeometryUtil)
+  pods_install_libraries(drakeConstructRigidBodyConstraint)
   add_constraint_mex(testSingleTimeKinCnstmex)
   add_constraint_mex(testMultipleTimeKinCnstmex)
   add_constraint_mex(testQuasiStaticConstraintmex)
@@ -36,8 +31,17 @@ if (MATLAB_FOUND)
 endif()
 
 add_executable(testConstraintConstructor test/testConstraintConstructor.cpp)
-if (NOT MSVC)
-  set_target_properties(testConstraintConstructor PROPERTIES COMPILE_FLAGS -fPIC)
-endif()
 target_link_libraries(testConstraintConstructor drakeRBM drakeRigidBodyConstraint)
-add_test(NAME testConstraintConstructor WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test" COMMAND testConstraintConstructor)
+drake_add_test(NAME testConstraintConstructor WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test" COMMAND testConstraintConstructor)
+
+add_library_with_exports(LIB_NAME drakeDynamicConstraint
+  SOURCE_FILES direct_collocation_constraint.cc)
+target_link_libraries(drakeDynamicConstraint drakeCommon)
+drake_install_headers(direct_collocation_constraint.h)
+pods_install_libraries(drakeDynamicConstraint)
+pods_install_pkg_config_file(drake-dynamic-constraint
+  LIBS -ldrakeDynamicConstraint
+  REQUIRES
+  VERSION 0.0.0)
+
+add_subdirectory(test)

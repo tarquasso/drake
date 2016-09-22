@@ -11,7 +11,8 @@ ubins = linspace(-ulimit,ulimit,9);
 mdp = MarkovDecisionProcess.discretizeSystem(plant,cost,xbins,ubins,options);
 
 function drawfun(J,PI)
-  figure(2); clf;
+  sfigure(2);
+  clf;
   n1=length(xbins{1});
   n2=length(xbins{2});
   subplot(2,1,1);imagesc(xbins{1},xbins{2},reshape(ubins(PI),n1,n2)');
@@ -26,6 +27,11 @@ function drawfun(J,PI)
   title('J(x)');
   drawnow;
 end
+
+fig = figure(2);
+% figure size is hard-coded simply so that it is aesthetically pleasing.
+% parameters for position set through trial-and-error.
+set(fig, 'units', 'normalized', 'position', [.4 .1 .2 .75]);
 
 [J,PI] = valueIteration(mdp,0.001,@drawfun);
 
@@ -51,3 +57,5 @@ function g = mintime(sys,x,u)
     g = 1;
   end
 end
+
+% TIMEOUT 1500

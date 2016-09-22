@@ -17,11 +17,8 @@ end
 
 function compareToForwardKin(robot, rotationType)
 
-nq = robot.getNumPositions();
 nv = robot.getNumVelocities();
-
 nBodies = length(robot.body);
-
 bodyRange = [1, nBodies];
 
 analyticalJacobianTime = 0;
@@ -30,24 +27,24 @@ forwardKinTime = 0;
 nTests = 200;
 testNumber = 1;
 while testNumber < nTests
-  q = randn(nq, 1);
+  q = getRandomConfiguration(robot);
   v = randn(nv, 1);
   kinsol = robot.doKinematics(q,false,false, v);
-  
+
   base = 1;
   endEffector = randi(bodyRange);
   if base ~= endEffector
     nPoints = randi([1, 10]);
     points = randn(3, nPoints);
-    
+
     tic
     J = robot.analyticalJacobian(kinsol, base, endEffector, points, rotationType);
     analyticalJacobianTime = analyticalJacobianTime + toc * 1e3;
-    
+
     tic
     [~, JForwardKin] = robot.forwardKin(kinsol, endEffector, points, rotationType);
     forwardKinTime = forwardKinTime + toc * 1e3;
-    
+
     valuecheck(J, JForwardKin, 1e-8);
     testNumber = testNumber + 1;
   end
@@ -62,3 +59,5 @@ if displayComputationTime
   fprintf('\n');
 end
 end
+
+% TIMEOUT 1500

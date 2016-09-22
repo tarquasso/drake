@@ -11,7 +11,7 @@ classdef FeedbackSystem < DrakeSystem
     function obj = FeedbackSystem(sys1,sys2)
       obj = obj@DrakeSystem(sys1.getNumContStates()+sys2.getNumContStates(),...
         sys1.getNumDiscStates()+sys2.getNumDiscStates(),...
-        sys1.getNumInputs(), sys1.getNumOutputs(), false, sys1.isTI() & sys2.isTI());
+        sys1.getNumInputs(), sys1.getNumOutputs(), sys1.isDirectFeedthrough(), sys1.isTI() & sys2.isTI());
       typecheck(sys1,'DrakeSystem');
       typecheck(sys2,'DrakeSystem');
 
@@ -22,6 +22,10 @@ classdef FeedbackSystem < DrakeSystem
         error('Drake:FeedbackSystem:NoStochasticSupport','feedback combinations with stochastic systems not implemented yet.');
       end
 
+      if any(~isinf([sys1.umin;sys1.umax;sys2.umin;sys2.umax]))
+        error('Drake:FeedbackSystem:InternalInputLimits','feedback combinations with saturations were causing problems in simulation.  See https://github.com/RobotLocomotion/drake/issues/494');
+      end
+      
       sys2 = sys2.inInputFrame(sys1.getOutputFrame);
       sys2 = sys2.inOutputFrame(sys1.getInputFrame);
 
@@ -33,14 +37,14 @@ classdef FeedbackSystem < DrakeSystem
 
       obj = setSampleTime(obj,[sys1.getSampleTime(),sys2.getSampleTime()]);
       obj = setNumZeroCrossings(obj,sys1.getNumZeroCrossings()+sys2.getNumZeroCrossings()+sum(~isinf([sys1.umin;sys1.umax;sys2.umin;sys2.umax])));
-      
+
       for i=1:numel(sys1.state_constraints)
         obj = addStateConstraint(obj,sys1.state_constraints{i},obj.sys1ind(sys1.state_constraint_xind{i}));
       end
       for i=1:numel(sys2.state_constraints)
         obj = addStateConstraint(obj,sys2.state_constraints{i},obj.sys2ind(sys2.state_constraint_xind{i}));
       end
-      
+
       obj = setInputFrame(obj,sys1.getInputFrame());
       obj = setOutputFrame(obj,sys1.getOutputFrame());
 
@@ -55,7 +59,7 @@ classdef FeedbackSystem < DrakeSystem
       if ~isempty(sys1.state_constraints) || ~isempty(sys2.state_constraints)
         obj.warning_manager.warnOnce('Drake:FeedbackSystem:Todo','todo: still need to add state constriants for the feedback system');
       end
-      
+
       obj.sys1=sys1;
       obj.sys2=sys2;
     end
@@ -88,6 +92,11 @@ classdef FeedbackSystem < DrakeSystem
     end
 
     function x0=getInitialState(obj)
+      if ~isempty(obj.initial_state)
+        x0 = obj.initial_state;
+        return;
+      end
+
       x0=encodeX(obj,getInitialState(obj.sys1),getInitialState(obj.sys2));
     end
 
@@ -103,7 +112,16 @@ classdef FeedbackSystem < DrakeSystem
 
     function zcs = zeroCrossings(obj,t,x,u)
       [x1,x2]=decodeX(obj,x);
-      [y1,y2]=getOutputs(obj,t,x,u);
+      
+      % same as getOutputs, but *without* the input saturations
+      if (~obj.sys1.isDirectFeedthrough()) % do sys1 first
+        y1=output(obj.sys1,t,x1,u);  % output shouldn't depend on u
+        y2=output(obj.sys2,t,x2,y1);
+      else % do sys2 first
+        y2=output(obj.sys2,t,x2,zeros(obj.sys2.num_u,1));  % output shouldn't depend on this u
+        y1=output(obj.sys1,t,x1,y2+u);
+      end
+      
       if (getNumZeroCrossings(obj.sys1)>0)
         zcs=zeroCrossings(obj.sys1,t,x1,sat1(obj,y2+u));
       else
@@ -113,6 +131,8 @@ classdef FeedbackSystem < DrakeSystem
         zcs=[zcs;zeroCrossings(obj.sys2,t,x2,sat2(obj,y1))];
       end
 
+      return;  % the following code is disabled by throwing an error in the constructor
+      
       % sys1 umin
       ind=find(~isinf(obj.sys1.umin));
       if (~isempty(ind)) zcs=[zcs;y2(ind)+u(ind) - obj.sys1.umin(ind)]; end

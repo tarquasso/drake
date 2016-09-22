@@ -1,5 +1,9 @@
 function testKinCnst
 
+% note: this test is known to fail with very small probability
+% see https://github.com/RobotLocomotion/drake/issues/516
+
+rng(0,'twister');
 checkDependency('rigidbodyconstraint_mex');
 
 urdf = [getDrakePath,'/examples/Atlas/urdf/atlas_minimal_contact.urdf'];
@@ -46,8 +50,7 @@ for i=1:nRPts,
   r_foot_pts(:,i) = robot.getBody(r_foot).getCollisionGeometry{i}.getPoints;
 end
 
-q = randn(nq,1);
-% q_aff = randn(nq_aff,1);
+q = getRandomConfiguration(robot);
 q_aff = [q;randn(length(robot_aff.getStateFrame.frame{2}.getCoordinateNames())/2,1)];
 tspan0 = [0,1];
 tspan1 = [];
@@ -307,7 +310,8 @@ valuecheck(lb_mex,lb,1e-8);
 valuecheck(ub_mex,ub,1e-8);
 valuecheck(c,c_cnstr);
 valuecheck(dc,dc_cnstr);
-valuecheck(sparse(cnstr{1}.iCfun,cnstr{1}.jCvar,dc_cnstr(sub2ind([cnstr{1}.num_cnstr,cnstr{1}.xdim],cnstr{1}.iCfun,cnstr{1}.jCvar)),...
+[iCfun,jCvar] = cnstr{1}.getGradientSparseStructure();
+valuecheck(sparse(iCfun,jCvar,dc_cnstr(sub2ind([cnstr{1}.num_cnstr,cnstr{1}.xdim],iCfun,jCvar)),...
 cnstr{1}.num_cnstr,cnstr{1}.xdim),dc_cnstr);
 valuecheck(lb,cnstr{1}.lb);
 valuecheck(ub,cnstr{1}.ub);
@@ -419,3 +423,5 @@ function c = eval_numerical_matlab(constraint,t,q)
 kinsol = doKinematics(constraint.robot,q,false,false);
 c = constraint.eval(t,kinsol);
 end
+
+% TIMEOUT 1500

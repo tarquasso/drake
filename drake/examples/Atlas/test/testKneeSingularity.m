@@ -10,6 +10,7 @@ robot_options = applyDefaults(robot_options, struct('use_bullet', true,...
                                                     'terrain', RigidBodyFlatTerrain,...
                                                     'floating', true,...
                                                     'ignore_self_collisions', true,...
+                                                    'enable_fastqp', false,...
                                                     'ignore_friction', true,...
                                                     'hand_right', 'robotiq_weight_only',...
                                                     'hand_left', 'robotiq_weight_only',...
@@ -77,9 +78,9 @@ plan_settings.gain_set = 'walking';
 plan = QPLocomotionPlanCPPWrapper(plan_settings);
 
 % Build our controller and plan eval objects
-control = atlasControllers.InstantaneousQPController(r, []);
-planeval = atlasControllers.AtlasPlanEval(r, plan);
-plancontroller = atlasControllers.AtlasPlanEvalAndControlSystem(r, control, planeval);
+control = bipedControllers.InstantaneousQPController(r.getManipulator().urdf{1}, r.control_config_file, fullfile(getDrakePath(), 'examples', 'Atlas', 'config', 'urdf_modifications_no_hands.yaml'));
+planeval = bipedControllers.BipedPlanEval(r, plan);
+plancontroller = bipedControllers.BipedPlanEvalAndControlSystem(r, control, planeval);
 sys = feedback(r, plancontroller);
 
 % Add a visualizer
@@ -90,11 +91,11 @@ sys = mimoCascade(sys,v,[],[],output_select);
 % Simulate and draw the result
 T = plan.duration + 1;
 ytraj = simulate(sys, [0, T], x0, struct('gui_control_interface', true));
-[com, rms_com] = atlasUtil.plotWalkingTraj(r, ytraj, plan);
+[com, rms_com] = r.plotWalkingTraj(ytraj, plan);
 
 v.playback(ytraj, struct('slider', true));
 
-if ~rangecheck(rms_com, 0, 0.005);
+if ~rangecheck(rms_com, 0, 0.006);
   error('Drake:testKneeSingularity:BadCoMTracking', 'Center-of-mass during execution differs substantially from the plan.');
 end
 

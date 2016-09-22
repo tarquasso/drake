@@ -1,16 +1,16 @@
-#include "QPLocomotionPlan.h"
-#include "drakeMexUtil.h"
+#include "drake/systems/robotInterfaces/QPLocomotionPlan.h"
+#include "drake/util/drakeMexUtil.h"
 
 using namespace std;
 using namespace Eigen;
 
-void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
-{
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nrhs < 1 || nlhs != 1) {
     mexErrMsgTxt("usage: lcm_msg_data = getLastQPInput(obj);");
   }
 
-  QPLocomotionPlan* plan = (QPLocomotionPlan*) getDrakeMexPointer(mxGetPropertySafe(prhs[0], "qp_locomotion_plan_ptr"));
+  QPLocomotionPlan *plan = (QPLocomotionPlan *)getDrakeMexPointer(
+      mxGetPropertySafe(prhs[0], "qp_locomotion_plan_ptr"));
   drake::lcmt_qp_controller_input qp_controller_input = plan->getLastQPInput();
   const size_t size = qp_controller_input.getEncodedSize();
   plhs[0] = mxCreateNumericMatrix(size, 1, mxUINT8_CLASS, mxREAL);

@@ -1,70 +1,67 @@
-#ifndef SYSTEMS_TRAJECTORIES_EXPONENTIALPLUSPIECEWISEPOLYNOMIAL_H_
-#define SYSTEMS_TRAJECTORIES_EXPONENTIALPLUSPIECEWISEPOLYNOMIAL_H_
+#pragma once
 
 #include <Eigen/Core>
 #include <vector>
-#include "PiecewisePolynomial.h"
 
-#undef DLLEXPORT
-#if defined(WIN32) || defined(WIN64)
-#if defined(drakeTrajectories_EXPORTS)
-#define DLLEXPORT __declspec( dllexport )
-#else
-#define DLLEXPORT __declspec( dllimport )
-#endif
-#else
-#define DLLEXPORT
-#endif
-
+#include "drake/common/drake_assert.h"
+#include "drake/systems/trajectories/PiecewisePolynomial.h"
+#include "drake/drakeTrajectories_export.h"
 
 /**
  * y(t) = K * exp(A * (t - t_j)) * alpha.col(j) + piecewise_polynomial_part(t)
  */
 
-template<typename CoefficientType = double>
-class DLLEXPORT ExponentialPlusPiecewisePolynomial : public PiecewiseFunction
-{
-public:
-  typedef Eigen::Matrix<CoefficientType, Eigen::Dynamic, Eigen::Dynamic> MatrixX;
+template <typename CoefficientType = double>
+class DRAKETRAJECTORIES_EXPORT ExponentialPlusPiecewisePolynomial
+    : public PiecewiseFunction {
+ public:
+  typedef Eigen::Matrix<CoefficientType, Eigen::Dynamic, Eigen::Dynamic>
+      MatrixX;
   typedef Eigen::Matrix<CoefficientType, Eigen::Dynamic, 1> VectorX;
   typedef Eigen::Matrix<double, Eigen::Dynamic, 1> ValueType;
 
-private:
-  MatrixX K;
-  MatrixX A;
-  MatrixX alpha;
-  PiecewisePolynomial<CoefficientType> piecewise_polynomial_part;
+ private:
+  MatrixX K_;
+  MatrixX A_;
+  MatrixX alpha_;
+  PiecewisePolynomial<CoefficientType> piecewise_polynomial_part_;
 
-public:
+ public:
   ExponentialPlusPiecewisePolynomial();
 
   template <typename DerivedK, typename DerivedA, typename DerivedAlpha>
   ExponentialPlusPiecewisePolynomial(
-      const Eigen::MatrixBase<DerivedK>& K, const Eigen::MatrixBase<DerivedA>& A, const Eigen::MatrixBase<DerivedAlpha>& alpha,
-      const PiecewisePolynomial<CoefficientType>& piecewise_polynomial_part) :
-        PiecewiseFunction(piecewise_polynomial_part), K(K), A(A), alpha(alpha), piecewise_polynomial_part(piecewise_polynomial_part)
-  {
-    assert(K.rows() == rows());
-    assert(K.cols() == A.rows());
-    assert(A.rows() == A.cols());
-    assert(alpha.rows() == A.cols());
-    assert(alpha.cols() == piecewise_polynomial_part.getNumberOfSegments());
-    assert(piecewise_polynomial_part.rows() == rows());
-    assert(piecewise_polynomial_part.cols() == 1);
+      const Eigen::MatrixBase<DerivedK>& K,
+      const Eigen::MatrixBase<DerivedA>& A,
+      const Eigen::MatrixBase<DerivedAlpha>& alpha,
+      const PiecewisePolynomial<CoefficientType>& piecewise_polynomial_part)
+      : PiecewiseFunction(piecewise_polynomial_part),
+        K_(K),
+        A_(A),
+        alpha_(alpha),
+        piecewise_polynomial_part_(piecewise_polynomial_part) {
+    DRAKE_ASSERT(K.rows() == rows());
+    DRAKE_ASSERT(K.cols() == A.rows());
+    DRAKE_ASSERT(A.rows() == A.cols());
+    DRAKE_ASSERT(alpha.rows() == A.cols());
+    DRAKE_ASSERT(alpha.cols() ==
+                 piecewise_polynomial_part.getNumberOfSegments());
+    DRAKE_ASSERT(piecewise_polynomial_part.rows() == rows());
+    DRAKE_ASSERT(piecewise_polynomial_part.cols() == 1);
   }
 
   // from PiecewisePolynomial
-  ExponentialPlusPiecewisePolynomial(const PiecewisePolynomial<CoefficientType>& piecewise_polynomial_part);
+  ExponentialPlusPiecewisePolynomial(
+      const PiecewisePolynomial<CoefficientType>& piecewise_polynomial_part);
 
-  ValueType value(double t) const; // TODO: fix return type (handle complex etc.)
+  // TODO(tkoolen): fix return type (handle complex etc.)
+  ValueType value(double t) const;
 
   ExponentialPlusPiecewisePolynomial derivative(int derivative_order = 1) const;
 
-  virtual Eigen::DenseIndex rows() const;
+  virtual Eigen::Index rows() const;
 
-  virtual Eigen::DenseIndex cols() const;
+  virtual Eigen::Index cols() const;
 
   void shiftRight(double offset);
 };
-
-#endif /* SYSTEMS_TRAJECTORIES_EXPONENTIALPLUSPIECEWISEPOLYNOMIAL_H_ */

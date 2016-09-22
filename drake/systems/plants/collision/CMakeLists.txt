@@ -1,23 +1,27 @@
-include_directories ( .. )
+set(drakeCollision_SRC_FILES DrakeCollision.cpp Element.cpp Model.cpp)
+find_package(Bullet)
 
-set(drakeCollision_SRC_FILES DrakeCollision.cpp Element.cpp PointPair.cpp Model.cpp)
-pods_find_pkg_config(bullet)
-
-if (bullet_FOUND)
-  add_definitions( -DBULLET_COLLISION -DBT_USE_DOUBLE_PRECISION )   
-  set( drakeCollision_SRC_FILES ${drakeCollision_SRC_FILES} BulletModel.cpp BulletResultCollector.cpp )   
-  set(bullet "yes" CACHE STRING "yes" )
+if(BULLET_FOUND)
+  set(drakeCollision_SRC_FILES ${drakeCollision_SRC_FILES} bullet_model.cc)
+  set(bullet "yes" CACHE STRING "yes")
 endif()
+set(drakeCollision_SRC_FILES ${drakeCollision_SRC_FILES} unusable_model.cc)
 
-add_library(drakeCollision SHARED ${drakeCollision_SRC_FILES})
-if (bullet_FOUND)
-  pods_use_pkg_config_packages(drakeCollision bullet)
+add_library_with_exports(LIB_NAME drakeCollision SOURCE_FILES ${drakeCollision_SRC_FILES})
+
+if(BULLET_FOUND)
+  target_compile_definitions(drakeCollision PUBLIC BULLET_COLLISION)
+  target_include_directories(drakeCollision PUBLIC ${BULLET_INCLUDE_DIRS})
+  target_link_libraries(drakeCollision ${BULLET_LIBRARIES})
 endif()
-target_link_libraries(drakeCollision drakeShapes)
+target_link_libraries(drakeCollision drakeShapes drakeCommon)
 
 enable_testing()
 add_subdirectory(test)
 
 pods_install_libraries(drakeCollision)
-pods_install_headers(DrakeCollision.h PointPair.h Element.h Model.h drakeCollisionMacros.h DESTINATION drake/collision)
-  
+drake_install_headers(DrakeCollision.h point_pair.h Element.h Model.h)
+pods_install_pkg_config_file(drake-collision
+  LIBS -ldrakeCollision
+  REQUIRES
+  VERSION 0.0.1)

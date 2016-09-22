@@ -1,14 +1,13 @@
-function runAtlasJumping(use_mex,use_angular_momentum)
+function runAtlasJumping(use_angular_momentum)
 
 if ~checkDependency('gurobi')
   warning('Must have gurobi installed to run this example');
   return;
 end
 
-if (nargin<1); use_mex = true; end
-if (nargin<2); use_angular_momentum = false; end
+if (nargin<1); use_angular_momentum = false; end
 
-import atlasControllers.*;
+import bipedControllers.*;
 
 % silence some warnings
 warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints')
@@ -26,7 +25,7 @@ v = r.constructVisualizer;
 v.display_dt = 0.005;
 
 % load in running trajectory
-sol = load([getDrakePath,'/solvers/trajectoryOptimization/dev/test_jump_v5.mat'],'xtraj_sol','com_sol','comdot_sol','comddot_sol','t_sol');
+sol = load([getDrakePath,'/matlab/solvers/trajectoryOptimization/dev/test_jump_v5.mat'],'xtraj_sol','com_sol','comdot_sol','comddot_sol','t_sol');
 
 ts = unique(sol.xtraj_sol.getBreaks);
 xtraj = sol.xtraj_sol;
@@ -172,13 +171,12 @@ ctrl_data = QPControllerData(true,struct(...
 
 % instantiate QP controller
 options.slack_limit = 1000;
-options.w_qdd = 1e-5*ones(nq,1);
+options.w_qdd = 1e-5*ones(getNumVelocities(r),1);
 % options.w_qdd(back_bky) = 0.01;
 options.w_qdd(1:6) = 0;
 options.w_grf = 0;
 options.w_slack = 3;
 options.debug = false;
-options.use_mex = use_mex;
 options.contact_threshold = 0.0005;
 
 if use_angular_momentum

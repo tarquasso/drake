@@ -1,60 +1,63 @@
-#ifndef __DrakeShapesElement_H__
-#define __DrakeShapesElement_H__
+#pragma once
 
 #include <memory>
-#include <utility>
-#include <stdint.h>
 
 #include <Eigen/Dense>
-#include <Eigen/StdVector>
 
-#include "drakeShapesMacros.h"
-#include "Geometry.h"
+#include "drake/drakeShapes_export.h"
+#include "drake/systems/plants/shapes/Geometry.h"
 
-namespace DrakeShapes
-{
-  class DLLEXPORT_drakeShapes Element {
-    public:
-      Element(const Geometry& geometry, 
-          const Eigen::Matrix4d& T_element_to_local = Eigen::Matrix4d::Identity())
-        : geometry(geometry.clone()), T_element_to_local(T_element_to_local)
-      {};
+namespace DrakeShapes {
+class DRAKESHAPES_EXPORT Element {
+ public:
+  Element(const Geometry& geometry_in,
+          const Eigen::Isometry3d& T_element_to_local_in)
+      : T_element_to_world(Eigen::Isometry3d::Identity()),
+        T_element_to_local(T_element_to_local_in),
+        geometry(geometry_in.clone()) {}
 
-      Element(const Eigen::Matrix4d& T_element_to_local = Eigen::Matrix4d::Identity())
-        : geometry(), T_element_to_local(T_element_to_local)
-      {};
+  explicit Element(const Geometry& geometry_in)
+      : T_element_to_world(Eigen::Isometry3d::Identity()),
+        T_element_to_local(Eigen::Isometry3d::Identity()),
+        geometry(geometry_in.clone()) {}
 
-      virtual ~Element(){};
+  explicit Element(const Eigen::Isometry3d& T_element_to_local_in)
+      : T_element_to_world(Eigen::Isometry3d::Identity()),
+        T_element_to_local(T_element_to_local_in),
+        geometry() {}
 
-      virtual Element* clone() const;
+  virtual ~Element() {}
 
-      const Eigen::Matrix4d& getWorldTransform() const; 
+  virtual Element* clone() const;
 
-      const Eigen::Matrix4d& getLocalTransform() const; 
+  const Eigen::Isometry3d& getWorldTransform() const;
 
-      virtual void updateWorldTransform(const Eigen::Matrix4d& T_local_to_world);
+  const Eigen::Isometry3d& getLocalTransform() const;
 
-      const Shape getShape() const;
+  void SetLocalTransform(const Eigen::Isometry3d& T_element_to_local);
 
-      void setGeometry(const Geometry& geometry);
+  virtual void updateWorldTransform(const Eigen::Isometry3d& T_local_to_world);
 
-      bool hasGeometry() const;
+  Shape getShape() const;
 
-      const Geometry& getGeometry() const;
-      
-      void getTerrainContactPoints(Eigen::Matrix3Xd &points);
+  void setGeometry(const Geometry& geometry);
 
-    protected:
+  bool hasGeometry() const;
 
-      virtual void setWorldTransform(const Eigen::Matrix4d& T_elem_to_world);
-      Eigen::Matrix4d T_element_to_world;
-      const Eigen::Matrix4d T_element_to_local;
-      std::unique_ptr<Geometry> geometry;
+  const Geometry& getGeometry() const;
 
-      Element(const Element&);
-      Element& operator=(const Element&) { return *this; }
-    public:
-      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  };
+  void getTerrainContactPoints(Eigen::Matrix3Xd& points) const;
+
+ protected:
+  virtual void setWorldTransform(const Eigen::Isometry3d& T_elem_to_world);
+  Eigen::Isometry3d T_element_to_world;
+  Eigen::Isometry3d T_element_to_local;
+  std::unique_ptr<Geometry> geometry;
+
+  Element(const Element&);
+  Element& operator=(const Element&) { return *this; }
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
 }
-#endif

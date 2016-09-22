@@ -1,58 +1,63 @@
-
 #include <iostream>
+
 #include <Eigen/Dense>
-#include "RigidBodyManipulator.h"
+
+#include "drake/common/eigen_types.h"
+#include "drake/systems/plants/RigidBodyTree.h"
 
 using namespace std;
+using namespace Eigen;
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
   if (argc < 2) {
     cerr << "Usage: urdfManipulatorDynamicsTest urdf_filename" << endl;
     exit(-1);
   }
-  auto model = std::unique_ptr<RigidBodyManipulator>(new RigidBodyManipulator(argv[1]));
+  auto model = std::unique_ptr<RigidBodyTree>(new RigidBodyTree(argv[1]));
   if (!model) {
     cerr << "ERROR: Failed to load model from " << argv[1] << endl;
     return -1;
   }
   cout << "=======" << endl;
 
-  // the order of the bodies may be different in matlab, so print it out once here
+  // the order of the bodies may be different in matlab, so print it out once
+  // here
   cout << model->bodies.size() << endl;
-  for (int i = 0; i < model->bodies.size(); i++) {
-    cout << model->bodies[i]->linkname << endl;
+  for (const auto& body : model->bodies) {
+    cout << body->get_name() << endl;
   }
 
-  Eigen::VectorXd q = Eigen::VectorXd::Zero(model->num_positions);
-  Eigen::VectorXd v = Eigen::VectorXd::Zero(model->num_velocities);
+  VectorXd q = model->getZeroConfiguration();
+  VectorXd v = VectorXd::Zero(model->number_of_velocities());
   int i;
 
-  if (argc >= 2 + model->num_positions) {
-    for (i = 0; i < model->num_positions; i++)
+  if (argc >= 2 + model->number_of_positions()) {
+    for (i = 0; i < model->number_of_positions(); i++)
       sscanf(argv[2 + i], "%lf", &q(i));
   }
 
-  if (argc >= 2 + model->num_positions + model->num_velocities) {
-    for (i = 0; i < model->num_velocities; i++)
-      sscanf(argv[2 + model->num_positions + i], "%lf", &v(i));
+  if (argc >=
+      2 + model->number_of_positions() + model->number_of_velocities()) {
+    for (i = 0; i < model->number_of_velocities(); i++)
+      sscanf(argv[2 + model->number_of_positions() + i], "%lf", &v(i));
   }
 
-  KinematicsCache<double> cache = model->doKinematics(q, v, 1);
+  KinematicsCache<double> cache = model->doKinematics(q, v);
 
   auto H = model->massMatrix(cache);
-  cout << H.value() << endl;
+  cout << H << endl;
 
-  map<int, unique_ptr<GradientVar<double, TWIST_SIZE, 1>> > f_ext;
-  auto C = model->inverseDynamics(cache, f_ext);
-  cout << C.value() << endl;
+  const RigidBodyTree::BodyToWrenchMap<double> no_external_wrenches;
+  auto C = model->dynamicsBiasTerm(cache, no_external_wrenches);
+  cout << C << endl;
 
   cout << model->B << endl;
 
-  if (model->loops.size()>0) {
-    auto phi = model->positionConstraints(cache, 1);
-    cout << phi.value() << endl;
-    cout << phi.gradient().value() << endl;
+  if (model->loops.size() > 0) {
+    auto phi = model->positionConstraints(cache);
+    cout << phi << endl;
+    auto dphi = model->positionConstraintsJacobian(cache);
+    cout << dphi << endl;
   }
 
   return 0;

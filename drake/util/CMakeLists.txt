@@ -1,46 +1,40 @@
-
-if (simulink_FOUND)
+if(simulink_FOUND)
   add_mex(realtime realtime.cpp)
 endif()
 
 add_mex(barycentricInterpolation barycentricInterpolation.cpp)
 
-if (LCM_FOUND AND MATLAB_FOUND)
-  include_directories(${PROJECT_SOURCE_DIR}/pod-build/lcmgen)
-
-  if (simulink_FOUND)
+if(lcm_FOUND AND MATLAB_FOUND)
+  if(simulink_FOUND)
     add_mex(lcmLogger lcmLogger.cpp)
-    pods_use_pkg_config_packages(lcmLogger lcm)
+    target_link_libraries(lcmLogger lcm)
+    if(WIN32)
+      target_link_libraries(lcmLogger ws2_32)
+    endif()
   endif()
 
   add_mex(publishLCMLog publishLCMLog.cpp)
-  pods_use_pkg_config_packages(publishLCMLog lcm)
+  target_link_libraries(publishLCMLog lcm)
 endif()
 
-include_directories(.)
-add_library(drakePolynomial Polynomial.cpp)
-pods_install_libraries(drakePolynomial)
-pods_install_headers(Polynomial.h DESTINATION drake)
-pods_install_pkg_config_file(drakePolynomial
-LIBS -ldrakePolynomial
-REQUIRES
-VERSION 0.0.2)
-
-add_library(drakeUtil SHARED drakeUtil.cpp)
-pods_install_headers(drakeUtil.h  DESTINATION drake)
+add_library_with_exports(LIB_NAME drakeUtil SOURCE_FILES drakeUtil.cpp)
+target_link_libraries(drakeUtil drakeCommon)
+drake_install_headers(drakeUtil.h)
 pods_install_libraries(drakeUtil)
 pods_install_pkg_config_file(drake-util
   LIBS -ldrakeUtil
   REQUIRES
   VERSION 0.0.1)
 
-if (MATLAB_FOUND)
-  add_mex(drakeMexUtil SHARED drakeMexUtil.cpp MexWrapper.cpp)
-  target_link_libraries(drakeMexUtil drakePolynomial)
-  # todo: use this again once I can assume everyone has CMAKE version >= 2.8.8
-  #add_mex(drakeUtil OBJECT drakeUtil.cpp)
+drake_install_headers(drakeAppUtil.h)
 
-  pods_install_headers(drakeMexUtil.h MexWrapper.h TrigPoly.h DESTINATION drake)
+if(MATLAB_FOUND)
+  add_mex(drakeMexUtil SHARED drakeMexUtil.cpp MexWrapper.cpp)
+  target_link_libraries(drakeMexUtil drakeCommon)
+  # TODO: use this again once I can assume everyone has CMAKE version >= 2.8.8
+  # add_mex(drakeUtil OBJECT drakeUtil.cpp)
+
+  drake_install_headers(drakeMexUtil.h MexWrapper.h)
   pods_install_libraries(drakeMexUtil)
   pods_install_pkg_config_file(drake-mex-util
     LIBS -ldrakeMexUtil
@@ -48,44 +42,46 @@ if (MATLAB_FOUND)
     VERSION 0.0.1)
 endif()
 
-if (LCM_FOUND)
+if(lcm_FOUND)
   # note: requires drakeUtil header file, but not linking against it because
   # we only need methods that are templated and defined in the header
-  include_directories(${PROJECT_SOURCE_DIR}/pod-build/lcmgen)
-  include_directories (${PROJECT_SOURCE_DIR}/systems/trajectories )
-  
-  add_library(drakeLCMUtil SHARED lcmUtil.cpp)
-  add_dependencies(drakeLCMUtil drake_lcmtypes lcmtype_agg_hpp)
+
+  add_library_with_exports(LIB_NAME drakeLCMUtil SOURCE_FILES lcmUtil.cpp)
+  add_dependencies(drakeLCMUtil drake_lcmtypes_hpp)
   target_link_libraries(drakeLCMUtil drakeTrajectories)
-  pods_install_headers(lcmUtil.h DESTINATION drake)
+  target_include_directories(drakeLCMUtil SYSTEM BEFORE PUBLIC ${lcm_headers_dir}) # TODO(#3352)
+  drake_install_headers(lcmUtil.h)
   pods_install_libraries(drakeLCMUtil)
+  pods_install_pkg_config_file(drake-lcm-util
+    LIBS -ldrakeLCMUtil
+    REQUIRES
+    VERSION 0.0.1)
 endif()
 
-pods_install_headers(drakeGradientUtil.h DESTINATION drake)
+drake_install_headers(drakeGradientUtil.h)
 
-add_library(drakeGeometryUtil SHARED drakeGeometryUtil.cpp expmap2quat.cpp)
+add_library_with_exports(LIB_NAME drakeGeometryUtil SOURCE_FILES drakeGeometryUtil.cpp)
+target_link_libraries(drakeGeometryUtil drakeCommon drakeMath)
 pods_install_libraries(drakeGeometryUtil)
-pods_install_headers(drakeGeometryUtil.h expmap2quat.h DESTINATION drake)
+drake_install_headers(drakeGeometryUtil.h)
 pods_install_pkg_config_file(drake-geometry-util
-  LIBS -ldrakeGeometryUtil
+  LIBS -ldrakeGeometryUtil -ldrakeCommon
   REQUIRES
   VERSION 0.0.1)
 
-add_library(drakeConvexHull SHARED convexHull.cpp)
+add_library_with_exports(LIB_NAME drakeConvexHull SOURCE_FILES convexHull.cpp)
 pods_install_libraries(drakeConvexHull)
-pods_install_headers(convexHull.h DESTINATION drake)
+drake_install_headers(convexHull.h)
 pods_install_pkg_config_file(drake-convex-hull
   LIBS -ldrakeConvexHull
   REQUIRES
   VERSION 0.0.1)
 
-pods_install_headers(GradientVar.h DESTINATION drake)
-
-if (MATLAB_FOUND)
+if(MATLAB_FOUND)
   add_mex(cylindrical2cartesianmex cylindrical2cartesianmex.cpp)
-  target_link_libraries(cylindrical2cartesianmex drakeGeometryUtil)
+  target_link_libraries(cylindrical2cartesianmex drakeMath)
   add_mex(cartesian2cylindricalmex cartesian2cylindricalmex.cpp)
-  target_link_libraries(cartesian2cylindricalmex drakeGeometryUtil)
+  target_link_libraries(cartesian2cylindricalmex drakeMath)
 
   add_mex(quat2expmapmex quat2expmapmex.cpp)
   target_link_libraries(quat2expmapmex drakeMexUtil drakeGeometryUtil)
@@ -111,53 +107,51 @@ endif()
 
 add_subdirectory(test)
 
-
 # Mex debugging tools:
-if (0) #NOT WIN32)
-add_mex(drake_debug_mex EXECUTABLE drakeDebugMex.cpp)
-target_link_libraries(drake_debug_mex drakeMexUtil -ldl)
+if(0)  # NOT WIN32
+  add_mex(drake_debug_mex EXECUTABLE drakeDebugMex.cpp)
+  target_link_libraries(drake_debug_mex drakeMexUtil -ldl)
 
-message(STATUS "Writing drake_debug_mex.sh")
-file(WRITE ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
-	   "#!/bin/bash\n"
-     "\n"
-     "# Usage:\n"
-     "#   % drake_debug_mex.sh [args]\n"
-     "# will set up the environment and then run:\n"
-     "#   % args pod-build/bin/drake-debug-mex\n"
-     "#\n"
-     "# For example,\n"
-     "#   % drake_debug_mex.sh\n"
-     "# will simply run the executable,\n"
-     "#   % drake_debug_mex.sh gdb\n"
-     "# will run gdb on drake-debug-mex, and\n"
-     "#   % drake_debug_mex.sh valgrind --leak-check=full --dsymutil=yes --track-origins=yes --xml=yes\n"
-     "# will run valgrind with the appropriate arguments passed in.\n"
-     "#\n"
-     "# It's not pretty, but seems to work for the use\n"
-     "# cases I've imagined so far. - RussT\n"
-     "\n"
-    )
+  message(STATUS "Writing drake_debug_mex.sh")
+  file(WRITE ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
+    "#!/bin/bash\n"
+    "\n"
+    "# Usage:\n"
+    "#   % drake_debug_mex.sh [args]\n"
+    "# will set up the environment and then run:\n"
+    "#   % args drake-debug-mex\n"
+    "#\n"
+    "# For example,\n"
+    "#   % drake_debug_mex.sh\n"
+    "# will simply run the executable,\n"
+    "#   % drake_debug_mex.sh gdb\n"
+    "# will run gdb on drake-debug-mex, and\n"
+    "#   % drake_debug_mex.sh valgrind --leak-check=full --dsymutil=yes --track-origins=yes --xml=yes\n"
+    "# will run valgrind with the appropriate arguments passed in.\n"
+    "#\n"
+    "# It's not pretty, but seems to work for the use\n"
+    "# cases I've imagined so far. - RussT\n"
+    "\n")
 
-if (APPLE)
+  if(APPLE)
+    file(APPEND ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
+      "export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:${MATLAB_ROOT}/bin/${MATLAB_CPU}\n"
+      "export DYLD_FORCE_FLAT_NAMESPACE=1\n"
+      "export DYLD_INSERT_LIBRARIES=${CMAKE_BINARY_DIR}/lib/libdebugMex.dylib\n")
+  else()
+    file(APPEND ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
+      "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MATLAB_ROOT}/bin/${MATLAB_CPU}\n"
+      "export LD_PRELOAD=${CMAKE_BINARY_DIR}/lib/libdebugMex.so\n")
+  endif()
+
   file(APPEND ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
-       "export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:${MATLAB_ROOT}/bin/${MATLAB_CPU}\n"
-       "export DYLD_FORCE_FLAT_NAMESPACE=1\n"
-       "export DYLD_INSERT_LIBRARIES=${CMAKE_BINARY_DIR}/lib/libdebugMex.dylib\n"
-      )
-else()
-  file(APPEND ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
-       "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MATLAB_ROOT}/bin/${MATLAB_CPU}\n"
-       "export LD_PRELOAD=${CMAKE_BINARY_DIR}/lib/libdebugMex.so\n"
-      )
-endif()
+    "\n"
+    "\"\$@\" ${CMAKE_BINARY_DIR}/bin/drake_debug_mex\n")
 
-file(APPEND ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
-     "\n"
-     "\"\$@\" ${CMAKE_BINARY_DIR}/bin/drake_debug_mex\n"
-    )
+  install(FILES ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+    PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+endif()  # NOT WIN32
 
-install(FILES ${CMAKE_BINARY_DIR}/bin/drake_debug_mex.sh
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-        PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-endif(0) #NOT WIN32)
+add_subdirectory(yaml)
+add_subdirectory(geometry/test)

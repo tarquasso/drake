@@ -1,37 +1,46 @@
-#ifndef REVOLUTEJOINT_H_
-#define REVOLUTEJOINT_H_
+#pragma once
 
+#include "drake/common/drake_assert.h"
+#include "drake/common/eigen_types.h"
 #include "FixedAxisOneDoFJoint.h"
 #include <Eigen/Geometry>
 
-class DLLEXPORT_DRAKEJOINT RevoluteJoint: public FixedAxisOneDoFJoint<RevoluteJoint>
-{
+class DRAKEJOINTS_EXPORT RevoluteJoint
+    : public FixedAxisOneDoFJoint<RevoluteJoint> {
   // disable copy construction and assignment
-  // not available in MSVC2010...
   // RevoluteJoint(const RevoluteJoint&) = delete;
   // RevoluteJoint& operator=(const RevoluteJoint&) = delete;
 
-private:
+ private:
   Eigen::Vector3d rotation_axis;
-public:
-  RevoluteJoint(const std::string& name, const Eigen::Isometry3d& transform_to_parent_body, const Eigen::Vector3d& rotation_axis) :
-      FixedAxisOneDoFJoint(*this, name, transform_to_parent_body, spatialJointAxis(rotation_axis)), rotation_axis(rotation_axis)
-  {
-    assert(std::abs(rotation_axis.norm() - 1.0) < 1e-10);
-  };
 
-  virtual ~RevoluteJoint() {};
+ public:
+  RevoluteJoint(const std::string& name,
+                const Eigen::Isometry3d& transform_to_parent_body,
+                const Eigen::Vector3d& _rotation_axis)
+      : FixedAxisOneDoFJoint<RevoluteJoint>(*this, name,
+                                            transform_to_parent_body,
+                                            spatialJointAxis(_rotation_axis)),
+        rotation_axis(_rotation_axis) {
+    DRAKE_ASSERT(std::abs(rotation_axis.norm() - 1.0) < 1e-10);
+  }
 
-  template<typename DerivedQ>
-  Eigen::Transform<typename DerivedQ::Scalar, 3, Eigen::Isometry> jointTransform(const Eigen::MatrixBase<DerivedQ> &q) const {
+  virtual ~RevoluteJoint() {}
+
+  template <typename DerivedQ>
+  Eigen::Transform<typename DerivedQ::Scalar, 3, Eigen::Isometry>
+  jointTransform(const Eigen::MatrixBase<DerivedQ>& q) const {
     typedef typename DerivedQ::Scalar Scalar;
-    Eigen::Transform<Scalar, 3, Eigen::Isometry> ret(Eigen::AngleAxis<Scalar>(q[0], rotation_axis.cast<Scalar>()));
+    Eigen::Transform<Scalar, 3, Eigen::Isometry> ret(
+        Eigen::AngleAxis<Scalar>(q[0], rotation_axis.cast<Scalar>()));
     ret.makeAffine();
     return ret;
   }
 
-private:
-  static Eigen::Matrix<double, TWIST_SIZE, 1> spatialJointAxis(const Eigen::Vector3d& rotation_axis);
-};
+ private:
+  static drake::TwistVector<double> spatialJointAxis(
+      const Eigen::Vector3d& rotation_axis);
 
-#endif /* REVOLUTEJOINT_H_ */
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};

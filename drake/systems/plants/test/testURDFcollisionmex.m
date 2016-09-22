@@ -6,7 +6,7 @@ checkDependency('bullet');
   old_ros_package_path = getenv('ROS_PACKAGE_PATH');
   setenv('ROS_PACKAGE_PATH', [old_ros_package_path, ':', ....
                               fullfile(getDrakePath(), 'examples')]);
-  urdf_collision_test = '../../../pod-build/bin/urdfCollisionTest';
+  urdf_collision_test = fullfile(get_drake_binary_dir(), 'bin/urdfCollisionTest');
   if ispc
     urdf_collision_test = [urdf_collision_test,'.exe'];
   end
@@ -33,7 +33,7 @@ checkDependency('bullet');
     r = compile(r);
     warning(w);
 
-    q = 0*rand(getNumPositions(r),1);
+    q = getZeroConfiguration(r);
     kinsol = doKinematics(r,q);
 
     [phi,normal,xA,xB,idxA,idxB] = collisionDetect(r,kinsol);

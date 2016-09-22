@@ -1,56 +1,23 @@
-
-#include <iostream>
-#include <map>
-
-#include "DrakeCollision.h"
+#include "drake/systems/plants/collision/DrakeCollision.h"
 
 #ifdef BULLET_COLLISION
-#include "BulletModel.h"
+#include "drake/systems/plants/collision/bullet_model.h"
 #endif
+#include "drake/systems/plants/collision/unusable_model.h"
 
 using namespace std;
 using namespace Eigen;
 
-namespace DrakeCollision
-{
+namespace DrakeCollision {
 
-  const bitmask ALL_MASK(bitmask(0).set());
-  const bitmask NONE_MASK(0);
-  const bitmask DEFAULT_GROUP(1);
+const bitmask ALL_MASK(bitmask(0).set());
+const bitmask NONE_MASK(0);
+const bitmask DEFAULT_GROUP(1);
 
-  enum DLLEXPORT_drakeCollision ModelType {
-    NONE,
-    AUTO,
-    BULLET
-  };
-
-  unique_ptr<Model> newModel(ModelType model_type)
-  {
-    switch (model_type) {
-      case NONE:
-        return unique_ptr<Model>(new Model());
-        break;
-      case BULLET:
+unique_ptr<Model> newModel() {
 #ifdef BULLET_COLLISION
-        return unique_ptr<Model>(new BulletModel());
-#else
-        cerr << "Recompile with Bullet enabled (-DBULLET_COLLISION) to use Bullet collision models." << endl;
+  return unique_ptr<Model>(new BulletModel());
 #endif
-        break;
-      default:
-        cerr << model_type << " is not a recognized collision model type." << endl;
-    }
-    return unique_ptr<Model>();
-  };
-
-  unique_ptr<Model> newModel()
-  {
-#ifdef BULLET_COLLISION
-    return newModel(BULLET);
-#else
-    return newModel(NONE);
-#endif
-  }
-
-
+  return unique_ptr<Model>(new UnusableModel());
+}
 };

@@ -1,0 +1,1 @@
+drake_add_matlab_test(NAME examples/DubinsCar/test/dynamicsGradientsTest COMMAND dynamicsGradientsTest)

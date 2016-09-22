@@ -1,27 +1,22 @@
-function addpath_drake
+function [] = addpath_drake()
 % Checks dependencies and sets up matlab path.
 % Searches the machine for necessary support programs, and generates
 % config.mat.  If required tools aren't found, it tries to be helpful in
 % directing you to their location.
 %
 
-root = pwd;
+root = fileparts(mfilename('fullpath'));
 
 if ~exist('pods_get_base_path','file')
-  % search up to 4 directories up for a build/matlab directory
-  pfx='';
-  for i=1:4
-    if exist(fullfile(pwd,pfx,'build','matlab'),'file')
-      disp(['Adding ', fullfile(pwd,pfx,'build','matlab'), ' to the matlab path']);
-      addpath(fullfile(pwd,pfx,'build','matlab'));
-      break;
-    end
-    pfx = fullfile('..',pfx);
-  end
+  % The Drake build process produces some MATLAB files, and those files are
+  % not already on the MATLAB path, so we need to find them first.
+  addBuildProductsToPath(root);
 end
 
 if ~exist('pods_get_base_path','file')
-  error('You must run make first (and/or add your pod build/matlab directory to the matlab path)');
+  error(['The Drake build outputs are not on the MATLAB path, and could ' ...
+         'not be auto-detected. Please add the build output directory ' ...
+         '"matlab" to the path, then re-run addpath_drake.']);
 end
 
 if verLessThan('matlab','7.6')
@@ -37,25 +32,38 @@ addpath(fullfile(root,'systems','plants','constraint'));
 addpath(fullfile(root,'systems','controllers'));
 addpath(fullfile(root,'systems','observers'));
 addpath(fullfile(root,'systems','trajectories'));
+addpath(fullfile(root,'systems','trajectories','TrajectoryLibraries'));
+addpath(fullfile(root,'systems','trajectories','FunnelLibraries'));
 addpath(fullfile(root,'systems','frames'));
 addpath(fullfile(root,'systems','visualizers'));
 addpath(fullfile(root,'systems','robotInterfaces'));
 addpath(fullfile(root,'systems','robotInterfaces','calibration'));
-addpath(fullfile(root,'solvers'));
-addpath(fullfile(root,'solvers','trajectoryOptimization'));
+addpath(fullfile(root,'matlab','solvers'));
+addpath(fullfile(root,'matlab','solvers','trajectoryOptimization'));
 addpath(fullfile(root,'util'));
 addpath(fullfile(root,'util','geometry'));
 addpath(fullfile(root,'util','visualization'));
 addpath(fullfile(root,'thirdParty'));
-addpath(fullfile(root,'thirdParty','path'));
-addpath(fullfile(root,'thirdParty','spatial'));
-addpath(fullfile(root,'thirdParty','cprintf'));
-addpath(fullfile(root,'thirdParty','GetFullPath'));
-addpath(fullfile(root,'thirdParty','plotregion'));
-addpath(fullfile(root,'thirdParty','polytopes'));
-addpath(fullfile(root,'solvers','BMI'));
-addpath(fullfile(root,'solvers','BMI','util'));
-addpath(fullfile(root,'solvers','BMI','kinematics'));
+addpath(fullfile(root,'thirdParty','bsd'));
+addpath(fullfile(root,'thirdParty','bsd','arrow3d'));
+addpath(fullfile(root,'thirdParty','bsd','cprintf'));
+addpath(fullfile(root,'thirdParty','bsd','GetFullPath'));
+addpath(fullfile(root,'thirdParty','bsd','plotregion'));
+addpath(fullfile(root,'thirdParty','bsd','polytopes'));
+addpath(fullfile(root,'thirdParty','bsd','psm'));
+addpath(fullfile(root,'thirdParty','bsd','xacro'));
+addpath(fullfile(root,'thirdParty','misc'));
+addpath(fullfile(root,'thirdParty','misc','pathlcp'));
+addpath(fullfile(root,'thirdParty','zlib'));
+addpath(fullfile(root,'matlab','solvers','BMI'));
+addpath(fullfile(root,'matlab','solvers','BMI','util'));
+addpath(fullfile(root,'matlab','solvers','BMI','kinematics'));
+addpath(fullfile(root,'matlab','solvers','qpSpline'));
+addpath(fullfile(root,'bindings','matlab'));
+bindings_dir = fullfile(get_drake_binary_dir(),'bindings','matlab');
+if exist(bindings_dir, 'dir')
+  addpath(bindings_dir);
+end
 
 
 % OSX platform-specific
@@ -78,8 +86,8 @@ if (strcmp(computer('arch'),'maci64'))
   end
 end
 
-if ispc 
-  setenv('PATH',[getenv('PATH'),';',GetFullPath(pods_get_lib_path),';',fullfile(root,'pod-build','lib','Release'),';',fullfile(root,'pod-build','lib')]);
+if ispc
+  setenv('PATH',[getenv('PATH'),';',GetFullPath(pods_get_lib_path),';',fullfile(get_drake_binary_dir(),'lib','Release'),';',fullfile(get_drake_binary_dir(),'lib')]);
 end
 
 
@@ -90,10 +98,10 @@ end
 % we instead just add all available .jars to the classpath at startup. See
 % also https://github.com/mitdrc/drc/issues/2100
 jarfiledir = fullfile(pods_get_base_path(), 'share', 'java');
-if exist(jarfiledir, 'dir') 
+if exist(jarfiledir, 'dir')
  javaaddpathIfNew(jarfiledir);
- for jarfile = dir(fullfile(jarfiledir, '*.jar'))'; 
-   javaaddpathIfNew(fullfile(jarfiledir, jarfile.name)); 
+ for jarfile = dir(fullfile(jarfiledir, '*.jar'))';
+   javaaddpathIfNew(fullfile(jarfiledir, jarfile.name));
  end
 end
 
@@ -113,4 +121,26 @@ function javaaddpathIfNew(p)
  if ~any(cellfun(@(x) strcmp(x, p), javaclasspath('-dynamic')))
    javaaddpathProtectGlobals(p);
  end
+end
+
+% Searches for the MATLAB outputs of the Drake build and adds them to the path.
+function addBuildProductsToPath(root)
+  % Common names for the installed MATLAB outputs directory.
+  install_dir_names = {'build/install/matlab', ...
+                       'build/matlab', ...
+                       'drake-build/install/matlab'};
+
+  % Search four directories up for an install directory.
+  pfx='';
+  for i=1:4
+    for install_dir = install_dir_names
+      full_path = fullfile(root, pfx, install_dir{1});
+      if exist(full_path, 'file')
+        disp(['Adding ', full_path, ' to the matlab path.']);
+        addpath(full_path);
+        return;
+      end
+    end
+    pfx = fullfile('..',pfx);
+  end
 end
