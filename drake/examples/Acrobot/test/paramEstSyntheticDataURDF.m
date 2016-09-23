@@ -12,7 +12,7 @@ paramstd = .20;
 hasMeasNoise = true;
 % Standard deviation of error for theta1,theta2,theta1dot,theta2dot,theta1doubledot,theta2doubledot
 % noisestd = sqrt([.000001, .000001, .0000001, .0000001, 0, 0,]);
-noisestd = sqrt([1e-3, 1e-3, 1e-11, 1e-11, 0, 0,]);
+noisestd = sqrt([1e-4, 1e-4, 1e-11, 1e-11, 0, 0,]);
 
 % Introduce delay into estimation (Not complete)
 delay = false;
@@ -21,7 +21,7 @@ delay = false;
 % 'dynamic'     = use dynamic model - requires qdd
 % 'energetic'   = use energetic model - doesn't require qdd
 % 'simerr'      = use simulation error - doesn't require qdd
-parameterEstimationOptions.model = 'dynamic';
+parameterEstimationOptions.model = 'simerr';
 
 % Parameter Estimation method
 % 'nonlinprog'  = nonlinear least squares (LS) to solve problem
@@ -52,39 +52,39 @@ qddmode = 'derivative';
 parameterEstimationOptions.C = eye(4);
 
 %% Initialize Acrobot plants and variables
-rtrue = RigidBodyManipulator('AcrobotWParams.urdf');
-r = RigidBodyManipulator('AcrobotWParams.urdf');
-nq = r.num_positions;
+rtrue = RigidBodyManipulator('AcrobotWSixParams.urdf');
+r = rtrue;
+nq = r.getNumPositions;
 outputFrameNames = r.getOutputFrame.getCoordinateNames();
+p_orig = double(r.getParams);
+np = length(p_orig);
+pnames = getCoordinateNames(getParamFrame(r));
 
 %% Initialize estimated Acrobot system with parameter error
 %TODO: make consistent with parameter bounds
 if hasParamErr
-    % Perturb original parameter estimates with random percentage error
-    % normally distributed with standard dev = paramstd, and greater than -1
-    paramerr = randn(1,10)*paramstd;
-    while sum(paramerr<=-1)~=0
-        paramerr(paramerr<-1) = randn(1,sum(paramerr<-1))*paramstd;
-    end
-    paramTrue = r.getParams;
-    paramWithError = paramTrue; %first copy true values to then disturbe them
-    % rtrue.l1 = rtrue.l1 + rtrue.l1*paramerr(1); 
-    % rtrue.l2 = rtrue.l2 + rtrue.l2*paramerr(2); 
-    % rtrue.m1 = rtrue.m1 + rtrue.m1*paramerr(3); 
-    % rtrue.m2 = rtrue.m2 + rtrue.m2*paramerr(4);
-    paramWithError.b1  = paramWithError.b1 + paramWithError.b1*paramerr(5);
-    paramWithError.b2  = paramWithError.b2 + paramWithError.b2*paramerr(6);
-    paramWithError.lc1 = paramWithError.lc1 + paramWithError.lc1*paramerr(7); 
-    paramWithError.lc2 = paramWithError.lc2 + paramWithError.lc2*paramerr(8); 
-    paramWithError.Ic1 = paramWithError.Ic1 + paramWithError.Ic1*paramerr(9);  
-    paramWithError.Ic2 = paramWithError.Ic2 + paramWithError.Ic2*paramerr(10);
-    r = r.setParams(paramWithError); %update the parameters and then copy it over (since no pass by reference)
+  % Perturb original parameter estimates with random percentage error
+  % normally distributed with standard dev = paramstd, and greater than -1
+  rndVals = randn(1,np);
+  paramerr = rndVals*paramstd;
+  
+  while sum(paramerr<=-1)~=0
+    paramerr(paramerr<-1) = randn(1,sum(paramerr<-1))*paramstd;
+  end
+  
+  pErr = p_orig; %first copy true values to then disturb them
+  for i = 1:np
+    pErr(i) = pErr(i)  + pErr(i) * paramerr(i);
+  end
+  
+  r = r.setParams(pErr); %update the parameters and then copy it over (since no pass by reference)
 end
 
 %% Generate swingup data
 fprintf('Generating Swing Up Trajectory...\n');
 [utraj,xtraj] = swingUpURDF(rtrue); % Output is "Elapsed time is ... seconds"
-Ts = .0001; breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
+breaks=getBreaks(utraj); T0 = breaks(1); Tf = breaks(end);
+Ts = 0.0001; %10 * (Tf-T0)/(numel(breaks)-1);
 tsamples = T0:Ts:Tf;
 usamples = eval(utraj,tsamples)';
 if strcmp(simMethod,'dircol')

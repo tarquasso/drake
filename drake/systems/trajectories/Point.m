@@ -11,7 +11,7 @@ classdef Point
       if (nargin<2)
         p = zeros(frame.dim,1);
       else
-        typecheck(p,'double');
+        %typecheck(p,'double'); TODO: check with Russ that this is OK
         if isscalar(p), p = repmat(p,frame.dim,1); end
         sizecheck(p,[frame.dim,1]);
       end
