@@ -1,24 +1,32 @@
 # Source files used to build drakeSystemFramework.
 set(sources
-  context_base.cc
   basic_vector.cc
   cache.cc
   context.cc
   diagram.cc
+  diagram_builder.cc
   diagram_context.cc
+  examples/spring_mass_system.cc
+  leaf_context.cc
+  leaf_system.cc
+  output_port_listener_interface.cc
+  primitives/adder.cc
+  primitives/constant_value_source.cc
+  primitives/constant_vector_source.cc
+  primitives/demultiplexer.cc
+  primitives/gain.cc
+  primitives/integrator.cc
+  primitives/pass_through.cc
+  primitives/pid_controller.cc
   state.cc
   state_subvector.cc
   state_supervector.cc
-  state_vector.cc
   system.cc
   system_input.cc
   system_output.cc
-  basic_state_vector.cc
+  system_port_descriptor.cc
   value.cc
-  vector_interface.cc
-  diagram.cc
-  primitives/adder.cc
-  primitives/integrator.cc)
+  vector_base.cc)
 
 # Headers that should be installed with Drake so that they
 # are available elsewhere via #include.
@@ -30,26 +38,24 @@ set(sources
 # System2 framework template implementations have been moved into .cc files
 # using explicit instantiation, tighten this list.
 set(installed_headers
-  context_base.h
   basic_vector.h
   cache.h
   context.h
   diagram.h
+  diagram_builder.h
   diagram_context.h
-  leaf_state_vector.h
+  leaf_context.h
+  leaf_system.h
+  output_port_listener_interface.h
   state.h
   state_subvector.h
   state_supervector.h
-  state_vector.h
   system.h
   system_input.h
   system_output.h
-  basic_state_vector.h
+  system_port_descriptor.h
   value.h
-  vector_interface.h
-  diagram.h
-  primitives/adder.h
-  primitives/integrator.h)
+  vector_base.h)
 
 # Headers that are needed by code here but should not
 # be exposed anywhere else.
@@ -67,5 +73,6 @@ pods_install_pkg_config_file(drake-system-framework
   REQUIRES
   VERSION 0.0.1)
 
+add_subdirectory(examples)
+add_subdirectory(primitives)
 add_subdirectory(test)
-add_subdirectory(primitives/test)

@@ -3,49 +3,46 @@
 #include <cstdint>
 #include <memory>
 
-#include "drake/systems/framework/cache.h"
-#include "drake/systems/framework/context_base.h"
-#include "drake/systems/framework/system.h"
+#include "drake/systems/framework/context.h"
+#include "drake/systems/framework/leaf_context.h"
+#include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/framework/system_output.h"
-#include "drake/systems/framework/vector_interface.h"
 
 namespace drake {
 namespace systems {
 
 /// An integrator for a continuous vector input.
 /// @tparam T The type being integrated. Must be a valid Eigen scalar.
+///
+/// Instantiated templates for the following kinds of T's are provided:
+/// - double
+///
+/// They are already available to link against in libdrakeSystemFramework.
+/// No other values for T are currently supported.
+/// @ingroup systems
+
 template <typename T>
-class Integrator : public System<T> {
+class Integrator : public LeafSystem<T> {
  public:
   /// @param length is the size of the input port.
   explicit Integrator(int length);
-  ~Integrator() override {}
+  ~Integrator() override;
 
-  /// Allocates the number of input ports specified in the constructor.
-  /// Allocates no state.
-  std::unique_ptr<ContextBase<T>> CreateDefaultContext() const override;
+  /// Sets the value of the integral modifying the state in the context.
+  /// @p value must be a column vector of the appropriate size.
+  void set_integral_value(Context<T>* context,
+                          const Eigen::Ref<const VectorX<T>>& value) const;
 
-  /// Allocates one output port of the width specified in the constructor.
-  std::unique_ptr<SystemOutput<T>> AllocateOutput(
-      const ContextBase<T>& context) const override;
-
-  /// Integrates the input ports into the output port. If the input ports are
-  /// not of the length specified in the constructor, std::runtime_error will
-  /// be thrown.
-  void EvalOutput(const ContextBase<T>& context,
+  // System<T> overrides
+  bool has_any_direct_feedthrough() const override;
+  void EvalOutput(const Context<T>& context,
                   SystemOutput<T>* output) const override;
-
-  std::unique_ptr<ContinuousState<T>> AllocateTimeDerivatives() const override;
-
-  void EvalTimeDerivatives(const ContextBase<T>& context,
+  void EvalTimeDerivatives(const Context<T>& context,
                            ContinuousState<T>* derivatives) const override;
 
-  void set_name(const std::string& name) { name_ = name; }
-  std::string get_name() const override { return name_; }
-
- private:
-  std::string name_;
-  const int length_{0};
+ protected:
+  // LeafSystem<T> override
+  std::unique_ptr<ContinuousState<T>> AllocateContinuousState() const override;
 };
 
 }  // namespace systems

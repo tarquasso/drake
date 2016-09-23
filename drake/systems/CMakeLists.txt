@@ -19,6 +19,7 @@ if(lcm_FOUND)
     VERSION 0.0.1)
 endif()
 
+add_subdirectory(analysis)
 add_subdirectory(frames)
 add_subdirectory(framework)
 add_subdirectory(plants)
@@ -31,9 +32,9 @@ drake_install_headers(
   cascade_system.h
   feedback_system.h
   LinearSystem.h
-  n_ary_state.h
-  n_ary_system.h
   pd_control_system.h
+  gravity_compensated_pd_position_control_system.h
+  gravity_compensated_system.h
   Simulation.h
   simulation_options.h
   System.h

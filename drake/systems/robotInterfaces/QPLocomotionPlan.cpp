@@ -7,7 +7,6 @@
 #include <string>
 
 #include "drake/common/constants.h"
-#include "drake/core/Gradient.h"
 #include "drake/drakeQPLocomotionPlan_export.h"  // TODO(tkoolen): exports
 #include "drake/examples/Atlas/atlasUtil.h"
 #include "drake/math/autodiff.h"
@@ -36,8 +35,9 @@ using drake::kSpaceDimension;
 using drake::math::Gradient;
 using drake::math::autoDiffToGradientMatrix;
 using drake::math::autoDiffToValueMatrix;
-using drake::math::expmap2quat;
 using drake::math::closestExpmap;
+using drake::math::expmap2quat;
+using drake::math::initializeAutoDiffGivenGradientMatrix;
 using drake::math::quat2expmap;
 using drake::math::quatRotateVec;
 
@@ -560,7 +560,7 @@ void QPLocomotionPlan::updateSwingTrajectory(
   auto quatdot = (Phi * x0_twist.topRows<3>()).eval();
 
   auto x0_expmap_autodiff = quat2expmap(
-      drake::initializeAutoDiffGivenGradientMatrix(x0_quat, quatdot));
+      initializeAutoDiffGivenGradientMatrix(x0_quat, quatdot));
   auto x0_expmap = autoDiffToValueMatrix(x0_expmap_autodiff);
   auto xd0_expmap = autoDiffToGradientMatrix(x0_expmap_autodiff);
 
@@ -879,20 +879,20 @@ const std::map<Side, int> QPLocomotionPlan::createJointIndicesMap(
     RigidBodyTree& robot, const std::map<Side, std::string>& joint_names) {
   std::map<Side, int> joint_indices;
   for (auto it = Side::values.begin(); it != Side::values.end(); ++it) {
-    int joint_id = robot.findJointId(joint_names.at(*it));
+    int joint_id = robot.FindIndexOfChildBodyOfJoint(joint_names.at(*it));
     joint_indices[*it] = robot.bodies[joint_id]->get_position_start_index();
   }
   return joint_indices;
 }
 
-template drake::lcmt_qp_controller_input
+template DRAKEQPLOCOMOTIONPLAN_EXPORT drake::lcmt_qp_controller_input
 QPLocomotionPlan::createQPControllerInput<
   Matrix<double, -1, 1, 0, -1, 1>,
   Matrix<double, -1, 1, 0, -1, 1>>(
       double, MatrixBase<Matrix<double, -1, 1, 0, -1, 1>> const&,
       MatrixBase<Matrix<double, -1, 1, 0, -1, 1>> const&,
       std::vector<bool, std::allocator<bool>> const&);
-template drake::lcmt_qp_controller_input
+template DRAKEQPLOCOMOTIONPLAN_EXPORT drake::lcmt_qp_controller_input
 QPLocomotionPlan::createQPControllerInput<
   Map<Matrix<double, -1, 1, 0, -1, 1> const, 0, Stride<0, 0>>,
   Map<Matrix<double, -1, 1, 0, -1, 1> const, 0, Stride<0, 0>>>(
