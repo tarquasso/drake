@@ -1,4 +1,4 @@
-function [x, xplus] = poincareMap_v1(N)
+function [x, xplus] = poincareMap_x(N)
 
 p = SoftPaddleHybrid();
 plantSim = SimulinkModel(p.getModel());
@@ -16,7 +16,7 @@ xplus = zeros(N,1);
 
 for i = 1:length(x)
     x0(4) = x(i);
-    f = @(psi) myfun_v1(psi,x0,plantSim,c);
+    f = @(psi) costFun1Step_x(psi,x0,plantSim,c);
     xplus(i) = f(0);
     fprintf(['x = ', num2str(x(i)), ', x+ = ', num2str(xplus(i)), '\n'])
 end
