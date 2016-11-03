@@ -1,7 +1,7 @@
 ﻿
 <robot xmlns="http://drake.mit.edu"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd" name="tension_twopulleys">
+ xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd" name="chineseyoyo_twopulleys">
 
   <link name="base">
     <visual>
@@ -89,14 +89,12 @@
     </visual> -->
   </link>
   
-
-
   <joint name="tensioner_angle_left" type="revolute">
     <origin xyz="-3 1 2.5"/>
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner_left"/>
-    <dynamics damping="2.5"/>
+    <dynamics damping=".5"/>
   </joint>
 
   <joint name="tensioner_angle_right" type="revolute">
@@ -104,7 +102,7 @@
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner_right"/>
-    <dynamics damping="2.5"/>
+    <dynamics damping=".5"/>
   </joint>
   
   <link name="load_x" />
@@ -123,23 +121,31 @@
     <dynamics damping="0"/>
   </joint>
 
-
-
   <force_element name="tensioner_spring_left">
-    <torsional_spring rest_angle="0" stiffness="100">
+    <torsional_spring rest_angle="0" stiffness="80">
       <joint name="tensioner_angle_left"/>
     </torsional_spring>
   </force_element> 
 
   <force_element name="tensioner_spring_right">
-    <torsional_spring rest_angle="0" stiffness="100">
+    <torsional_spring rest_angle="0" stiffness="80">
       <joint name="tensioner_angle_right"/>
     </torsional_spring>
   </force_element>
 
+ <transmission type="SimpleTransmission" name="tensioner_trans_left">
+    <actuator name="tensioner_angle_left" />
+    <joint name="tensioner_angle_left" />
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission> 
 
+ <transmission type="SimpleTransmission" name="tensioner_trans_right">
+    <actuator name="tensioner_angle_right" />
+    <joint name="tensioner_angle_right" />
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
 
-  <cable min_length="14.1" max_length="14.1"> 
+  <cable min_length="14" max_length="14"> 
     <terminator link="tensioner_left" xyz="-.51 0 0" />
     <pulley link="base" xyz="-3 1 2.5" axis="0 1 0" radius=".5" number_of_wraps="1" />
     <pulley link="load" xyz="0 0 0" axis="0 -1 0" radius="1"/>

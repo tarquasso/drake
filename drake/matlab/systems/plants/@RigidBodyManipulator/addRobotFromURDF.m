@@ -39,8 +39,7 @@ if (~isfield(options,'ignore_friction')), options.ignore_friction = false; end
 
 %disp(['Parsing ', urdf_filename]);
 urdf_filename = GetFullPath(urdf_filename);
-% extract path, file name, and file name extension from urdf_filename.
-[options.urdfpath,name,ext] = fileparts(urdf_filename); 
+[options.urdfpath,name,ext] = fileparts(urdf_filename);
 
 urdf = xmlread(urdf_filename);
 
@@ -541,6 +540,7 @@ function model = parseCable(model,robotnum,node,options)
   constraint = DrakeFunctionConstraint(min_length,max_length,cable_length_function);
   constraint = setName(constraint,cable_length_function.name);
   constraint.grad_level = 2; %declare that the second derivative is provided
+  constraint.grad_method = 'user';
   model = addPositionEqualityConstraint(model,constraint);
 end
 

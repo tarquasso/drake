@@ -1,6 +1,6 @@
 function tension_twopulleys
 
-%r = PlanarRigidBodyManipulator('tension.urdf');
+%r = PlanarRigidBodyManipulator('tension_twopulleys.urdf');
 r = TimeSteppingRigidBodyManipulator('tension_twopulleys.urdf',.01,struct('twoD',true));
 
 v = r.constructVisualizer();
@@ -9,9 +9,11 @@ v.ylim = [-.2 6.2];
 
 x0 = Point(getStateFrame(r));
 x0.load_x = 0;
-x0.load_z = 4;
-%x0.tensioner_angle = pi/2;
-%x0.load_zdot = -4;
+x0.load_z = 3.9;
+%x0.tensioner_angle_left = -0.143374;
+%x0.tensioner_angle_right = 0.143374;
+
+%x0.load_zdot = -2.5;
 
 v.drawWrapper(0,x0(1:4));
 

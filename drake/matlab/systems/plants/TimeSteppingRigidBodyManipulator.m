@@ -101,6 +101,10 @@ classdef TimeSteppingRigidBodyManipulator < DrakeSystem
     function manip = getManipulator(obj)
       manip = obj.manip;
     end
+    
+    function setManipulator(obj,manip)
+      obj.manip = manip;
+    end
 
     function y = output(obj,t,x,u)
       checkDirty(obj);
