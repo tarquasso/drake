@@ -109,10 +109,10 @@ assert(all(pmin>=0));  % otherwise I'll have to subtract it out from the coordin
 
 %check if position contraints exist and then count those
 if(~isempty(obj.position_constraints))
-  isPositionConstrainted = true;
+  isPositionConstrained = true;
   nc = numel(obj.position_constraints);
 else
-  isPositionConstrainted = false;
+  isPositionConstrained = false;
   nc = 0;
 end
 
@@ -145,7 +145,7 @@ end
 
 %%   Step 1b: Reconstruct missing states q(1) and qd(1)
 %If there is a constraint, reconstruct missing q(1) qd(1)
-if(isPositionConstrainted)
+if(isPositionConstrained)
   %TODO: z0 by using resolve constraint
   q_known = q_data; %nMeasuredx1xn
   qd_known = qd_data; %nMeasuredx1xn
@@ -169,7 +169,7 @@ if(isPositionConstrainted)
   %%   Step 1c) Calculate Constraint J = dphi/dq = dlength
   Jdata = zeros(nq,size(qData,2));
   for i = 1:size(qData,2)
-    [~,Jdata(:,i)] = obj.position_constraints{i}.eval(qDataAll); %%TODO: fgix this by running iteration
+    [~,Jdata(:,i)] = obj.position_constraints{i}.eval(qDataAll); %%TODO: fix this by running iteration
   end
 end
 
@@ -209,7 +209,7 @@ if ~isempty(paramsSym)
   pobj = obj.setParams(paramsSym); %Using model that was parsed in, overwriting numeric parameters with msspoly
 end
 
-if(isPositionConstrainted)
+if(isPositionConstrained)
   % msspoly describing the unknown constraint force
   lambda = msspoly('lamb',1); %constraint force
   % add the constraint force as a parameter to the paramsSym object
@@ -230,7 +230,7 @@ if isDynamic || isEnergetic
     else
       err = H*qdd + C;
     end
-    if(isPositionConstrainted)
+    if(isPositionConstrained)
       err = err - J*lambda;
     end
     

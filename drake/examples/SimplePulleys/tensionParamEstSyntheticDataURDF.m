@@ -59,8 +59,8 @@ parameterEstimationOptions.C = eye(4);
 
 %% Initialize tension plants and variables
 % TODO: find out if just a PlanarRigidBodyManipulator would also work??
-rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',Ts,struct('twoD',true));  
-%rtrue = RigidBodyManipulator('tensionWParams.urdf');
+%rtrue =  TimeSteppingRigidBodyManipulator('tensionWParams.urdf',Ts,struct('twoD',true));  
+rtrue = PlanarRigidBodyManipulator('tensionWParams.urdf');
 r = rtrue;
 nq = r.getNumPositions;
 outputFrameNamesAll = r.getOutputFrame.getCoordinateNames();
@@ -72,7 +72,7 @@ np = length(p_orig);
 %get a handle on the manipulator plant
 if(isa(rtrue,'TimeSteppingRigidBodyManipulator'))
   manip = rtrue.getManipulator;
-elseif(isa(rtrue,'RigidBodyManipulator'))
+elseif(isa(rtrue,'PlanarRigidBodyManipulator'))
   manip = rtrue;
 else
   error('not supported type of plant');
@@ -80,10 +80,10 @@ end
   
 %Check if plant is position constrained
 if(~isempty(manip.position_constraints))
-  isPositionConstrainted = true;
+  isPositionConstrained = true;
   nc = numel(manip.position_constraints);
 else
-  isPositionConstrainted = false;
+  isPositionConstrained = false;
   nc = 0;
 end
 
