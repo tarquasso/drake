@@ -28,7 +28,7 @@ function V = regionOfAttraction(sys,varargin)
 % @default the degree required to kill terms in the main polynomial.
 %
 % @option max_iterations The maximum number of iterations in the iterative
-% methods (e.g. bilinear)
+% methods (e.g. biinear)
 % @option converged_tol The convergence tolerance in the iterative methods
 % (e.g. bilinear).  The algorithm terminates if the estimated volume
 % changes by less than this percentage.
