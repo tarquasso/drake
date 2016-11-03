@@ -28,5 +28,9 @@ display(C);
 % D = msubs(C(4,3), [a; b; c], [a_data;b_data;c_data]);
 % full(D)
 
-% h = [a^2*(x^2*y+2*y) a*b*(x^2*y+z*y^2)]
-% [D E F] = decomp(h,[a; b; c])
+h = [a^2*(x^2*y+2*y) a*b*(x^2*y+z*y^2)];
+[D E F] = decomp(h,[a; b; c]);
+display(h);
+display(D);
+display(full(E));
+display(F);
