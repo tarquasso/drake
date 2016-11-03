@@ -76,7 +76,7 @@ classdef AcrobotPlant < Manipulator
         [df,d2f,d3f]= dynamicsGradients(obj,t,x,u,nargout-1);
       end
     end
-
+    
     function x = getInitialState(obj)
       x = .1*randn(4,1);
     end
