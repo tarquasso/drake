@@ -121,7 +121,7 @@ classdef SoftPaddleControl < DrakeSystem
           if rem(t,10) < 0.5
             fprintf(['t = ', num2str(t), '\n'])
           end
-          k2 = 1e+2;
+          k2 = 1e+1;
           u = Hinvtilde/(Delta)*( -obj.kp*(q(1)-psid) - obj.kd*qp(1) + C(1) ) + J(1)*(Jp'*qp-J*Hinv*C)/(Delta) - k2*Etilde*qp(1);
       end
       if m == 1
