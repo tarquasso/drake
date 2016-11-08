@@ -502,7 +502,7 @@ function [f,df] = cableLengthConstraint(obj, q_known,qd_known,q_uk,qd_uk)
 %call eval within cableLength.m
 [cable_length,dlength,ddlength] = obj.positionConstraints([q_uk;q_known]);
 lengthdot = dlength*[qd_uk;qd_known];
-dlengthdot = [reshape(ddlength,[],numel([q_uk;q_known]))*[qd_uk;qd_known] dlength];
+%dlengthdot = [reshape(ddlength,[],numel([q_uk;q_known]))*[qd_uk;qd_known] dlength];
 f = [cable_length - obj.pulley_length; lengthdot]; %find obj.pulley_length
-df = [dlength zeros(size(dlength)); dlengthdot];
+df = [dlength(1), 0; ddlength(1:3)*[qd_uk;qd_known], dlength(1)];
 end
