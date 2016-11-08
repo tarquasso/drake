@@ -3,21 +3,22 @@
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd" name="SimplePulley">
 
-<!-- Parameters for Tensioner-->
-  <parameter name="m1" value="0.1" lb="0" />
-  <parameter name="ixx1" value="0.0065833" lb="0" />
-  <parameter name="iyy1" value="0.0125" lb="0" />
-  <parameter name="izz1" value="0.0065833" lb="0" />
-  <parameter name="d1" value="0.01" lb="0" />
-  <parameter name="k1" value="0.4" lb="0" />
+<!-- Parameters for Tensioner - to be estimated-->
+  <parameter name="m1" value="0.1" lb="0" /> <!-- just a guess on m1 -->
+  <!-- m1 = 0.1; r1 = 0.03793/2; I1xx = 1/4*m1*r1^2;  I1yy = 1/2*m1*r1^2;  I1zz = I1xx;-->
+  <parameter name="ixx1" value="0.00000899" lb="0" />
+  <parameter name="iyy1" value="0.00001798" lb="0" />
+  <parameter name="izz1" value="0.00000899" lb="0" />
+  <parameter name="d1" value="0.005" lb="0" />
+  <parameter name="k1" value="0.2" lb="0" />
 
-<!-- Parameters for Load-->
+<!-- Parameters for Load - measured-->
   <parameter name="m2" value="0.131" lb="0" /> <!-- 0.06947 -->
-  <parameter name="ixx2" value="0.506667" lb="0" />
-  <parameter name="iyy2" value="1" lb="0" />
-  <parameter name="izz2" value="0.506667" lb="0" />
+  <!-- m2 = 0.131; r2 = 0.08846/2; h2 = 0.0088; I2xx = 1/12*m2*(3*r2^2+h2^2);  I2yy = 1/2*m2*r2^2;  I2zz = I2xx; -->
+  <parameter name="ixx2" value="0.00006491" lb="0" />
+  <parameter name="iyy2" value="0.00012813" lb="0" />
+  <parameter name="izz2" value="0.00006491" lb="0" />
 
- 
 
   <link name="base">
     <!--visual>
