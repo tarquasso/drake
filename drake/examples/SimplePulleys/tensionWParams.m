@@ -6,14 +6,17 @@ r = PlanarRigidBodyManipulator('tensionWParams.urdf');
 trueParameters = getParams(r);
 
 v = r.constructVisualizer();
-v.xlim = [-5 5];
-v.ylim = [-.2 6.2];
+v.xlim = [-3.31 -2.25];
+v.ylim = [2.5 3.5];
 
 x0 = Point(getStateFrame(r));
-x0.load_x = -0.0378;
-x0.load_z = 4;
+x0.load_x = -2.811;
+x0.load_z = 3.0885;
 x0.tensioner_angle = .1414;%pi/2;
 %x0.load_zdot = -4;
+
+
+
 
 v.drawWrapper(0,x0(1:3));
 
@@ -27,13 +30,14 @@ x0 = resolveConstraints(r,x0,v);
 v.drawWrapper(0,x0(1:3));
 
 ytraj = simulate(r,[0 8],x0);
-if(0)
+len = [];
+if(1)
 ts = ytraj.getBreaks();
 for i=1:numel(ts)
   x = ytraj.eval(ts(i));
-  length(i) = r.position_constraints{1}.eval(x(1:3));
+  len(i) = r.position_constraints{1}.eval(x(1:3));
 end
-figure(1); clf; plot(ts,length);
+figure(1); clf; plot(ts,len);
 end
 
 v.playback(ytraj,struct('slider',true));
