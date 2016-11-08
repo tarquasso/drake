@@ -35,7 +35,7 @@ for i=1:numel(ts)
   x = ytraj.eval(ts(i));
   len(i) = r.position_constraints{1}.eval(x(1:3));
 end
-figure(1); clf; plot(ts,len); axis tight
+figure(1); clf; plot(ts,len);
 end
 
 v.playback(ytraj,struct('slider',true));

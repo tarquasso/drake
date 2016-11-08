@@ -5,17 +5,17 @@
 
 <!-- Parameters for Tensioner-->
   <parameter name="m1" value="0.1" lb="0" />
-  <parameter name="ixx1" value="0.00017368" lb="0" />
-  <parameter name="iyy1" value="0.00034735" lb="0" />
-  <parameter name="izz1" value="0.00017368" lb="0" />
-  <parameter name="d1" value="0.005" lb="0" />
-  <parameter name="k1" value="0.2" lb="0" />
+  <parameter name="ixx1" value="0.0065833" lb="0" />
+  <parameter name="iyy1" value="0.0125" lb="0" />
+  <parameter name="izz1" value="0.0065833" lb="0" />
+  <parameter name="d1" value="0.01" lb="0" />
+  <parameter name="k1" value="0.4" lb="0" />
 
 <!-- Parameters for Load-->
   <parameter name="m2" value="0.131" lb="0" /> <!-- 0.06947 -->
-  <parameter name="ixx2" value="0.00013603" lb="0" />
-  <parameter name="iyy2" value="0.00027205" lb="0" />
-  <parameter name="izz2" value="0.00013603" lb="0" />
+  <parameter name="ixx2" value="0.506667" lb="0" />
+  <parameter name="iyy2" value="1" lb="0" />
+  <parameter name="izz2" value="0.506667" lb="0" />
 
  
 
