@@ -37,7 +37,7 @@ end
 
 
 %%   Step 1: Extract data
-if (true)
+if (false)
   % populate A and b matrices from iddata
   % todo: make the processing of q,qd,qdd more robust
   qMeasured = nq - nc; %measured constraints are state constraints minus position constraints
@@ -80,9 +80,9 @@ if isDynamic || isEnergetic
   if isDynamic
     % Formulate equation error from equations of motion
     if(nu > 0)
-      regressorMat = H*qdd + C - B*u;
+      err = H*qdd + C - B*u;
     else
-      regressorMat = H*qdd + C;
+      err = H*qdd + C;
     end
     
   elseif isEnergetic %TODO: make formulation independent of Acrobot
@@ -110,7 +110,7 @@ if isDynamic || isEnergetic
     % ACROBOT-SPECIFIC FORMULATION - TODO: MUST CHANGE
     % Need to formulate energy dissipation from AcrobotPlant class
     dE = (B*u-[p(1);p(2)].*qd1)'*qd1*dt; %todo: make generic
-    regressorMat = (T1+U1)-(T2+U2)+dE;
+    err = (T1+U1)-(T2+U2)+dE;
     
   end
   
@@ -120,13 +120,13 @@ if isDynamic || isEnergetic
     for i = 1:nc
       [~,jacobian] = pobj.position_constraints{i}.eval(qt);
       %append with the jacobian
-      regressorMat = [regressorMat,jacobian'];
+      err = [err,jacobian'];
     end
   end
   
   
   % Isolate parameters from error equations
-  [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(regressorMat),p); % posynomial lumped params
+  [lp,M,Mb,lin_params,beta] = identifiableParameters(getmsspoly(err),p); % posynomial lumped params
   % [lp, M, Mb] = linearParameters(getmsspoly(err),p); % monomial lumped params
   nlp = length(lp);
   lp_orig = double(subs(lp,p,p_orig));
