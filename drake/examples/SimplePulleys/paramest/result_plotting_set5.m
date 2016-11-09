@@ -4,10 +4,13 @@
 %Set 5
 load('~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_46_41.mat')
 
+optiTrackWandErrorFactor = 1/2;
+
 % Set 5 Touching point: 55.8mm - manually measure from the Optitrack
-tp = 0.0558;
+tp = 0.0558*optiTrackWandErrorFactor;
 %Static spring stretching point: 52.8 mm
 
+History.objectPosition = optiTrackWandErrorFactor* History.objectPosition;
 %number of samples
 nos = History.i-1;
 
@@ -26,7 +29,7 @@ plot(timeVals([1,end]),[tp,tp],'g')
 xlabel('time [s]')
 ylabel('height coordinate z [m]')
 title('Set 5 - Z-Coordinate')
-axis([5.4 8.2 -0.06 0.93])
+axis([5.4 8.2 -0.03 0.465])
 options.Format = 'eps';
 hgexport(gcf,sprintf('plots/Set5_all.eps'),options);
 
@@ -38,7 +41,30 @@ copyobj(get(h1,'children'),h2);
 
 axis([5.4 8.2 -0.06 tp+0.01])
 options.Format = 'eps';
+title('Set 5 - Z-Coordinate - In contact below Green line')
+
 hgexport(gcf,sprintf('plots/Set5_under.eps'),options);
+
+figure(203);
+clf
+hold on
+plot(timeVals,yVals)
+xlabel('time [s]')
+ylabel('horizontal coordinate [m]')
+title('horizontal coordinate')
+hold on
+axis([5.4 8.2 -inf inf])
+
+figure(204);
+clf
+hold on
+
+plot(timeVals,zVals)
+xlabel('time [s]')
+ylabel('normal to plane coordinate [m]')
+title('normal to plane coordinate')
+axis([5.4 8.2 -inf inf])
+hold on
 
 
 %% 
@@ -61,6 +87,7 @@ for k= 1:length(xUnderLimit)
     xuls{j}(i) = xUnderLimit(k);
     
     if(newSet(k) == 1)
+        figure(h2)
         plot(tUnderLimit(k),xUnderLimit(k),'y*')
         j = j+1;
         i = 0;
