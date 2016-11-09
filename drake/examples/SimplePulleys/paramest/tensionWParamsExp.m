@@ -1,5 +1,3 @@
-function trueParameters = tensionWParamsExp
-
 
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 % r = TimeSteppingRigidBodyManipulator('tensionWParamsExp.urdf',.01,struct('twoD',true));
@@ -11,9 +9,10 @@ v.xlim = [-0.26 0.26];
 v.ylim = [-0.11 0.26];
 
 x0 = Point(getStateFrame(r));
+x0.tensioner_angle = 0;% 0.019 * pi/2;%pi/2;
 x0.load_x = 0;
 x0.load_z = 0.04423;
-x0.tensioner_angle = .0298;%pi/2;
+
 x0.load_zdot = -1.907; % calculation by central difference theorem from data set 5: (0.03985-0.07036)/(5.82-5.804)
 
 v.drawWrapper(0,x0(1:3));

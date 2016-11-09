@@ -9,8 +9,8 @@
   <parameter name="ixx1" value="0.00000899" lb="0" />
   <parameter name="iyy1" value="0.00001798" lb="0" />
   <parameter name="izz1" value="0.00000899" lb="0" />
-  <parameter name="d1" value="0.00229" lb="0" />
-  <parameter name="k1" value="0.32" lb="0" />
+  <parameter name="d1" value="0.0024" lb="0" />
+  <parameter name="k1" value="0.22" lb="0" />
 
 <!-- Parameters for Load - measured-->
   <parameter name="m2" value="0.131" lb="0" /> <!-- 0.06947 -->
@@ -56,7 +56,7 @@
       <material>
         <color rgba="0 0 0 0"/>
       </material>
-      <origin xyz=".01 .01 0" rpy="0 0 0"/>
+      <origin xyz=".01 0 0" rpy="0 0 0"/>
       <geometry>
         <box size=".019 .01 .002"/>
       </geometry>
@@ -91,7 +91,7 @@
   </link>
   
   <joint name="tensioner_angle" type="revolute">
-    <origin xyz="0.19 1 -0.019"/>
+    <origin xyz="0.145 1 -0.019"/>
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner"/>
@@ -121,11 +121,11 @@
   </force_element>
 
 <!--  <cable min_length="8" max_length="8"> --> <!-- good for if I take out the final pulley -->
-  <cable min_length="0.531988" max_length="0.531988"> <!-- cable length: 0.38+ 0.149 m + pulley length-->
-    <terminator link="base" xyz="-0.19 1 0" />
+  <cable min_length="0.43922" max_length="0.43922"> <!-- cable length = 0.145 * 2 + 2*  pi*radius_pulley + radius_pulley * pi/2-->
+    <terminator link="base" xyz="-0.145 1 0" />
     <pulley link="load" xyz="0 0 0" axis="0 -1 0" radius="0.04423"/>
-    <pulley link="base" xyz="0.19 1 -0.019" axis="0 1 0" radius=".019" number_of_wraps="1" />
-    <terminator link="tensioner" xyz="0.0194 0 0"/>
+    <pulley link="base" xyz="0.145 1 -0.019" axis="0 1 0" radius=".019" number_of_wraps="1" />
+    <terminator link="tensioner" xyz="0.0192 0 0"/>
   </cable>
 
 </robot>
