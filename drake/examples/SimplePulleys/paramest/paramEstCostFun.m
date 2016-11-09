@@ -18,9 +18,11 @@ Ipulley = p(1);
 mball = p(2);
 kpulley = p(3);
 bpulley = p(4);
+numSamples = length(theta);
+dim = 2;
 
-psi = NaN(length(theta),1);
-for i = 1:length(theta)
+psi = NaN(dim*numSamples,1);
+for i = 1:numSamples
     H = diag([Ipulley, mball, mball]);
     C = [ bpulley*thetad(i) + kpulley*theta(i); ...
           0;...
@@ -45,7 +47,12 @@ for i = 1:length(theta)
     Hinvtilde = J*Hinv*J';
     Htilde = inv(Hinvtilde);
     
-    psi(3*i-2:3*i) = H*qdd(i,:)' + (eye(3) - J'*Htilde*J*Hinv)*C + J'*Htilde*Jdot*qd(i,:)';
+    temp = H*qdd(i,:)' + (eye(3) - J'*Htilde*J*Hinv)*C + J'*Htilde*Jdot*qd(i,:)';
+    if (dim == 2)
+       psi((dim*i-1):dim*i) = temp([1,3]);
+    elseif (dim == 3)
+      psi((dim*i-2):dim*i) = temp;
+    end
 end
 
 f = dot(psi, psi);

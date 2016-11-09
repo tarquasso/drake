@@ -44,14 +44,37 @@ maxHeight = 0.46;
 
 
 generatePlot = true; 
-[times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gof] = ...
-  parseTensionExperimentData(filename,tp,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
+% [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gof] = ...
+%   parseTensionExperimentData(filename,tp,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
 
+%save('data.mat', 'times', 'z','zd','zdd')
 
+load('data.mat')
 % fit it to a polynomial to extract q, qd, qdd
 
-% 
-% q = rand(10,3);
+%j=1;
+%m = length(z{j});
+
+%q = [zeros(m,2);z{1}];
+theta0 = 0;
+thetad0 = -0;
+z{1} = z{1}+0.044230;
+options = optimoptions(@fmincon);
+options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
+ lb = [-pi;-100];
+ ub = [pi;100];
+ numSets = size(z,1);
+%thetaVec = cell(numSets,1);
+  thetaVec = zeros(size(z{1},1),2);
+for k =1:size(z{1},1)
+fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{1}(k)], [thetaVec(2);0;zd{1}(k)]);
+[thetaVec(k,:),fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
+theta0 = thetaVec(k,1);
+thetad0 = thetaVec(k,2);
+end
+
+ %  [x,fval] = fmincon(fun, theta, [], [], [], [], lb(1), ub(1), [], options);
+
 % qd = 10*rand(10,3);
 % qdd = 100*rand(100,3);
 
