@@ -40,18 +40,9 @@ axis([5.4 8.2 -0.06 tp+0.01])
 options.Format = 'eps';
 hgexport(gcf,sprintf('plots/Set5_under.eps'),options);
 
-% Not relevant
-% figure
-% plot(timeVals,yVals)
-% title('y')
-% figure
-% plot(timeVals,zVals)
-% title('z')
 
 %% 
 % extract more
-
-
 xUnderLimit = xVals(idxUnderLimit);
 tUnderLimit = timeVals(idxUnderLimit);
 hVec = diff(tUnderLimit);
@@ -93,25 +84,27 @@ end
 
 
 
+% 
+% % calculations
+% r1 = PlanarRigidBodyManipulator('tensionWParamsExp.urdf'); % Set up rigid body
+% nq = r1.num_positions;
+% nu = r1.getNumInputs;
+% 
+% %x0 = Point(getStateFrame(r1));
+% 
+% %%
+% q=msspoly('q',nq);
+% s=msspoly('s',nq);
+% c=msspoly('c',nq);
+% qt=TrigPoly(q,s,c);
+% qd=msspoly('qd',nq);
+% qdd=msspoly('qdd',nq);
+% u=msspoly('u',nu);
+% p=r1.getParamFrame.getPoly;
+% pr1 = setParams(r1,p);
+% [H,C,B] = manipulatorDynamics(pr1,qt,qd);
 
-% calculations
-r1 = PlanarRigidBodyManipulator('tensionWParamsExp.urdf'); % Set up rigid body
-nq = r1.num_positions;
-nu = r1.getNumInputs;
 
-%x0 = Point(getStateFrame(r1));
-
-%%
-q=msspoly('q',nq);
-s=msspoly('s',nq);
-c=msspoly('c',nq);
-qt=TrigPoly(q,s,c);
-qd=msspoly('qd',nq);
-qdd=msspoly('qdd',nq);
-u=msspoly('u',nu);
-p=r1.getParamFrame.getPoly;
-pr1 = setParams(r1,p);
-%[H,C,B] = manipulatorDynamics(pr1,qt,qd);
 %%
 %err = H*qdd + C - B*u; 
 %tau = B*u -C;
