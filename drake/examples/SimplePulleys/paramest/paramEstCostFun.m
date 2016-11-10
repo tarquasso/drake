@@ -1,32 +1,30 @@
-function f = paramEstCostFun(p, q, qd, qdd)
+function f = paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc)
+%% Position States Vector: q = [theta;x_disc;z_disc] x numsamples
+%% Parameter Vector: p = [Ipulley;kpulley;bpulley]; 
 
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 
 % columns are the states
 % rows are samples
 
-theta = q(:,1);
-thetad = qd(:,1);
-thetadd = qdd(:,1);
-xdd = qdd(:,2);
-zdd = qdd(:,3);
+theta = q(1,:);
+thetad = qd(1,:);
 
 g = 9.81;
-beta = 30*pi/180; % angle of the sliding platform for the disk
+beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 
 Ipulley = p(1);
-mball = p(2);
-kpulley = p(3);
-bpulley = p(4);
-numSamples = length(theta);
-dim = 2;
+kpulley = p(2);
+bpulley = p(3);
+
+[dim,numSamples] = size(q);
 
 psi = NaN(dim*numSamples,1);
 for i = 1:numSamples
-    H = diag([Ipulley, mball, mball]);
+    H = diag([Ipulley, mdisc, mdisc]);
     C = [ bpulley*thetad(i) + kpulley*theta(i); ...
           0;...
-          mball*g*cos(beta)];
+          mdisc*g*cos(beta)];
     
     % q=msspoly('q',nq);
     % s=msspoly('s',nq);
@@ -40,19 +38,25 @@ for i = 1:numSamples
     % [H,C,B] = manipulatorDynamics(r,qt,qd);
     % % we do not need B here
     
-    [~, J, d2phidq2] = r.position_constraints{1}.eval(q(i,:)');
-    Jdot = (reshape(d2phidq2,length(q(i,:)'),[])*qd(i,:)')';
+    [~, J, d2phidq2] = r.position_constraints{1}.eval(q(:,i));
+    Jdot = (reshape(d2phidq2,length(q(:,i)),[])*qd(:,i))';
     
     Hinv = inv(H);
     Hinvtilde = J*Hinv*J';
     Htilde = inv(Hinvtilde);
     
-    temp = H*qdd(i,:)' + (eye(3) - J'*Htilde*J*Hinv)*C + J'*Htilde*Jdot*qd(i,:)';
+    temp = H*qdd(:,i) + (eye(3) - J'*Htilde*J*Hinv)*C + J'*Htilde*Jdot*qd(:,i);
+    
     if (dim == 2)
-       psi((dim*i-1):dim*i) = temp([1,3]);
+      temp = temp([1,3]);
     elseif (dim == 3)
-      psi((dim*i-2):dim*i) = temp;
+      temp = temp;
+    elseif (dim == 1)
+       temp = temp(3);
     end
+    
+    psi((dim*(i-1)+1):dim*i) = temp;
+
 end
 
 f = dot(psi, psi);
