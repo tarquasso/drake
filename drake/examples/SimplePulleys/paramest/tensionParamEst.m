@@ -4,7 +4,9 @@ parseExpFlag = true;
 
 calcThetaFlag = false;
 
+estimateParamsFlag = false;
 
+calcAllOfOneCombinedFlag = false;
 
 %% Parse in Optitrack Capture Data
 
@@ -76,6 +78,8 @@ theta0 = 0;
 thetad0 = -0;
 numOfSets = size(z,1);
 
+numOfSets = 1; %HERRRRRRE
+
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
 lb = [-pi;-100];
@@ -89,12 +93,13 @@ thetadfmincon = cell(numOfSets,1);
 if(calcThetaFlag)
   for j = 1:numOfSets
     for k =1:size(z{j},1)
-      fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{j}(k)], [thetaVec(2);0;zd{j}(k)]);
-      [thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
-      theta{j}(k,1) = thetaVecTemp(1);
-      thetadfmincon{j}(k,1) = thetaVecTemp(2);
-      % fun = @(theta) resolveConstraintThetaCostFun([theta;0;z{j}(k)]);
-      %  [theta(k),fval] = fmincon(fun, theta0, [], [], [], [], lb(1), ub(1), [], options);
+      %fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{j}(k)], [thetaVec(2);0;zd{j}(k)]);
+      %[thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
+      %thetadfmincon{j}(k,1) = thetaVecTemp(2);
+      fun = @(theta) resolveConstraintThetaCostFun([theta;0;z{j}(k)]);
+      [thetaTemp,fval] = fmincon(fun, theta0, [], [], [], [], lb(1), ub(1), [], options);
+      
+      theta{j}(k,1) = thetaTemp;
       
       theta0 = thetaVecTemp(1);
       thetad0 = thetaVecTemp(2);
@@ -133,6 +138,7 @@ for j = 1: numOfSets
   p(1).LineWidth = 2;
 end
 
+
 %% Initial Parameter Guesses
 min = 0.00000001;
 max = 100;
@@ -143,31 +149,88 @@ bpulley = 0.0024;
 bsurface = 0.01;
 % note: mdisc is not a parameter to be estimated
 
-p0 = [Ipulley; kpulley; bpulley; bsurface]; % simulation hand tuning
-dimParams = size(p0,1);
+p0 = [Ipulley, kpulley, bpulley, bsurface]; % simulation hand tuning
+dimParams = size(p0,2);
 
-j=1;
+%for dim =3
+% q = [theta{j}';...
+%     zeros(size(z{j}))';...
+%     z{j}'];
+% qd = [thetad{j}';...
+%     zeros(size(zd{j}))';...
+%     zd{j}'];
+% qdd = [thetadd{j}';...
+%     zeros(size(zdd{j}))';...  
+%     zdd{j}'];
+
+%for dim =2
+
+pEstimated = cell(numOfSets,1);
+
+for j =1:numOfSets
+  
 q = [theta{j}';...
-    zeros(size(z{j}))';...
     z{j}'];
 qd = [thetad{j}';...
-    zeros(size(zd{j}))';...
     zd{j}'];
 qdd = [thetadd{j}';...
-    zeros(size(zdd{j}))';...  
     zdd{j}'];
 
+fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc);
+options = optimoptions(@fmincon);
+options = optimoptions(options, 'Display', 'iter');
+if(estimateParamsFlag)  
+ [pEstimated{j},fval] = fmincon(fun, p0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+else
+ pEstimated{j} = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc);
+end
 
-fun = @(p) paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc);
+end
+if(estimateParamsFlag)  
+save('params.mat', 'pEstimated');
+else
+%load('params.mat');
+end
+IpulleyEst= zeros(numOfSets,1);
+kpulleyEst= zeros(numOfSets,1);
+bpulleyEst= zeros(numOfSets,1);
+bsurfaceEst = zeros(numOfSets,1);
+
+for i=1:numOfSets
+IpulleyEst(i) = pEstimated{i}(1);
+kpulleyEst(i) = pEstimated{i}(2);
+bpulleyEst(i) = pEstimated{i}(3);
+bsurfaceEst(i) = pEstimated{i}(4);
+end
+
+figure(701); clf; hold on; plot(IpulleyEst); xlabel('data set number');title('IpulleyEst');
+figure(702); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('kpulleyEst');
+figure(703); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('bpulleyEst');
+figure(704); clf; hold on; plot(bsurfaceEst); xlabel('data set number');title('bsurfaceEst');
+
+if(calcAllOfOneCombinedFlag)
+q = [];
+qd = q;
+qdd = q;
+
+for j =1:numOfSets
+qNew = [theta{j}';...
+    z{j}'];
+q = [q,qNew];
+
+qdNew = [thetad{j}';...
+    zd{j}'];
+qd = [qd,qdNew];
+
+qddNew = [thetadd{j}';...
+    zdd{j}'];
+qdd = [qdd,qddNew];
+end
+
+fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
 
-[pEstimated,fval] = fmincon(fun, p0, [],[], [], [], ...
-  min*ones(dimParams,1), max*ones(dimParams,1),[], options);
-
-IpulleyEst = pEstimated(1);
-kpulleyEst = pEstimated(2);
-bpulleyEst = pEstimated(3);
-bsurfaceEst = pEstimated(4);
-
-IpulleyEst,kpulleyEst,bpulleyEst,bsurfaceEst
+[pEstimatedAll,fval] = fmincon(fun, p0, [],[], [], [], ...
+  min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+end
