@@ -140,9 +140,10 @@ max = 100;
 Ipulley = 0.00001798;
 kpulley = 0.22;
 bpulley = 0.0024;
+bsurface = 0.01;
 % note: mdisc is not a parameter to be estimated
 
-p0 = [Ipulley; kpulley; bpulley]; % simulation hand tuning
+p0 = [Ipulley; kpulley; bpulley; bsurface]; % simulation hand tuning
 dimParams = size(p0,1);
 
 
@@ -156,5 +157,6 @@ options = optimoptions(options, 'Display', 'iter');
 IpulleyEst = pEstimated(1);
 kpulleyEst = pEstimated(2);
 bpulleyEst = pEstimated(3);
+bsurfaceEst = pEstimated(4);
 
-IpulleyEst,kpulleyEst,bpulleyEst
+IpulleyEst,kpulleyEst,bpulleyEst,bsurfaceEst

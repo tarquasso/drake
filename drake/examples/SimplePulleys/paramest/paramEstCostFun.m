@@ -9,6 +9,8 @@ r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 
 theta = q(1,:);
 thetad = qd(1,:);
+xd = qd(2,:);
+zd = qd(3,:);
 
 g = 9.81;
 beta = angleDeg * pi/180; % angle of the sliding platform for the disk
@@ -16,6 +18,7 @@ beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 Ipulley = p(1);
 kpulley = p(2);
 bpulley = p(3);
+bsurface = p(4);
 
 [dim,numSamples] = size(q);
 
@@ -23,8 +26,8 @@ psi = NaN(dim*numSamples,1);
 for i = 1:numSamples
     H = diag([Ipulley, mdisc, mdisc]);
     C = [ bpulley*thetad(i) + kpulley*theta(i); ...
-          0;...
-          mdisc*g*cos(beta)];
+          bsurface*xd(i);...
+          mdisc*g*cos(beta) + bsurface*zd(i)];
     
     % q=msspoly('q',nq);
     % s=msspoly('s',nq);
