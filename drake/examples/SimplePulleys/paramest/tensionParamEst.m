@@ -36,6 +36,9 @@ tp = 0.0558 * optiTrackWandErrorFactor;
 minHeight = -0.03;
 maxHeight = 0.46;
 
+angleDeg = 36; % tilt of incline in degrees
+mdisc = 0.131; %kg mass of disc
+discRadius = 0.044230;
 
 % filename = '~/soft_modeling_repo/dev/tracking/data/set6/16-May-2015 20_53_54.mat';
 % tp = 0.0558;
@@ -50,7 +53,7 @@ generatePlot = true;
 %save('data.mat', 'times', 'z','zd','zdd')
 
 load('data.mat')
-% fit it to a polynomial to extract q, qd, qdd
+
 
 %j=1;
 %m = length(z{j});
@@ -58,7 +61,9 @@ load('data.mat')
 %q = [zeros(m,2);z{1}];
 theta0 = 0;
 thetad0 = -0;
-z{1} = z{1}+0.044230;
+
+z{1} = z{1} + discRadius; % shift the z coordinate by the disc radius up
+
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
  lb = [-pi;-100];
@@ -66,27 +71,40 @@ options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'no
  numSets = size(z,1);
 %thetaVec = cell(numSets,1);
   thetaVec = zeros(size(z{1},1),2);
+%theta = zeros(size(z{1},1),1);
 for k =1:size(z{1},1)
 fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{1}(k)], [thetaVec(2);0;zd{1}(k)]);
 [thetaVec(k,:),fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
+
+% fun = @(theta) resolveConstraintThetaCostFun([theta;0;z{1}(k)]);
+%  [theta(k),fval] = fmincon(fun, theta0, [], [], [], [], lb(1), ub(1), [], options);
+
 theta0 = thetaVec(k,1);
 thetad0 = thetaVec(k,2);
 end
 
- %  [x,fval] = fmincon(fun, theta, [], [], [], [], lb(1), ub(1), [], options);
+%% Initial Parameter Guesses
+min = 0.00000001;
+max = 100;
 
-% qd = 10*rand(10,3);
-% qdd = 100*rand(100,3);
+Ipulley = 0.00001798;
+kpulley = 0.22;
+bpulley = 0.0024;
+% note: mdisc is not a parameter to be estimated
+
+p0 = [Ipulley;kpulley;bpulley]; % simulation hand tuning
+dimParams = length(p0);
 
 
-% p0 = rand(4,1); % simulation hand tuning
+fun = @(p) paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc);
+options = optimoptions(@fmincon);
+options = optimoptions(options, 'Display', 'iter');
 
-%p0 = 
+[pEstimated,fval] = fmincon(fun, p0, [],[], [], [], ...
+           min*ones(dimParams,1), max*ones(dimParams,1),[], options);
+         
+IpulleyEst = pEstimated(1);
+kpulleyEst = pEstimated(2);
+bpulleyEst = pEstimated(3);
 
-
-
-% fun = @(p) paramEstCostFun(p, q, qd, qdd);
-% options = optimoptions(@fmincon);
-% options = optimoptions(options, 'Display', 'iter');
-% 
-% [x,fval] = fmincon(fun, p0, [],[], [], [], 0.01*ones(4,1), 1000*ones(4,1),[], options);
+IpulleyEst,kpulleyEst,bpulleyEst
