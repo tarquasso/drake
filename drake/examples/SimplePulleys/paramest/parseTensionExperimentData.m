@@ -1,4 +1,4 @@
-function [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gof] = parseTensionExperimentData(filename,touchPoint,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
+function [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gof] = parseTensionExperimentData(filename,touchPoint,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
 
 % the following call requires MotionHistory.m to be in the path
 load(filename)
@@ -16,15 +16,17 @@ timeVals = History.timestamps(1:nos); %History.frameTime(1:nos)-History.frameTim
 zVals = History.objectPosition(1:nos,1); % z points up on the plane
 
 % adjust in height to the tensionWParamsExp.urdf coordinates
-zVals = zVals-touchPoint;
-minHeight = minHeight - touchPoint;
-maxHeight = maxHeight - touchPoint;
+% shift the z coordinate by the disc radius up
+
+zVals = zVals-touchPoint + discRadius;
+minHeight = minHeight - touchPoint + discRadius;
+maxHeight = maxHeight - touchPoint + discRadius;
 
 xVals = History.objectPosition(1:nos,2);
 nVals = History.objectPosition(1:nos,3);
 
 % Shift Frame
-zZero = 0;
+zZero = discRadius; 
 % finds all values that are beneath the touchpoint
 idxInContact = find(zVals < zZero & timeVals > expStartTime & timeVals < expEndTime);
 
@@ -134,7 +136,7 @@ for j = 1:numOfSets
     plot(tICE{j}(1),zICE{j}(1),'m+','LineWidth',1.5)
     plot(tICE{j}(end),zICE{j}(end),'k*','LineWidth',1.5)
   end
-  tICES{j} = 1:(tICE{j}(end)-tICE{j}(1));
+  tICES{j} = tICE{j}-tICE{j}(1);
 end
 
 % %% Derivatives 
@@ -204,7 +206,7 @@ for j = 1: numOfSets
 %     end
 %     
 %   end
-secondTimeCrossingZero = 0;
+
 times{j} = [tFirst;tICE{j}(2:end-1);tLast];
 
 z{j} = feval(qfit{j},times{j});
@@ -214,6 +216,8 @@ figure(h2)
 p = plot(qfit{j},tData,zData);%,[timeInterval{j}])      
 p(1).LineWidth = 2;
 %p(1).Marker = '--';
+
+
 end
 
 

@@ -1,3 +1,11 @@
+%% Set the following parameters to false after running it for the first time:
+
+parseExpFlag = true;
+
+calcThetaFlag = true;
+
+
+
 %% Parse in Optitrack Capture Data
 
 %% Parse Tension Experiment
@@ -46,13 +54,14 @@ discRadius = 0.044230;
 % expEndTime = 6.7; %seconds 8.2
 
 
+
 generatePlot = true;
-parseExpFlag = true;
+
 
 if(parseExpFlag)
   
   [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gofTheta] = ...
-    parseTensionExperimentData(filename,tp,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
+    parseTensionExperimentData(filename,tp,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
   
   save('data.mat', 'times', 'z','zd','zdd');
 else
@@ -66,11 +75,6 @@ end
 theta0 = 0;
 thetad0 = -0;
 numOfSets = size(z,1);
-for j = 1:numOfSets
-z{j} = z{j} + discRadius; % shift the z coordinate by the disc radius up
-end
-
-
 
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
@@ -82,15 +86,15 @@ thetadfmincon = cell(numOfSets,1);
 %thetaVec = zeros(size(z{1},1),2);
 %theta = zeros(size(z{1},1),1);
 
-calcThetaFlag = true;
+
 
 if(calcThetaFlag)
   for j = 1:numOfSets
     for k =1:size(z{j},1)
       fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{j}(k)], [thetaVec(2);0;zd{j}(k)]);
       [thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
-      theta{j}(k) = thetaVecTemp(1);
-      thetadfmincon{j}(k) = thetaVecTemp(2);
+      theta{j}(k,1) = thetaVecTemp(1);
+      thetadfmincon{j}(k,1) = thetaVecTemp(2);
       % fun = @(theta) resolveConstraintThetaCostFun([theta;0;z{j}(k)]);
       %  [theta(k),fval] = fmincon(fun, theta0, [], [], [], [], lb(1), ub(1), [], options);
       
@@ -106,6 +110,7 @@ end
 
 %% fit curves for theta
 thetafit = cell( numOfSets, 1 );
+thetaCmp = cell( numOfSets, 1 );
 thetad = cell( numOfSets, 1 );
 thetadd = cell( numOfSets, 1 );
 
@@ -114,13 +119,13 @@ gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
 %ft = fittype( 'poly2' );
 ft = fittype( 'cubicinterp' );
 
-times = cell( numOfSets, 1 );
+
 for j = 1: numOfSets
 
-  figure(501); clf; hold on; plot(times{j}, z{j},'b*');
+  figure(501); clf; hold on; plot(times{j}, theta{j},'b*');
   [tData, thetaData] = prepareCurveData(  times{j}, theta{j});
   
-  figure(501); clf; hold on; plot(tData, thetaData,'r+');
+  plot(tData, thetaData,'r+');
   [thetafit{j}, gofTheta(j)] = fit( tData, thetaData, ft );
   thetaCmp{j} = feval(thetafit{j},times{j});
   [thetad{j}, thetadd{j}] = differentiate(thetafit{j},times{j});
@@ -130,28 +135,28 @@ for j = 1: numOfSets
   p(1).LineWidth = 2;
 end
 
-% %% Initial Parameter Guesses
-% min = 0.00000001;
-% max = 100;
-% 
-% Ipulley = 0.00001798;
-% kpulley = 0.22;
-% bpulley = 0.0024;
-% % note: mdisc is not a parameter to be estimated
-% 
-% p0 = [Ipulley;kpulley;bpulley]; % simulation hand tuning
-% dimParams = length(p0);
-% 
-% 
-% fun = @(p) paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc);
-% options = optimoptions(@fmincon);
-% options = optimoptions(options, 'Display', 'iter');
-% 
-% [pEstimated,fval] = fmincon(fun, p0, [],[], [], [], ...
-%   min*ones(dimParams,1), max*ones(dimParams,1),[], options);
-% 
-% IpulleyEst = pEstimated(1);
-% kpulleyEst = pEstimated(2);
-% bpulleyEst = pEstimated(3);
-% 
-% IpulleyEst,kpulleyEst,bpulleyEst
+%% Initial Parameter Guesses
+min = 0.00000001;
+max = 100;
+
+Ipulley = 0.00001798;
+kpulley = 0.22;
+bpulley = 0.0024;
+% note: mdisc is not a parameter to be estimated
+
+p0 = [Ipulley; kpulley; bpulley]; % simulation hand tuning
+dimParams = size(p0,1);
+
+
+fun = @(p) paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc);
+options = optimoptions(@fmincon);
+options = optimoptions(options, 'Display', 'iter');
+
+[pEstimated,fval] = fmincon(fun, p0, [],[], [], [], ...
+  min*ones(dimParams,1), max*ones(dimParams,1),[], options);
+
+IpulleyEst = pEstimated(1);
+kpulleyEst = pEstimated(2);
+bpulleyEst = pEstimated(3);
+
+IpulleyEst,kpulleyEst,bpulleyEst
