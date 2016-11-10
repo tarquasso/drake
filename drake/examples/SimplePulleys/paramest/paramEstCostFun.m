@@ -21,9 +21,10 @@ bpulley = p(3);
 bsurface = p(4);
 
 [dim,numSamples] = size(q);
-
-psi = NaN(dim*numSamples,1);
+dimUsed = 2;
+psi = NaN(dimUsed*numSamples,1);
 for i = 1:numSamples
+
     H = diag([Ipulley, mdisc, mdisc]);
     C = [ bpulley*thetad(i) + kpulley*theta(i); ...
           bsurface*xd(i);...
@@ -50,15 +51,15 @@ for i = 1:numSamples
     
     temp = H*qdd(:,i) + (eye(3) - J'*Htilde*J*Hinv)*C + J'*Htilde*Jdot*qd(:,i);
     
-    if (dim == 2)
+    if (dimUsed == 2)
       temp = temp([1,3]);
-    elseif (dim == 3)
+    elseif (dimUsed == 3)
       temp = temp;
-    elseif (dim == 1)
+    elseif (dimUsed == 1)
        temp = temp(3);
     end
     
-    psi((dim*(i-1)+1):dim*i) = temp;
+    psi((dimUsed*(i-1)+1):dimUsed*i) = temp;
 
 end
 

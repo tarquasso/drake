@@ -2,7 +2,7 @@
 
 parseExpFlag = true;
 
-calcThetaFlag = true;
+calcThetaFlag = false;
 
 
 
@@ -145,6 +145,17 @@ bsurface = 0.01;
 
 p0 = [Ipulley; kpulley; bpulley; bsurface]; % simulation hand tuning
 dimParams = size(p0,1);
+
+j=1;
+q = [theta{j}';...
+    zeros(size(z{j}))';...
+    z{j}'];
+qd = [thetad{j}';...
+    zeros(size(zd{j}))';...
+    zd{j}'];
+qdd = [thetadd{j}';...
+    zeros(size(zdd{j}))';...  
+    zdd{j}'];
 
 
 fun = @(p) paramEstCostFun(p, q, qd, qdd, angleDeg, mdisc);
