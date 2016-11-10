@@ -1,4 +1,4 @@
-function [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, zfit, gof] = parseTensionExperimentData(filename,touchPoint,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
+function [timeSteps, z, zd, zdd, tICE, tICES, xICE, zICE, numOfSets, zfit, gof] = parseTensionExperimentData(filename,touchPoint,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
 
 % the following call requires MotionHistory.m to be in the path
 load(filename)
@@ -163,7 +163,7 @@ gof = struct( 'sse', cell( numOfSets, 1 ), ...
 %ft = fittype( 'poly2' );
 ft = fittype( 'cubicinterp' );
 
-times = cell( numOfSets, 1 );
+timeSteps = cell( numOfSets, 1 );
 
 
 elementsToCheck = 10000;
@@ -207,10 +207,10 @@ for j = 1: numOfSets
 %     
 %   end
 
-times{j} = [tFirst;tICE{j}(2:end-1);tLast];
+timeSteps{j} = [tFirst;tICE{j}(2:end-1);tLast];
 
-z{j} = feval(zfit{j},times{j});
-[zd{j}, zdd{j}] = differentiate(zfit{j},times{j});
+z{j} = feval(zfit{j},timeSteps{j});
+[zd{j}, zdd{j}] = differentiate(zfit{j},timeSteps{j});
 
 figure(h2)
 p = plot(zfit{j},tData,zData);%,[timeInterval{j}])      

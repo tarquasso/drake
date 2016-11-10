@@ -2,9 +2,9 @@
 
 parseExpFlag = true;
 
-calcThetaFlag = false;
+calcThetaFlag = true;
 
-estimateParamsFlag = false;
+estimateParamsFminConFlag = false;
 
 calcAllOfOneCombinedFlag = false;
 
@@ -62,7 +62,7 @@ generatePlot = true;
 
 if(parseExpFlag)
   
-  [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gofTheta] = ...
+  [timeSteps, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, zfit, gofTheta] = ...
     parseTensionExperimentData(filename,tp,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
   
   save('data.mat', 'times', 'z','zd','zdd');
@@ -78,7 +78,7 @@ theta0 = 0;
 thetad0 = -0;
 numOfSets = size(z,1);
 
-numOfSets = 1; %HERRRRRRE
+%numOfSets = 1; %HERRRRRRE
 
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
@@ -101,8 +101,9 @@ if(calcThetaFlag)
       
       theta{j}(k,1) = thetaTemp;
       
-      theta0 = thetaVecTemp(1);
-      thetad0 = thetaVecTemp(2);
+      theta0 = thetaTemp;
+      %theta0 = thetaVecTemp(1);
+      %thetad0 = thetaVecTemp(2);
   
     end
   end
@@ -125,19 +126,37 @@ ft = fittype( 'cubicinterp' );
 
 for j = 1: numOfSets
 
-  figure(501); clf; hold on; plot(times{j}, theta{j},'b*');
-  [tData, thetaData] = prepareCurveData(  times{j}, theta{j});
+  figure(500+j); clf; hold on; plot(timeSteps{j}, theta{j},'b*');
+  [tData, thetaData] = prepareCurveData(  timeSteps{j}, theta{j});
   
   plot(tData, thetaData,'r+');
   [thetafit{j}, gofTheta(j)] = fit( tData, thetaData, ft );
-  thetaCmp{j} = feval(thetafit{j},times{j});
-  [thetad{j}, thetadd{j}] = differentiate(thetafit{j},times{j});
+  thetaCmp{j} = feval(thetafit{j},timeSteps{j});
+  [thetad{j}, thetadd{j}] = differentiate(thetafit{j},timeSteps{j});
 
-  figure(503)
+  figure(510+j)
   p = plot(thetafit{j},tData,thetaData);%,[timeInterval{j}])      
   p(1).LineWidth = 2;
 end
 
+
+%MORE DATA
+timeSteps2 = cell( numOfSets, 1 );
+z2 = cell( numOfSets, 1 );
+zd2 = cell( numOfSets, 1 );
+zdd2 = cell( numOfSets, 1 );
+theta2 = cell( numOfSets, 1 );
+thetad2 = cell( numOfSets, 1 );
+thetadd2 = cell( numOfSets, 1 );
+numOfLargeData = 101;
+
+for j=1:numOfSets
+timeSteps2{j} = linspace(timeSteps{j}(2),timeSteps{j}(end-1),numOfLargeData);
+z2{j} = feval(zfit{j},timeSteps2{j});
+[zd2{j}, zdd2{j}] = differentiate(zfit{j},timeSteps2{j});
+theta2{j} = feval(thetafit{j},timeSteps2{j});
+[thetad2{j}, thetadd2{j}] = differentiate(thetafit{j},timeSteps2{j});
+end
 
 %% Initial Parameter Guesses
 min = 0.00000001;
@@ -169,24 +188,24 @@ pEstimated = cell(numOfSets,1);
 
 for j =1:numOfSets
   
-q = [theta{j}';...
-    z{j}'];
-qd = [thetad{j}';...
-    zd{j}'];
-qdd = [thetadd{j}';...
-    zdd{j}'];
+q = [theta2{j}';...
+    z2{j}'];
+qd = [thetad2{j}';...
+    zd2{j}'];
+qdd = [thetadd2{j}';...
+    zdd2{j}'];
 
 fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
-if(estimateParamsFlag)  
+if(estimateParamsFminConFlag)  
  [pEstimated{j},fval] = fmincon(fun, p0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
 else
  pEstimated{j} = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc);
 end
 
 end
-if(estimateParamsFlag)  
+if(estimateParamsFminConFlag)  
 save('params.mat', 'pEstimated');
 else
 %load('params.mat');
