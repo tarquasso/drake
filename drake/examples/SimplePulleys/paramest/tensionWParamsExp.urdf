@@ -9,7 +9,7 @@
   <parameter name="ixx1" value="0.00000899" lb="0" />
   <parameter name="iyy1" value="0.00001798" lb="0" />
   <parameter name="izz1" value="0.00000899" lb="0" />
-  <parameter name="d1" value="0.0024" lb="0" />
+  <parameter name="b1" value="0.0024" lb="0" />
   <parameter name="k1" value="0.22" lb="0" />
 
 <!-- Parameters for Load - measured-->
@@ -95,7 +95,7 @@
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner"/>
-    <dynamics damping="$d1"/>
+    <dynamics damping="$b1"/>
   </joint>
   
   <link name="load_x" />
