@@ -86,8 +86,6 @@ thetadfmincon = cell(numOfSets,1);
 %thetaVec = zeros(size(z{1},1),2);
 %theta = zeros(size(z{1},1),1);
 
-
-
 if(calcThetaFlag)
   for j = 1:numOfSets
     for k =1:size(z{j},1)

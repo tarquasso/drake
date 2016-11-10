@@ -1,4 +1,4 @@
-function [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, qfit, gof] = parseTensionExperimentData(filename,touchPoint,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
+function [times, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, zfit, gof] = parseTensionExperimentData(filename,touchPoint,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot)
 
 % the following call requires MotionHistory.m to be in the path
 load(filename)
@@ -153,7 +153,7 @@ end
 
 
 %% fit curves
-qfit = cell( numOfSets, 1 );
+zfit = cell( numOfSets, 1 );
 z = cell( numOfSets, 1 );
 zd = cell( numOfSets, 1 );
 zdd = cell( numOfSets, 1 );
@@ -171,16 +171,16 @@ for j = 1: numOfSets
   figure(301); clf; hold on; plot(tICE{j}, zICE{j},'*');
   [tData, zData] = prepareCurveData(  tICE{j}, zICE{j} );
   figure(302); clf; hold on; plot(tData, zData,'*');
-  [qfit{j}, gof(j)] = fit( tData, zData, ft );
+  [zfit{j}, gof(j)] = fit( tData, zData, ft );
   
   tEval = linspace(tData(1),tData(2),elementsToCheck);
-  fZeroPotentials = feval(qfit{j},tEval);
-  [fZeroFirst,idx] = min(abs(fZeroPotentials));
+  fZeroPotentials = feval(zfit{j},tEval);
+  [fZeroFirst,idx] = min(abs(fZeroPotentials-zZero));
   tFirst = tEval(idx);
   
   tEval = linspace(tData(end-1),tData(end),elementsToCheck);
-  fZeroPotentials = feval(qfit{j},tEval);
-  [fZeroLast,idx] = min(abs(fZeroPotentials));
+  fZeroPotentials = feval(zfit{j},tEval);
+  [fZeroLast,idx] = min(abs(fZeroPotentials-zZero));
   tLast = tEval(idx);
 %   ub = tICE{j}(1);
 %   lb = tICE{j}(2);
@@ -209,11 +209,11 @@ for j = 1: numOfSets
 
 times{j} = [tFirst;tICE{j}(2:end-1);tLast];
 
-z{j} = feval(qfit{j},times{j});
-[zd{j}, zdd{j}] = differentiate(qfit{j},times{j});
+z{j} = feval(zfit{j},times{j});
+[zd{j}, zdd{j}] = differentiate(zfit{j},times{j});
 
 figure(h2)
-p = plot(qfit{j},tData,zData);%,[timeInterval{j}])      
+p = plot(zfit{j},tData,zData);%,[timeInterval{j}])      
 p(1).LineWidth = 2;
 %p(1).Marker = '--';
 
