@@ -169,7 +169,7 @@ classdef SoftPaddleHybrid < HybridDrakeSystem
       x0 = Point(getStateFrame(obj));
       x0.m = 1;
 %       x0.load_x = -0.0378;  % was -0.045
-      x0.load_x = -0.045;
+      x0.load_x = -0.5;
       x0.load_z = 4.5;
       x0 = double(x0);
 %       x0(2:end) = resolveConstraints(obj.in_contact,x0(2:end));
