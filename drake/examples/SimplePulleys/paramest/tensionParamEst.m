@@ -65,7 +65,7 @@ if(parseExpFlag)
   [timeSteps, z,zd,zdd, tICE, tICES, xICE, zICE, numOfSets, zfit, gofTheta] = ...
     parseTensionExperimentData(filename,tp,discRadius,expStartTime,expEndTime,optiTrackWandErrorFactor,minHeight,maxHeight,generatePlot);
   
-  save('data.mat', 'times', 'z','zd','zdd');
+  save('data.mat', 'timeSteps', 'z','zd','zdd');
 else
   load('data.mat');
 end
@@ -107,7 +107,7 @@ if(calcThetaFlag)
   
     end
   end
-  save('data2.mat', 'times', 'z','zd','zdd','theta','numOfSets','thetadfmincon');
+  save('data2.mat', 'timeSteps', 'z','zd','zdd','theta','numOfSets','thetadfmincon');
 else
   load('data2.mat');
 end
