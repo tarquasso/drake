@@ -2,14 +2,24 @@ function p = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc)
 %% Position States Vector: q = [theta;z_disc] x numsamples
 %% Parameter Vector: p = [Ipulley;kpulley;bpulley;bsurface;lambda]; 
 
+%rows are position states, columns are samples:
+[dim,numSamples] = size(q);
+
+% Error checking: check if position state dimension is proper
+assert(dim==2,'q needs to be 2 dimensional!')
+assert(size(q,1)==size(qd,1),'q and qd do not have same row dimension!')
+assert(size(q,2)==size(qd,2),'q and qd do not contain same number of samples!')
+assert(size(qd,1)==size(qdd,1),'qd and qdd do not have same row dimension!')
+assert(size(qd,2)==size(qdd,2),'qd and qdd do not contain same number of samples!')
+
+%gravity
+g = 9.81;
+%angle of inclined plane
+beta = angleDeg * pi/180; % angle of the sliding platform for the disk
+
+%load urdf model
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 
-% columns are the states
-% rows are samples
-[dim,numSamples] = size(q);
-if(dim~=2)
-  error('q needs to be 2 dimensional!')
-end
 
 theta = q(1,:)';
 thetad = qd(1,:)';
@@ -31,14 +41,12 @@ end
 
 zeroVec = zeros(numSamples,1);
 
-Ymat1 = [thetadd, thetad,  theta,   zeroVec, diag(-J(:,1))]; 
-Ymat2 = [zeroVec, zeroVec, zeroVec, zd,      diag(-J(:,2))];
 
-Ymat = [ Ymat1;...
-         Ymat2];
+Wmat1 = [thetadd, thetad,  theta,   zeroVec, diag(-J(:,1))]; 
+Wmat2 = [zeroVec, zeroVec, zeroVec, zd,      diag(-J(:,2))];
+Wmat = [ Wmat1;...
+         Wmat2];
        
-g = 9.81;
-beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 
 Gamma1 = zeroVec;
 Gamma2 = - mdisc * ( zdd + g * sin(beta) ) ;
@@ -47,7 +55,9 @@ Gamma = [Gamma1;
 
 %W = diag([100*ones(4,1);ones(numSamples,1)]);
 
-p = inv(Ymat'* Ymat) * Ymat' * Gamma;
+% Solve Least Squares for parameters:
+p = inv(Wmat'* Wmat) * Wmat' * Gamma;
 
+%Transpose
 p = p';
 end
