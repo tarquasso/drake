@@ -13,7 +13,7 @@ classdef SoftPaddleControl < DrakeSystem
       obj = obj@DrakeSystem(0,0,9,1,true,true);
       obj = setInputFrame(obj, getOutputFrame(plant));
       obj = setOutputFrame(obj, getInputFrame(plant));
-      obj.kp = 1000;
+      obj.kp = 5000;
       obj.kd = 2*sqrt(obj.kp);
       obj.plant = plant;
       
@@ -86,19 +86,29 @@ classdef SoftPaddleControl < DrakeSystem
       %%%%%%%%%%%%%%%%%%%%% Another way to compute psid %%%%%%%%%%%%%%%%%%%
       N = 5;
 %       psidList = [-0.0266; -0.0103; 0.0096; 0.0045; -0.0009];   % for a start load_x = -0.5, load_z = 4.5
-%       psidList = [-0.0369   -0.0119    0.0157    0.0039   -0.0035]';
+      psidList = [-0.0004   -0.0209    0.0252    0.0082   -0.0021]';
 %       psid = evalin('base','psid');
+
       mlast = evalin('base','mlast');
       k = evalin('base', 'kk');
       if m ~= mlast
-          if m == 1 && k <= N
+          if m == 1 && k < N
 % %               psid = NLPoincare(x);
 % %               assignin('base','psid',psid);
 %             psid = psidList(k);
+%             assignin('base', 'psid', psidList(k+1));
             assignin('base', 'kk', k + 1);
           end
       end
       assignin('base','mlast',m);
+      
+%       if k >= N
+%           psid = obj.K(1)*(xTouch-xFixed) + obj.K(2)*(zTouch-zTouchDes) + obj.K(3)*xpTouch + obj.K(4)*(zpTouch);    % (Linearized) Poincare map controller
+%       elseif k > 1
+%           psid = psidList(k);
+%       else 
+%           psid = psidList(1);
+%       end
       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       
       u = -obj.kp*(q(1)-psid) - obj.kd*qp(1) + C(1);
@@ -121,7 +131,7 @@ classdef SoftPaddleControl < DrakeSystem
           if rem(t,10) < 0.5
             fprintf(['t = ', num2str(t), '\n'])
           end
-          k2 = 1e+1;
+          k2 = 1e+2;
           u = Hinvtilde/(Delta)*( -obj.kp*(q(1)-psid) - obj.kd*qp(1) + C(1) ) + J(1)*(Jp'*qp-J*Hinv*C)/(Delta) - k2*Etilde*qp(1);
       end
       if m == 1
