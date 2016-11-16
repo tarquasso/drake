@@ -1,34 +1,16 @@
 %% Set the following parameters to false after running it for the first time:
 
-parseExpFlag = true;
-
-calcThetaFlag = true;
-
-estimateParamsFminConFlag = false;
-
-calcAllOfOneCombinedFlag = false;
+%flags that define what part to execute
+parseExpFlag = true; %parsing of experiment data
+calcThetaFlag = true; % calculating Thetas
+estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
+calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for all contact phases as one data set
 
 %% Parse in Optitrack Capture Data
+%loaded preprocessed data set
 
-%% Parse Tension Experiment
-
-% So far only working for Data Set 5
-filename = '~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_46_41.mat';
-%filename = '~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_48_35.mat';
-
-load(filename)
-%number of samples
-nos = History.i-1;
-timeVals = History.timestamps(1:nos);
-zVals = History.objectPosition(1:nos,1); % x points up on the plane
-xVals = History.objectPosition(1:nos,2);
-yVals = History.objectPosition(1:nos,3);
-
-figure(10); clf; plot(timeVals,zVals,'b'); hold on; xlabel('time [s]');
-ylabel('height coordinate z [m]'); title('Check Z Coordinate of Data Set for limit values!')
-
-figure(11); clf; plot(timeVals,xVals,'b'); hold on; xlabel('time [s]');
-ylabel('horizontal coordinate x [m]'); title('Check X Coordinate of Data Set for Skewedness of Data!')
+filename = '~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_46_41';
+filename = [filename,'.mat'];
 
 %% Fill in observed data of that data setS
 % Set 5 Touching point: 55.8mm - manually measured from the Optitrack
@@ -123,10 +105,11 @@ gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
 %ft = fittype( 'poly2' );
 ft = fittype( 'cubicinterp' );
 
-
+figure(500); clf; hold on;
+figure(510); clf; hold on;
 for j = 1: numOfSets
 
-  figure(500+j); clf; hold on; plot(timeSteps{j}, theta{j},'b*');
+  figure(500);  hold on; plot(timeSteps{j}, theta{j},'b*');
   [tData, thetaData] = prepareCurveData(  timeSteps{j}, theta{j});
   
   plot(tData, thetaData,'r+');
@@ -134,7 +117,7 @@ for j = 1: numOfSets
   thetaCmp{j} = feval(thetafit{j},timeSteps{j});
   [thetad{j}, thetadd{j}] = differentiate(thetafit{j},timeSteps{j});
 
-  figure(510+j)
+  figure(510);  
   p = plot(thetafit{j},tData,thetaData);%,[timeInterval{j}])      
   p(1).LineWidth = 2;
 end

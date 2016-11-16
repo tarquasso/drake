@@ -162,15 +162,29 @@ gof = struct( 'sse', cell( numOfSets, 1 ), ...
      'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
 %ft = fittype( 'poly2' );
 ft = fittype( 'cubicinterp' );
+%ft = fittype( 'poly5' );
 
 timeSteps = cell( numOfSets, 1 );
 
-
+% figure(300); clf; hold on;
+% figure(301); clf; hold on;
+figure(302); clf; hold on;
+xlabel('time [s]')
+ylabel('z ')
+title('positions z')
+figure(303); clf; hold on;
+xlabel('time [s]')
+ylabel('zd ')
+title('velocities zd')
+figure(304); clf; hold on;
+xlabel('time [s]')
+ylabel('zdd ')
+title('accelerations zdd')
 elementsToCheck = 10000;
 for j = 1: numOfSets
-  figure(301); clf; hold on; plot(tICE{j}, zICE{j},'*');
+  %figure(300); plot(tICE{j}, zICE{j},'*');
   [tData, zData] = prepareCurveData(  tICE{j}, zICE{j} );
-  figure(302); clf; hold on; plot(tData, zData,'*');
+  figure(302); plot(tData, zData,'*');
   [zfit{j}, gof(j)] = fit( tData, zData, ft );
   
   tEval = linspace(tData(1),tData(2),elementsToCheck);
@@ -209,14 +223,25 @@ for j = 1: numOfSets
 
 timeSteps{j} = [tFirst;tICE{j}(2:end-1);tLast];
 
+tEval  = linspace(timeSteps{j}(1),timeSteps{j}(end),elementsToCheck);
+
 z{j} = feval(zfit{j},timeSteps{j});
+
 [zd{j}, zdd{j}] = differentiate(zfit{j},timeSteps{j});
 
-figure(h2)
-p = plot(zfit{j},tData,zData);%,[timeInterval{j}])      
-p(1).LineWidth = 2;
-%p(1).Marker = '--';
+figure(302)
+p1 = plot(zfit{j},timeSteps{j},z{j});%,[timeInterval{j}])      
+p1(1).LineWidth = 2;
+p(1).Marker = '.';
 
+figure(303)
+p2 = plot(timeSteps{j},zd{j},'.-');      
+p2(1).LineWidth = 2;
+
+
+figure(304)
+p3 = plot(timeSteps{j},zdd{j},'.-');      
+p3(1).LineWidth = 2;
 
 end
 
