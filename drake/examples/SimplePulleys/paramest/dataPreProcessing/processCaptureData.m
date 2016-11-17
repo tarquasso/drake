@@ -143,7 +143,7 @@ minDataPointsIC = 5;
 [numOfSetsIC,timeStepsSplitIC,posDiscSplitIC] = extractSets(idxIC,timeSteps,posDisc,offsetStepIC,minDataPointsIC);
 
 
-ftNC = fittype( 'poly3' ); %results in a linear model for the acceleration change due to sliding friction
+ftNC = fittype( 'poly4' ); %results in a linear model for the acceleration change due to sliding friction
 zdd_lbNC = -inf;
 zdd_ubNC = 0.0;
 [timeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC] ...

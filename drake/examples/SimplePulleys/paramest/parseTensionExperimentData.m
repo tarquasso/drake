@@ -161,8 +161,8 @@ zdd = cell( numOfSets, 1 );
 gof = struct( 'sse', cell( numOfSets, 1 ), ...
      'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
 %ft = fittype( 'poly2' );
-ft = fittype( 'cubicinterp' );
-%ft = fittype( 'poly5' );
+%ft = fittype( 'cubicinterp' );
+ft = fittype( 'poly5' );
 
 timeSteps = cell( numOfSets, 1 );
 
@@ -185,7 +185,7 @@ for j = 1: numOfSets
   %figure(300); plot(tICE{j}, zICE{j},'*');
   [tData, zData] = prepareCurveData(  tICE{j}, zICE{j} );
   figure(302); plot(tData, zData,'*');
-  [zfit{j}, gof(j)] = fit( tData, zData, ft );
+  [zfit{j}, gof(j)] = fit( tData, zData, ft ,'Normalize','on');
   
   tEval = linspace(tData(1),tData(2),elementsToCheck);
   fZeroPotentials = feval(zfit{j},tEval);
