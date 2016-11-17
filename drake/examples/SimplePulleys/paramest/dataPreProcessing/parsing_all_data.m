@@ -4,7 +4,9 @@
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_46_41';
+dataSetName = 'set5';
+name = '16-May-2015 20_46_41';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 %Extract Start Time from Figues 1-3:
 expStartTime = 5.383; %seconds 5.4
@@ -32,13 +34,15 @@ minHeightAfterScaling = -0.03;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
 %% SET 5 - B
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set5/16-May-2015 20_48_35';
+dataSetName = 'set5';
+name = '16-May-2015 20_48_35';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 angleDeg = 36; % tilt of incline in degrees
 mdisc = 0.131; %kg mass of disc
@@ -66,14 +70,16 @@ minHeightAfterScaling = -0.025;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
 %% SET 6 - a
 
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set6/16-May-2015 20_52_26';
+dataSetName = 'set6';
+name = '16-May-2015 20_52_26';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 % Following values same for sets 5 and 6
 angleDeg = 36; % tilt of incline in degrees
@@ -104,7 +110,7 @@ minHeightAfterScaling = -0.015;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
 
 %% SET 6 - b
@@ -112,8 +118,9 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set6/16-May-2015 20_53_54';
-
+dataSetName = 'set6';
+name = '16-May-2015 20_53_54';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 angleDeg = 36; % tilt of incline in degrees
 mdisc = 0.131; %kg mass of disc
@@ -141,13 +148,16 @@ minHeightAfterScaling = -0.015;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
 %% SET 4 - A
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set4/16-May-2015 20_22_45';
+
+dataSetName = 'set4';
+name = '16-May-2015 20_22_45';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 %Extract Start Time from Figues 1-3:
 expStartTime = 5.319; %seconds 5.4
@@ -175,13 +185,15 @@ minHeightAfterScaling = -0.01;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
 %% SET 4 - B
 clear all
 close all
 clc
-filename = '~/soft_modeling_repo/dev/tracking/data/set4/16-May-2015 20_23_46';
+dataSetName = 'set4';
+name = '16-May-2015 20_23_46';
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
 %Extract Start Time from Figure 1
 expStartTime = 4.571;
@@ -209,4 +221,4 @@ minHeightAfterScaling = -0.01;
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor);
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);

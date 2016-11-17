@@ -1,13 +1,17 @@
 function [] = processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   touchPointAfterScaling,staticSpringStrectchingPointAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
-  errStartTime,errEndTime,optiTrackWandScalingFactor)
+  errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName)
 %% Parse Tension Experiment
 %%%%%%%%%%%%%%%%%%
 global generatePlot
 generatePlot = true;
 
-load([filename,'.mat']);
+
+filenameWithExtension = [filename,'.mat'];
+load(filenameWithExtension);
+[pathstr,name,ext] = fileparts(filenameWithExtension);
+
 %number of samples
 numberOfSamples = History.i-1;
 %Time values
@@ -21,7 +25,7 @@ posDiscScaled = optiTrackWandScalingFactor * posDiscOrig;
 zTouch = discRadius; %touchpoint is measured based on the center of the disc
 
 %% Plot the data Before Defining
-
+if(generatePlot)
 yLabels = { 'height coordinate z [m]',...
   'horizontal coordinate x [m]',...
   'normal to plane coordinate y[m]'};
@@ -37,7 +41,7 @@ for i = 1:1 %only plot z axis
   end
   ylabel(yLabels{i}); title(titleLabels{i})
 end
-
+end
 
 %Adjust Time Range and remove one error
 indicesExperiment = find( timeStepsOrig > expStartTime & ...
@@ -58,19 +62,26 @@ posDisc = posDiscScaled(indicesExperiment,[2,3,1]);
 posDisc(:,3) = posDisc(:,3) - touchPointAfterScaling + discRadius;
 
 %% Plot the data After Defining
+if(generatePlot)
 yLabels2 = { 'horizontal coordinate x [m]',...
   'normal to plane coordinate y[m]'...
   'height coordinate z [m]'};
 
-titleLabels2 = {'Formatted Data - X Coordinate of Data Set!',...
-  'Formatted Data - Y Coordinate of Data Set!',...
-  'Formatted Data - Z Coordinate of Data Set!'};
+titleLabels2 = {'X Coordinate of Data Set',...
+  'Y Coordinate of Data Set',...
+  'Z Coordinate of Data Set'};
 for i = 1:3
   figure(i+10); clf; plot(timeSteps,posDisc(:,i),'b','LineWidth',0.6); hold on; xlabel('time [s]');
   ylabel(yLabels2{i}); title(titleLabels2{i})
+  if(i == 3) %for z axis
+    plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)    
+  end
+  title([titleLabels2{i},' (',dataSetName,')'])
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',name,'_',titleLabels2{i},'.eps'],options);
 end
-h2 = figure(13);
-
+  
+end
 
 %% Extract each contact and each no_contact phase
 
@@ -88,36 +99,39 @@ minHeight = minHeightAfterScaling - touchPointAfterScaling + discRadius;
 maxHeight = maxHeightAfterScaling - touchPointAfterScaling + discRadius;
 
 if(generatePlot)
-  %Add a line to the z coordinate figuretimeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC
-  figure(h2); hold on
-  plot(timeStepsNC,posDiscNC(:,3),'g+','LineWidth',1.0)
-  plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
-  plot(timeStepsIC,posDiscIC(:,3),'r*','LineWidth',1.0)
-  xlabel('time [s]')
-  axis([-inf inf minHeight maxHeight])
-  % axis([expStartTime expEndTime minHeight maxHeight])
-  %   options.Format = 'eps';
-  %   hgexport(gcf,sprintf('plots/Set5_all.eps'),options);
-  
-  figure(22); clf; hold on
-  plot(timeStepsNC,posDiscNC(:,3),'g.','LineWidth',2.0)
+  %Add a line to the z coordinate 
+  figure(21); clf; hold on
+  plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
+  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',2.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
   plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',2.0)
   xlabel('time [s]')
-  axis([-inf inf minHeight maxHeight])
+  %axis([-inf inf minHeight maxHeight])  
+  title(['Height z - Unseparated (',dataSetName,')'])
+  typeofPlot = 'z';
+  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+end
+
+if(generatePlot)
+  
+  figure(22); clf; hold on
+  plot(timeStepsNC,posDiscNC(:,3),'g.','LineWidth',3.0)
+  plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
+  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.0)
+  %axis([-inf inf minHeight maxHeight])
+  title(['Height z - Separated (',dataSetName,')'])
   xlabel('time [s]')
-  ylabel('zd ')
-  title('positions z')
+  ylabel('z')
   
   figure(23);clf; hold on;
   xlabel('time [s]')
-  ylabel('zd ')
-  title('velocities zd')
-  
+  ylabel('zd')
+  title(['Velocity zd',' (',dataSetName,')'])
+
   figure(24);clf; hold on;
   xlabel('time [s]')
-  ylabel('zdd ')
-  title('accelerations zdd')
+  ylabel('zdd')
+  title(['Acceleration zdd',' (',dataSetName,')'])
   
 end
 
@@ -143,6 +157,21 @@ zdd_lbIC = -sind(angleDeg)*9.81*1/2; %half the gravitational force because we do
 zdd_ubIC = inf;
 [timeStepsIC,zIC,zdIC,zddIC,timeStepsLargeIC,zLargeIC,zdLargeIC,zddLargeIC,zfitIC] ...
   = fitCurves(numOfSetsIC,timeStepsSplitIC, posDiscSplitIC,offsetStepIC,ftIC,zdd_lbIC,zdd_ubIC);
+
+%% more plotting
+
+if(generatePlot)
+  figure(22)
+  typeofPlot = 'z';
+  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  figure(23)
+  typeofPlot = 'zd';
+  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  figure(24)
+  typeofPlot = 'zdd';
+  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+end
+  
 
 % resave the data set
 newFilename = [filename,'_preprocessed.mat'];
