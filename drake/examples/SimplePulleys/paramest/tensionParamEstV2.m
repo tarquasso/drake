@@ -17,7 +17,7 @@ load(fullFilename)
 calcBSurfaceFlag = false;
 calcThetaFlag = false; % calculating Thetas
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
-calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for all contact phases as one data set
+calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for all contact phases as one data set
 
 
 % timeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC
@@ -220,9 +220,9 @@ end
 
 %% fit curves for theta
 thetafitIC = cell( numOfSets, 1 );
-thetaCmp = cell( numOfSets, 1 );
-thetad = cell( numOfSets, 1 );
-thetadd = cell( numOfSets, 1 );
+thetaCmpIC = cell( numOfSets, 1 );
+thetadIC = cell( numOfSets, 1 );
+thetaddIC = cell( numOfSets, 1 );
 
 gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
   'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
@@ -237,8 +237,8 @@ for j = 1: numOfSets
   
   plot(tData, thetaData,'r+');
   [thetafitIC{j}, gofTheta(j)] = fit( tData, thetaData, ft ,'Normalize','on');
-  thetaCmp{j} = feval(thetafitIC{j},timeStepsIC{j});
-  [thetad{j}, thetadd{j}] = differentiate(thetafitIC{j},timeStepsIC{j});
+  thetaCmpIC{j} = feval(thetafitIC{j},timeStepsIC{j});
+  [thetadIC{j}, thetaddIC{j}] = differentiate(thetafitIC{j},timeStepsIC{j});
 
   figure(501);  
   p = plot(thetafitIC{j},tData,thetaData);%,[timeInterval{j}])      
@@ -254,7 +254,7 @@ zdd2 = cell( numOfSets, 1 );
 theta2 = cell( numOfSets, 1 );
 thetad2 = cell( numOfSets, 1 );
 thetadd2 = cell( numOfSets, 1 );
-numOfLargeData = 101;
+numOfLargeData = 10;
 
 for j=1:numOfSets
 timeSteps2{j} = linspace(timeStepsIC{j}(2),timeStepsIC{j}(end-1),numOfLargeData);
@@ -265,16 +265,6 @@ theta2{j} = feval(thetafitIC{j},timeSteps2{j});
 end
 
 %% Initial Parameter Guesses
-min = 0.00000001;
-max = 100;
-
-Ipulley = 0.00001798;
-kpulley = 0.22;
-bpulley = 0.0024;
-% note: mdisc is not a parameter to be estimated
-
-p0 = [Ipulley, kpulley, bpulley]; % simulation hand tuning
-dimParams = size(p0,2);
 
 %for dim =3
 % q = [theta{j}';...
@@ -289,9 +279,14 @@ dimParams = size(p0,2);
 
 %for dim =2
 
-pEstimated = cell(numOfSets,1);
+  Mb = 0;
+  Mk = 0;
+rangeOfSets = 1:numOfSets;
+numOfSetsAdj = length(rangeOfSets);
 
-for j =1:numOfSets
+pEstimated = cell(numOfSetsAdj,1);
+
+for j =rangeOfSets
   
 q = [theta2{j}';...
     z2{j}'];
@@ -300,71 +295,105 @@ qd = [thetad2{j}';...
 qdd = [thetadd2{j}';...
     zdd2{j}'];
 
+if(estimateParamsFminConFlag)  
+min = 0.00000001;
+max = 100;
+Ipulley = 0.00001798;
+kpulley = 0.22;
+bpulley = 0.0024;
+% note: mdisc is not a parameter to be estimated
+
+b0 = [Ipulley, kpulley, bpulley]; % simulation hand tuning
+dimParams = size(b0,2);
+
 fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
-if(estimateParamsFminConFlag)  
- [pEstimated{j},fval] = fmincon(fun, p0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+ [pEstimated{j},fval] = fmincon(fun, b0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
  save('params.mat', 'pEstimated');
 else
- [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface);
+  
+ [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface, Mb, Mk);
  
  [pEst{j}.b,pEst{j}.bint,pEst{j}.r,pEst{j}.rint] = regress(gamma,W);
- [,
-   ] = [b,bint,r,rint] ;
- 
  
  %load('params.mat');
 end
 
 end
 % 
-% IpulleyEst= zeros(numOfSets,1);
-% kpulleyEst= zeros(numOfSets,1);
-% bpulleyEst= zeros(numOfSets,1);
-% 
-% for i=1:numOfSets
-% IpulleyEst(i) = pEst{i}.b(1);
-% IpulleyEstErr(i) 
-% kpulleyEst(i) = pEst{i}.b(2);
-% bpulleyEst(i) = pEst{i}.b(3);
-% end
 
-figure(701); clf; hold on; errorbar(pEst{:}.b(1),pEst{:}.bint(1,:)); xlabel('data set number');title('IpulleyEst');
-figure(702); clf; hold on; errorbar(pEst{:}.b(2),pEst{:}.bint(2,:)); xlabel('data set number');title('kpulleyEst');
-figure(703); clf; hold on; errorbar(pEst{:}.b(3),pEst{:}.bint(3,:)); xlabel('data set number');title('bpulleyEst');
+IpulleyEst= zeros(numOfSetsAdj,1);
+IpulleyEstErr= zeros(numOfSetsAdj,2);
+
+kpulleyEst= zeros(numOfSetsAdj,1);
+kpulleyEstErr= zeros(numOfSetsAdj,2);
+
+bpulleyEst= zeros(numOfSetsAdj,1);
+bpulleyEstErr= zeros(numOfSetsAdj,2);
+
+
+for i=rangeOfSets
+IpulleyEst(i) = pEst{i}.b(1);
+IpulleyEstErr(i,:) = pEst{i}.bint(1,:)-pEst{i}.b(1);
+kpulleyEst(i) = pEst{i}.b(2);
+kpulleyEstErr(i,:) = pEst{i}.bint(2,:)-pEst{i}.b(2);
+bpulleyEst(i) = pEst{i}.b(3);
+bpulleyEstErr(i,:) = pEst{i}.bint(3,:)-pEst{i}.b(3);
+
+end
+
+figure(701); clf; hold on; 
+errorbar(rangeOfSets,IpulleyEst,-IpulleyEstErr(:,1),IpulleyEstErr(:,2),...
+  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18); 
+xlabel('data set number');title('IpulleyEst');
+
+figure(702); clf; hold on; 
+errorbar(rangeOfSets,kpulleyEst,-kpulleyEstErr(:,1),kpulleyEstErr(:,2),...
+  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18); 
+xlabel('data set number');title('kpulleyEst');
+figure(703); clf; hold on; 
+errorbar(rangeOfSets,bpulleyEst,-bpulleyEstErr(:,1),bpulleyEstErr(:,2),...
+  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);  
+xlabel('data set number');title('bpulleyEst');
 
 %% Batch Estimate
 if(calcAllOfOneCombinedFlag)
-q = [];
-qd = q;
-qdd = q;
+qBatch = [];
+qdBatch = qBatch;
+qddBatch = qBatch;
 
-for j =1:numOfSets
-qNew = [thetaIC{j}';...
-    z{j}'];
-q = [q,qNew];
+for j =rangeOfSets
+qNewBatch = [thetaIC{j}';...
+    zIC{j}'];
+qBatch = [qBatch,qNewBatch];
 
-qdNew = [thetad{j}';...
-    zd{j}'];
-qd = [qd,qdNew];
+qdNewBatch = [thetadIC{j}';...
+    zdIC{j}'];
+qdBatch = [qdBatch,qdNewBatch];
 
-qddNew = [thetadd{j}';...
-    zdd{j}'];
-qdd = [qdd,qddNew];
+qddNewBatch = [thetaddIC{j}';...
+    zddIC{j}'];
+qddBatch = [qddBatch,qddNewBatch];
+
 end
 
 if(estimateParamsFminConFlag)  
-%FMINCON
-  fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
-options = optimoptions(@fmincon);
-options = optimoptions(options, 'Display', 'iter');
 
- [pEstimatedAll,fval] = fmincon(fun, p0, [],[], [], [], ...
+  %FMINCON
+  fun = @(b) paramEstCostFun2D(b, qBatch, qdBatch, qddBatch, angleDeg, mdisc, bsurface);
+  options = optimoptions(@fmincon);
+  options = optimoptions(options, 'Display', 'iter');
+
+  [pEstimatedAll,fval] = fmincon(fun, b0, [],[], [], [], ...
   min*ones(1,dimParams), max*ones(1,dimParams),[], options);
 else
-  %OLS
-  pEstimatedAll = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface);
+  Mb = 0;
+  Mk = 0;
+  [gammaBatch,WBatch] = softContactModel2D(qBatch, qdBatch, qddBatch, ...
+    angleDeg, mdisc, bsurface,Mb,Mk);
+  [pEstBatch.b,pEstBatch.bint,pEstBatch.r,pEstBatch.rint] = regress(gammaBatch,WBatch);
+pEstBatch
 end
 
 

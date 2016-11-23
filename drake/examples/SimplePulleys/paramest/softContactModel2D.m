@@ -1,4 +1,4 @@
-function [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface)
+function [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface,Mb,Mk)
 %% Position States Vector: q = [theta;z_disc] x numsamples
 %% Parameter Vector: p = [Ipulley;kpulley;bpulley;lambda(i)]; %lambda(i) for each sample 
 
@@ -39,12 +39,16 @@ for i = 1:numSamples
 end
 
 zeroVec = zeros(numSamples,1);
+oneVec = ones(numSamples,1);
+polyfun = @(base,exponent) base.^exponent;
+%calculate the polynomial basis
+Phib = bsxfun(polyfun,theta,(0:Mb));
+Phik = bsxfun(polyfun,theta,(0:Mk));
 
-
-W1 = [thetadd, thetad,  theta,   diag(-J(:,1))]; 
-W2 = [zeroVec, zeroVec, zeroVec, diag(-J(:,2))];
+W1 = [thetadd, thetad .* Phib,         theta.* Phik,          diag(-J(:,1))]; 
+W2 = [zeroVec, zeros(numSamples,Mb+1),   zeros(numSamples,Mk+1),  diag(-J(:,2))];
 W = [ W1;...
-         W2];
+      W2];
        
 
 gamma1 = zeroVec;
