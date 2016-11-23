@@ -15,9 +15,10 @@ load(fullFilename)
 
 %% flags that define what part to execute
 calcBSurfaceFlag = false;
-calcThetaFlag = false; % calculating Thetas
+calcOneDofProblem = true; % calculating Thetas
+calcThetaFlag = false;
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
-calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for all contact phases as one data set
+calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for all contact phases as one data set
 
 
 % timeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC
@@ -147,7 +148,6 @@ title('residualsBatch')
 %% Test out the estimate
 for j = rangeTestedBatch
 
-
 t0 = timeStepsNC{j}(1);
 tf = timeStepsNC{j}(end);
 z0 = zNC{j}(1);
@@ -180,11 +180,68 @@ else
 end
 
 
+numOfSets = size(zIC,1);
+
+
+%% 1DOF Batch Estimate
+if(calcOneDofProblem)
+zNCBatch1d = [];
+zdNCBatch1d = zNCBatch1d;
+zddNCBatch1d = zNCBatch1d;
+numOfSets = size(zIC,1);
+rangeOfSets1DOF = 1:numOfSets;
+rangeOfSets1DOF = 2:2;
+
+numOfSetsAdj1DOF = length(rangeOfSets1DOF);
+
+for j = rangeOfSets1DOF
+zNCBatch1d = [zNCBatch1d,zIC{j}'];
+zdNCBatch1d = [zdNCBatch1d,zdIC{j}'];
+zddNCBatch1d = [zddNCBatch1d,zddIC{j}'];
+end
+
+  rangeOfModels1d = 0:0;
+  numOfModels1d = length(rangeOfModels1d);
+  for j = 1:numOfModels1d
+  l = rangeOfModels1d(j);
+  Mb = l;
+  Mk = l;
+  [gammaBatch1d,WBatch1d] = softContactModel1D(zNCBatch1d, zdNCBatch1d, zddNCBatch1d, ...
+    angleDeg, mdisc, bsurface, Mb, Mk);
+   alpha1d = 0.05; % 95% confidence level
+
+  [bBatch1d{j},bintBatch1d{j},rBatch1d{j},rintBatch1d{j},statsBatch1d(j,:)] = regress(gammaBatch1d,WBatch1d,alpha1d);
+  mdl1d = fitlm(WBatch1d,gammaBatch1d,'Intercept',false) %model fit without intercept term
+  %figure
+  %plotResiduals(mdl1d)
+  %mdl1dstep = step(mdl1d,'NSteps',20)
+  %figure
+  %plotResiduals(mdl1dstep)
+  
+  end
+  
+  figure(601); clf; hold on; 
+  plot(rangeOfModels1d,statsBatch1d(:,1));  
+  xlabel('model');title('Rsq statistics 1d');
+  
+  figure(602); clf; hold on; 
+  plot(rangeOfModels1d,statsBatch1d(:,2));  
+  xlabel('model');title('F stat 1d');
+
+  figure(603); clf; hold on; 
+  plot(rangeOfModels1d,statsBatch1d(:,3));  
+  xlabel('model');title('p value 1d');
+
+  figure(604); clf; hold on; 
+  plot(rangeOfModels1d,statsBatch1d(:,4));  
+  xlabel('model');title('error covariance 1d');
+
+end
+
 %% Estimate Theta
 if(calcThetaFlag)
 thetaIC0 = 0;
 thetadIC0 = 0;
-numOfSets = size(zIC,1);
 
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
@@ -254,7 +311,7 @@ zdd2 = cell( numOfSets, 1 );
 theta2 = cell( numOfSets, 1 );
 thetad2 = cell( numOfSets, 1 );
 thetadd2 = cell( numOfSets, 1 );
-numOfLargeData = 10;
+numOfLargeData = 100;
 
 for j=1:numOfSets
 timeSteps2{j} = linspace(timeStepsIC{j}(2),timeStepsIC{j}(end-1),numOfLargeData);
@@ -279,21 +336,30 @@ end
 
 %for dim =2
 
-  Mb = 0;
-  Mk = 0;
 rangeOfSets = 1:numOfSets;
+rangeOfSets = 3:3;
+
 numOfSetsAdj = length(rangeOfSets);
 
-pEstimated = cell(numOfSetsAdj,1);
+pEst = cell(numOfSetsAdj,1);
 
-for j =rangeOfSets
-  
-q = [theta2{j}';...
-    z2{j}'];
-qd = [thetad2{j}';...
-    zd2{j}'];
-qdd = [thetadd2{j}';...
-    zdd2{j}'];
+for i =1:numOfSetsAdj
+
+j =  rangeOfSets(i);
+
+% q = [theta2{j}';...
+%     z2{j}'];
+% qd = [thetad2{j}';...
+%     zd2{j}'];
+% qdd = [thetadd2{j}';...
+%     zdd2{j}'];
+
+q = [thetaIC{j}';...
+    zIC{j}'];
+qd = [thetadIC{j}';...
+    zdIC{j}'];
+qdd = [thetaddIC{j}';...
+    zddIC{j}'];
 
 if(estimateParamsFminConFlag)  
 min = 0.00000001;
@@ -309,53 +375,77 @@ dimParams = size(b0,2);
 fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
- [pEstimated{j},fval] = fmincon(fun, b0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+ [pEst{i},fval] = fmincon(fun, b0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
  save('params.mat', 'pEstimated');
 else
-  
+ rangeOfModels = 0:0;
+  numOfModels = length(rangeOfModels);
+  for j = 1:numOfModels
+  l = rangeOfModels(j);
+    Mb = l;
+  Mk = l; 
  [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface, Mb, Mk);
- 
- [pEst{j}.b,pEst{j}.bint,pEst{j}.r,pEst{j}.rint] = regress(gamma,W);
- 
+ alpha = 0.05; % 95% confidence level
+ [b{i,j},bint{i,j},r{i,j},rint{i,j}] = regress(gamma,W,alpha);
  %load('params.mat');
+  end
 end
 
 end
 % 
 
-IpulleyEst= zeros(numOfSetsAdj,1);
+I0Est= zeros(numOfSetsAdj,1);
 IpulleyEstErr= zeros(numOfSetsAdj,2);
 
-kpulleyEst= zeros(numOfSetsAdj,1);
+k0Est= zeros(numOfSetsAdj,1);
 kpulleyEstErr= zeros(numOfSetsAdj,2);
 
-bpulleyEst= zeros(numOfSetsAdj,1);
+b0Est= zeros(numOfSetsAdj,1);
 bpulleyEstErr= zeros(numOfSetsAdj,2);
 
 
-for i=rangeOfSets
-IpulleyEst(i) = pEst{i}.b(1);
-IpulleyEstErr(i,:) = pEst{i}.bint(1,:)-pEst{i}.b(1);
-kpulleyEst(i) = pEst{i}.b(2);
-kpulleyEstErr(i,:) = pEst{i}.bint(2,:)-pEst{i}.b(2);
-bpulleyEst(i) = pEst{i}.b(3);
-bpulleyEstErr(i,:) = pEst{i}.bint(3,:)-pEst{i}.b(3);
+for i=1:numOfSetsAdj
+    for j = 1:numOfModels
+    l = rangeOfModels(j);
+    I0Index = 1;
+I0Est(i,j) = b{i,j}(I0Index);
+I0EstErrLow(i,j) = bint{i,j}(I0Index,1)-b{i,j}(I0Index);
+I0EstErrUp(i,j) = bint{i,j}(I0Index,2)-b{i,j}(I0Index);
+
+b0Index = 2;
+b0Est(i,j) = b{i,j}(b0Index);
+b0EstErrLow(i,j) = b{i,j}(b0Index)-bint{i,j}(b0Index,1);
+b0EstErrUp(i,j) = bint{i,j}(b0Index,2)-b{i,j}(b0Index);
+
+k0Index = 3+l;
+k0Est(i,j) = b{i,j}(k0Index);
+k0EstErrLow(i,j) = b{i,j}(k0Index)-bint{i,j}(k0Index,1);
+k0EstErrUp(i,j) = bint{i,j}(k0Index,2)-b{i,j}(k0Index);
 
 end
+end
+
+rangeOfSetsMat = repmat(rangeOfSets',1,numOfModels);
+rangeOfModelsCell = strcat({'Model '},int2str(rangeOfModels.')).';
 
 figure(701); clf; hold on; 
-errorbar(rangeOfSets,IpulleyEst,-IpulleyEstErr(:,1),IpulleyEstErr(:,2),...
+errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18); 
-xlabel('data set number');title('IpulleyEst');
+xlabel('data set number');title('I0');
+legend(rangeOfModelsCell)
 
 figure(702); clf; hold on; 
-errorbar(rangeOfSets,kpulleyEst,-kpulleyEstErr(:,1),kpulleyEstErr(:,2),...
-  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18); 
-xlabel('data set number');title('kpulleyEst');
-figure(703); clf; hold on; 
-errorbar(rangeOfSets,bpulleyEst,-bpulleyEstErr(:,1),bpulleyEstErr(:,2),...
+errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);  
-xlabel('data set number');title('bpulleyEst');
+xlabel('data set number');title('b0');
+legend(rangeOfModelsCell)
+
+figure(703); clf; hold on; 
+errorbar(rangeOfSetsMat,k0Est,k0EstErrLow,k0EstErrUp,...
+  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18); 
+xlabel('data set number');title('k0');
+legend(rangeOfModelsCell)
+
 
 %% Batch Estimate
 if(calcAllOfOneCombinedFlag)
@@ -388,12 +478,43 @@ if(estimateParamsFminConFlag)
   [pEstimatedAll,fval] = fmincon(fun, b0, [],[], [], [], ...
   min*ones(1,dimParams), max*ones(1,dimParams),[], options);
 else
-  Mb = 0;
-  Mk = 0;
+  rangeOfModels = 1:1;
+  numOfModels = length(rangeOfModels);
+  for j = 1:numOfModels
+  l = rangeOfModels(j);
+  Mb = l;
+  Mk = l;
   [gammaBatch,WBatch] = softContactModel2D(qBatch, qdBatch, qddBatch, ...
     angleDeg, mdisc, bsurface,Mb,Mk);
-  [pEstBatch.b,pEstBatch.bint,pEstBatch.r,pEstBatch.rint] = regress(gammaBatch,WBatch);
-pEstBatch
+   alpha = 0.05; % 95% confidence level
+
+  [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j},statsBatch(j,:)] = regress(gammaBatch,WBatch,alpha);
+  mdl = fitlm(WBatch,gammaBatch)%,'Intercept',false) %model fit without intercept term
+  %figure
+  %plotResiduals(mdl)
+  %mdl1 = step(mdl,'NSteps',20)
+  %figure
+  %plotResiduals(mdl1)
+  
+
+  end
+  
+  figure(801); clf; hold on; 
+  plot(rangeOfModels,statsBatch(:,1));  
+  xlabel('model');title('Rsq statistics');
+  
+  figure(802); clf; hold on; 
+  plot(rangeOfModels,statsBatch(:,2));  
+  xlabel('model');title('F stat');
+
+  figure(803); clf; hold on; 
+  plot(rangeOfModels,statsBatch(:,3));  
+  xlabel('model');title('p value');
+
+  figure(804); clf; hold on; 
+  plot(rangeOfModels,statsBatch(:,4));  
+  xlabel('model');title('error covariance');
+
 end
 
 

@@ -45,11 +45,10 @@ polyfun = @(base,exponent) base.^exponent;
 Phib = bsxfun(polyfun,theta,(0:Mb));
 Phik = bsxfun(polyfun,theta,(0:Mk));
 
-W1 = [thetadd, thetad .* Phib,         theta.* Phik,          diag(-J(:,1))]; 
-W2 = [zeroVec, zeros(numSamples,Mb+1),   zeros(numSamples,Mk+1),  diag(-J(:,2))];
+W1 = [thetadd, thetad .* Phib,         theta.* Phik,              diag(-J(:,1))];%,  oneVec]; 
+W2 = [zeroVec, zeros(numSamples,Mb+1),   zeros(numSamples,Mk+1),  diag(-J(:,2))];%,  oneVec];
 W = [ W1;...
-      W2];
-       
+      W2];     
 
 gamma1 = zeroVec;
 gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
