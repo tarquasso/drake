@@ -4,7 +4,7 @@
 clear all
 close all
 clc
-dataSetName = 'set5';
+dataSetName = 'set5A';
 name = '16-May-2015 20_46_41';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
@@ -36,11 +36,12 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
   errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
+
 %% SET 5 - B
 clear all
 close all
 clc
-dataSetName = 'set5';
+dataSetName = 'set5B';
 name = '16-May-2015 20_48_35';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
@@ -77,7 +78,7 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set6';
+dataSetName = 'set6A';
 name = '16-May-2015 20_52_26';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
@@ -118,7 +119,7 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set6';
+dataSetName = 'set6B';
 name = '16-May-2015 20_53_54';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
@@ -155,7 +156,7 @@ clear all
 close all
 clc
 
-dataSetName = 'set4';
+dataSetName = 'set4A';
 name = '16-May-2015 20_22_45';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 
@@ -191,7 +192,7 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set4';
+dataSetName = 'set4B';
 name = '16-May-2015 20_23_46';
 filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
 

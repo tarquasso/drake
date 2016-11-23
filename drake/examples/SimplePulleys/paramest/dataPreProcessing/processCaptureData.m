@@ -6,7 +6,7 @@ function [] = processCaptureData(filename,expStartTime,expEndTime,maxHeightAfter
 %%%%%%%%%%%%%%%%%%
 global generatePlot
 generatePlot = true;
-splitFit = true;
+windowFit = false;
 
 filenameWithExtension = [filename,'.mat'];
 load(filenameWithExtension);
@@ -136,7 +136,7 @@ if(generatePlot)
   
 end
 
-typeNC = 'NoSplit';
+typeNC = 'Split';
 offsetStepNC = 0; %defines additional points looked at before or after a contact data set
 minDataPointsNC = 8;
 [numOfSetsNC,timeStepsSplitNC,posDiscSplitNC] = extractSets(idxNC,timeSteps,posDisc,offsetStepNC,minDataPointsNC,typeNC);
@@ -146,7 +146,7 @@ offsetStepIC = 1; % taking one additional data point at start and end of the dat
 minDataPointsIC = 5;
 [numOfSetsIC,timeStepsSplitIC,posDiscSplitIC] = extractSets(idxIC,timeSteps,posDisc,offsetStepIC,minDataPointsIC,typeIC);
 
-if(splitFit)
+if(windowFit)
 %% Setting up the fitting for the non contact phase
 [timeStepsNC,zNC,zdNC,zddNC] ...
   = fitCurvesSlidingWindow(numOfSetsNC,timeStepsSplitNC, posDiscSplitNC);
@@ -187,9 +187,8 @@ end
 % resave the data set
 newFilename = [filename,'_preprocessed.mat'];
 save(newFilename,'angleDeg','mdisc','spread','zTouch',...
-  'timeStepsNC','zNC','zdNC','zddNC','timeStepsLargeNC',...
-  'zLargeNC','zdLargeNC','zddLargeNC','zfitNC','timeStepsIC','zIC',...
-  'zdIC','zddIC','timeStepsLargeIC','zLargeIC','zdLargeIC','zddLargeIC','zfitIC');
+  'timeStepsNC','zNC','zdNC','zddNC','timeStepsIC','zIC','zdIC','zddIC');%,...
+  %'timeStepsLargeNC','zLargeNC','zdLargeNC','zddLargeNC','zfitNC','timeStepsLargeIC','zLargeIC','zdLargeIC','zddLargeIC','zfitIC');
 
 end
 
@@ -202,12 +201,6 @@ boolTransitionsStarts = [true;boolTransitions];
 idxStart =  idxMode(boolTransitionsStarts);
 boolTransitionsEnds = [boolTransitions;true];
 idxEnd = idxMode(boolTransitionsEnds);
-
-%Remove last set if contains to little data:
-if (idxEnd(end)-idxStart(end)<=minDataPoints)
-  idxStart = idxStart(1:end-1);
-  idxEnd = idxEnd(1:end-1);
-end
 
 numOfSets = length(idxEnd);%sum(boolTransitionsStarts);
 
@@ -225,8 +218,8 @@ for l = 1:numOfSets
     idxEndNew = [idxEndNew,idxEnd(l)];
     idxStartNew = [idxStartNew,idxStart(l)];
   else
-    idxEndNew = [idxEndNew,idxCheck(I)-1,idxEnd(l)];
-    idxStartNew = [idxStartNew,idxStart(l),idxCheck(I)+1];
+    idxEndNew = [idxEndNew,idxCheck(I),idxEnd(l)];
+    idxStartNew = [idxStartNew,idxStart(l),idxCheck(I)];
     
   end
 end
@@ -236,6 +229,18 @@ else
     idxEndNew = idxEnd;
 end
   
+%Remove last sets if contain to little data:
+keepGoing = true;
+while(keepGoing)
+if (idxEndNew(end)-idxStartNew(end)<minDataPoints) %+1 so it accounts for the apex point we do not account for
+  %remove the last data set:
+  idxStartNew = idxStartNew(1:end-1);
+  idxEndNew = idxEndNew(1:end-1);
+else
+  keepGoing = false;
+end
+end
+
 numOfSetsNew = length(idxEndNew);%sum(boolTransitionsStarts);
 
 idxExtended = cell(numOfSetsNew,1);
