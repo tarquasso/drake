@@ -78,7 +78,7 @@ if(generatePlot)
     end
     title([titleLabels2{i},' (',dataSetName,')'])
     options.Format = 'eps';
-    hgexport(gcf,[pathstr,'/plots/',name,'_',titleLabels2{i},'.eps'],options);
+    hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',titleLabels2{i},'.eps'],options);
   end
   
 end
@@ -110,7 +110,7 @@ if(generatePlot)
   %axis([-inf inf minHeight maxHeight])
   title(['Height z - Unseparated (',dataSetName,')'])
   typeofPlot = 'z';
-  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
 
 if(generatePlot)
@@ -136,7 +136,7 @@ if(generatePlot)
   
 end
 
-typeNC = 'Split';
+typeNC = 'NoSplit';
 offsetStepNC = 0; %defines additional points looked at before or after a contact data set
 minDataPointsNC = 8;
 [numOfSetsNC,timeStepsSplitNC,posDiscSplitNC] = extractSets(idxNC,timeSteps,posDisc,offsetStepNC,minDataPointsNC,typeNC);
@@ -162,7 +162,7 @@ zdd_ubNC = 0.0;
   = fitCurves(numOfSetsNC,timeStepsSplitNC, posDiscSplitNC,offsetStepNC,ftNC,zdd_lbNC,zdd_ubNC);
 
 %% Setting up the fitting for the contact phase
-ftIC = fittype( 'poly4' );
+ftIC = fittype( 'poly5' );
 zdd_lbIC = -sind(angleDeg)*9.81*1/2; %half the gravitational force because we do not know the sliding friction yet
 %zdd_lbIC = -inf; %half the gravitational force because we do not know the sliding friction yet
 zdd_ubIC = inf;
@@ -174,21 +174,22 @@ end
 if(generatePlot)
   figure(22)
   typeofPlot = 'z';
-  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   figure(23)
   typeofPlot = 'zd';
-  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   figure(24)
   typeofPlot = 'zdd';
-  hgexport(gcf,[pathstr,'/plots/',name,'_',typeofPlot,'.eps'],options);
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
 
 
 % resave the data set
 newFilename = [filename,'_preprocessed.mat'];
 save(newFilename,'angleDeg','mdisc','spread','zTouch',...
-  'timeStepsNC','zNC','zdNC','zddNC','timeStepsIC','zIC','zdIC','zddIC');%,...
-  %'timeStepsLargeNC','zLargeNC','zdLargeNC','zddLargeNC','zfitNC','timeStepsLargeIC','zLargeIC','zdLargeIC','zddLargeIC','zfitIC');
+  'timeStepsNC','zNC','zdNC','zddNC','zfitNC',...
+  'timeStepsIC','zIC','zdIC','zddIC','zfitIC');%,...
+  %'timeStepsLargeNC','zLargeNC','zdLargeNC','zddLargeNC','timeStepsLargeIC','zLargeIC','zdLargeIC','zddLargeIC');
 
 end
 

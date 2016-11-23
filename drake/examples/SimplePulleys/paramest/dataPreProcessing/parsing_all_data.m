@@ -1,12 +1,14 @@
-
+%% Parse in all data files 4-6
 
 %% SET 5 - A
 clear all
 close all
 clc
-dataSetName = 'set5A';
+dataSetFolder = 'set5';
 name = '16-May-2015 20_46_41';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'A';
+dataSetName = [dataSetFolder,subset];
 
 %Extract Start Time from Figues 1-3:
 expStartTime = 5.383; %seconds 5.4
@@ -41,9 +43,11 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set5B';
+dataSetFolder = 'set5';
 name = '16-May-2015 20_48_35';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'B';
+dataSetName = [dataSetFolder,subset];
 
 angleDeg = 36; % tilt of incline in degrees
 mdisc = 0.131; %kg mass of disc
@@ -78,9 +82,11 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set6A';
+dataSetFolder = 'set6';
 name = '16-May-2015 20_52_26';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'A';
+dataSetName = [dataSetFolder,subset];
 
 % Following values same for sets 5 and 6
 angleDeg = 36; % tilt of incline in degrees
@@ -119,9 +125,12 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set6B';
+dataSetFolder = 'set6';
 name = '16-May-2015 20_53_54';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'B';
+dataSetName = [dataSetFolder,subset];
+
 
 angleDeg = 36; % tilt of incline in degrees
 mdisc = 0.131; %kg mass of disc
@@ -156,9 +165,11 @@ clear all
 close all
 clc
 
-dataSetName = 'set4A';
+dataSetFolder = 'set4';
 name = '16-May-2015 20_22_45';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'A';
+dataSetName = [dataSetFolder,subset];
 
 %Extract Start Time from Figues 1-3:
 expStartTime = 5.319; %seconds 5.4
@@ -192,9 +203,11 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
 clear all
 close all
 clc
-dataSetName = 'set4B';
+dataSetFolder = 'set4';
 name = '16-May-2015 20_23_46';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetFolder,'/',name];
+subset = 'B';
+dataSetName = [dataSetFolder,subset];
 
 %Extract Start Time from Figure 1
 expStartTime = 4.571;
