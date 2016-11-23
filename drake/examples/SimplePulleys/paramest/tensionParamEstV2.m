@@ -307,25 +307,32 @@ if(estimateParamsFminConFlag)
  [pEstimated{j},fval] = fmincon(fun, p0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
  save('params.mat', 'pEstimated');
 else
- pEstimated{j} = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface);
+ [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface);
+ 
+ [pEst{j}.b,pEst{j}.bint,pEst{j}.r,pEst{j}.rint] = regress(gamma,W);
+ [,
+   ] = [b,bint,r,rint] ;
+ 
+ 
  %load('params.mat');
 end
 
 end
+% 
+% IpulleyEst= zeros(numOfSets,1);
+% kpulleyEst= zeros(numOfSets,1);
+% bpulleyEst= zeros(numOfSets,1);
+% 
+% for i=1:numOfSets
+% IpulleyEst(i) = pEst{i}.b(1);
+% IpulleyEstErr(i) 
+% kpulleyEst(i) = pEst{i}.b(2);
+% bpulleyEst(i) = pEst{i}.b(3);
+% end
 
-IpulleyEst= zeros(numOfSets,1);
-kpulleyEst= zeros(numOfSets,1);
-bpulleyEst= zeros(numOfSets,1);
-
-for i=1:numOfSets
-IpulleyEst(i) = pEstimated{i}(1);
-kpulleyEst(i) = pEstimated{i}(2);
-bpulleyEst(i) = pEstimated{i}(3);
-end
-
-figure(701); clf; hold on; plot(IpulleyEst); xlabel('data set number');title('IpulleyEst');
-figure(702); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('kpulleyEst');
-figure(703); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('bpulleyEst');
+figure(701); clf; hold on; errorbar(pEst{:}.b(1),pEst{:}.bint(1,:)); xlabel('data set number');title('IpulleyEst');
+figure(702); clf; hold on; errorbar(pEst{:}.b(2),pEst{:}.bint(2,:)); xlabel('data set number');title('kpulleyEst');
+figure(703); clf; hold on; errorbar(pEst{:}.b(3),pEst{:}.bint(3,:)); xlabel('data set number');title('bpulleyEst');
 
 %% Batch Estimate
 if(calcAllOfOneCombinedFlag)

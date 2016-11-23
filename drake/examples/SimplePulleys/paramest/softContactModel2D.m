@@ -1,4 +1,4 @@
-function p = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface)
+function [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface)
 %% Position States Vector: q = [theta;z_disc] x numsamples
 %% Parameter Vector: p = [Ipulley;kpulley;bpulley;lambda(i)]; %lambda(i) for each sample 
 
@@ -41,22 +41,23 @@ end
 zeroVec = zeros(numSamples,1);
 
 
-Wmat1 = [thetadd, thetad,  theta,   diag(-J(:,1))]; 
-Wmat2 = [zeroVec, zeroVec, zeroVec, diag(-J(:,2))];
-Wmat = [ Wmat1;...
-         Wmat2];
+W1 = [thetadd, thetad,  theta,   diag(-J(:,1))]; 
+W2 = [zeroVec, zeroVec, zeroVec, diag(-J(:,2))];
+W = [ W1;...
+         W2];
        
 
-Gamma1 = zeroVec;
-Gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
-Gamma = [Gamma1;
-         Gamma2];
+gamma1 = zeroVec;
+gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
+gamma = [gamma1;
+         gamma2];
+  
 
 %W = diag([100*ones(4,1);ones(numSamples,1)]);
 
 % Solve Least Squares for parameters:
-p = inv(Wmat'* Wmat) * Wmat' * Gamma;
+%p = inv(Wmat'* Wmat) * Wmat' * Gamma;
 
 %Transpose
-p = p';
+%p = p';
 end
