@@ -14,7 +14,8 @@ load(fullFilename)
 
 
 %% flags that define what part to execute
-calcThetaFlag = true; % calculating Thetas
+calcBSurfaceFlag = false;
+calcThetaFlag = false; % calculating Thetas
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
 calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for all contact phases as one data set
 
@@ -25,6 +26,7 @@ calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for
 % generatePlot = true;
 
 %% Estimate bsurface
+if(calcBSurfaceFlag)
 
 numOfSetsNC = size(zdNC,1);
 bsurfaceEstViscous = zeros(numOfSetsNC,2);
@@ -65,13 +67,13 @@ figure(32);
 plot(t,qdd,'k.');
 plot(t,qdd,'k');
 figure(40)
-plot(t,force{j},'k',t,force{j},'k.');
+plot(t,force{j},t,force{j},'.');
 plot(t,forcehat{j},'r',t,forcehat{j},'r*');
 h = legend('$f$','$f$','$\hat{f}$','$\hat{f}$');
 set(h,'Interpreter','Latex');
 figure(41)
-plot(t,r{j},'k.');
-plot(t,r{j},'k');
+plot(t,r{j},'.');
+plot(t,r{j});
 
 end
 
@@ -101,9 +103,9 @@ qBatch = [];
 qdBatch = [];
 qddBatch = [];
 
-rangeTested = 1:numOfSetsNC;
+rangeTestedBatch = 2:numOfSetsNC;
 
-for j =rangeTested
+for j =rangeTestedBatch
 
 idx = find (zNC{j}<heightThreshold);
 tBatchNew = (timeStepsNC{j}(idx))';
@@ -119,9 +121,9 @@ qddNew = (zddNC{j}(idx))';
 qddBatch = [qddBatch,qddNew];
 end
 
-[bSurfaceEst,frictionForceBatch,frictionForcehatBatch,rBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
+[bSurfaceEstBatch,frictionForceBatch,frictionForcehatBatch,rBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
 
-bSurfaceEst
+bSurfaceEstBatch
 
 figure(50);clf; hold on;
 plot(tBatch,qBatch,'k.',tBatch,qBatch,'k');
@@ -143,7 +145,7 @@ plot(tBatch,rBatch,'k.',tBatch,rBatch,'k');
 title('residualsBatch')
 
 %% Test out the estimate
-for j = rangeTested
+for j = rangeTestedBatch
 
 
 t0 = timeStepsNC{j}(1);
@@ -151,7 +153,8 @@ tf = timeStepsNC{j}(end);
 z0 = zNC{j}(1);
 zd0= zdNC{j}(1);
 m = mdisc;
-b = bsurfaceEst(j,1);
+%b = bsurfaceEst(j,1);
+bsurface = bSurfaceEstBatch(1); %this estimate is used in the end
 g = 9.81;
 
 % syms z(t)
@@ -161,84 +164,89 @@ g = 9.81;
 
 %mDisc*z'' + 0.1728*z'  + 0.01043*sign(z') = 0.131*9.81*sin(36/180*pi), z(0) = 0.05309, z'(0)=1.668
 
-zdA = @(t) (m*g/b *sind(angleDeg)*(exp(-b/m*(t-t0))-1) + zd0 * exp(-b/m*(t-t0)));
+zdA = @(t) (m*g/bsurface *sind(angleDeg)*(exp(-bsurface/m*(t-t0))-1) + zd0 * exp(-bsurface/m*(t-t0)));
 figure(31)
 tA = linspace(t0,tf,100);
 
-zAEval = zdA(tA);
+zdAEval = zdA(tA);
 
-plot(tA,zAEval,'r','LineWidth',3)
+plot(tA,zdAEval,'r','LineWidth',1)
 
 end
-return;
 
-%% 
-theta0 = 0;
-thetad0 = 0;
-numOfSets = size(z,1);
+  save('dataBSurface.mat', 'bsurface');%,'thetadfmincon');
+else
+  load('dataBSurface.mat');
+end
+
+
+%% Estimate Theta
+if(calcThetaFlag)
+thetaIC0 = 0;
+thetadIC0 = 0;
+numOfSets = size(zIC,1);
 
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
 lb = [-pi;-100];
 ub = [pi;100];
 
-theta = cell(numOfSets,1);
-thetadfmincon = cell(numOfSets,1);
+thetaIC = cell(numOfSets,1);
+%thetadfmincon = cell(numOfSets,1);
 %thetaVec = zeros(size(z{1},1),2);
 %theta = zeros(size(z{1},1),1);
 
-if(calcThetaFlag)
   for j = 1:numOfSets
-    for k =1:size(z{j},1)
+    numOfSamples = size(zIC{j},1);
+    for k =1:numOfSamples
       %fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{j}(k)], [thetaVec(2);0;zd{j}(k)]);
       %[thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
       %thetadfmincon{j}(k,1) = thetaVecTemp(2);
-      fun = @(theta) resolveConstraintThetaCostFun([theta;0;z{j}(k)]);
-      [thetaTemp,fval] = fmincon(fun, theta0, [], [], [], [], lb(1), ub(1), [], options);
+      fun = @(theta) resolveConstraintThetaCostFun([theta;0;zIC{j}(k)]);
+      [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], options);
       
-      theta{j}(k,1) = thetaTemp;
+      thetaIC{j}(k,1) = thetaTemp;
       
-      theta0 = thetaTemp;
+      thetaIC0 = thetaTemp;
       %theta0 = thetaVecTemp(1);
       %thetad0 = thetaVecTemp(2);
   
     end
   end
-  save('data2.mat', 'timeSteps', 'z','zd','zdd','theta','numOfSets','thetadfmincon');
+  save('dataTheta.mat', 'timeStepsIC', 'zIC','zdIC','zddIC','thetaIC','numOfSets');%,'thetadfmincon');
 else
-  load('data2.mat');
+  load('dataTheta.mat');
 end
 
 %% fit curves for theta
-thetafit = cell( numOfSets, 1 );
+thetafitIC = cell( numOfSets, 1 );
 thetaCmp = cell( numOfSets, 1 );
 thetad = cell( numOfSets, 1 );
 thetadd = cell( numOfSets, 1 );
 
 gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
   'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
-%ft = fittype( 'poly2' );
-ft = fittype( 'cubicinterp' );
+ft = fittype( 'poly5' );
 
 figure(500); clf; hold on;
-figure(510); clf; hold on;
+figure(501); clf; hold on;
 for j = 1: numOfSets
 
-  figure(500);  hold on; plot(timeSteps{j}, theta{j},'b*');
-  [tData, thetaData] = prepareCurveData(  timeSteps{j}, theta{j});
+  figure(500);  hold on; plot(timeStepsIC{j}, thetaIC{j},'b*');
+  [tData, thetaData] = prepareCurveData(  timeStepsIC{j}, thetaIC{j});
   
   plot(tData, thetaData,'r+');
-  [thetafit{j}, gofTheta(j)] = fit( tData, thetaData, ft );
-  thetaCmp{j} = feval(thetafit{j},timeSteps{j});
-  [thetad{j}, thetadd{j}] = differentiate(thetafit{j},timeSteps{j});
+  [thetafitIC{j}, gofTheta(j)] = fit( tData, thetaData, ft ,'Normalize','on');
+  thetaCmp{j} = feval(thetafitIC{j},timeStepsIC{j});
+  [thetad{j}, thetadd{j}] = differentiate(thetafitIC{j},timeStepsIC{j});
 
-  figure(510);  
-  p = plot(thetafit{j},tData,thetaData);%,[timeInterval{j}])      
+  figure(501);  
+  p = plot(thetafitIC{j},tData,thetaData);%,[timeInterval{j}])      
   p(1).LineWidth = 2;
 end
 
 
-%MORE DATA
+%Generate MORE DATA
 timeSteps2 = cell( numOfSets, 1 );
 z2 = cell( numOfSets, 1 );
 zd2 = cell( numOfSets, 1 );
@@ -249,11 +257,11 @@ thetadd2 = cell( numOfSets, 1 );
 numOfLargeData = 101;
 
 for j=1:numOfSets
-timeSteps2{j} = linspace(timeSteps{j}(2),timeSteps{j}(end-1),numOfLargeData);
-z2{j} = feval(zfit{j},timeSteps2{j});
-[zd2{j}, zdd2{j}] = differentiate(zfit{j},timeSteps2{j});
-theta2{j} = feval(thetafit{j},timeSteps2{j});
-[thetad2{j}, thetadd2{j}] = differentiate(thetafit{j},timeSteps2{j});
+timeSteps2{j} = linspace(timeStepsIC{j}(2),timeStepsIC{j}(end-1),numOfLargeData);
+z2{j} = feval(zfitIC{j},timeSteps2{j});
+[zd2{j}, zdd2{j}] = differentiate(zfitIC{j},timeSteps2{j});
+theta2{j} = feval(thetafitIC{j},timeSteps2{j});
+[thetad2{j}, thetadd2{j}] = differentiate(thetafitIC{j},timeSteps2{j});
 end
 
 %% Initial Parameter Guesses
@@ -263,10 +271,9 @@ max = 100;
 Ipulley = 0.00001798;
 kpulley = 0.22;
 bpulley = 0.0024;
-bsurface = 0.01;
 % note: mdisc is not a parameter to be estimated
 
-p0 = [Ipulley, kpulley, bpulley, bsurface]; % simulation hand tuning
+p0 = [Ipulley, kpulley, bpulley]; % simulation hand tuning
 dimParams = size(p0,2);
 
 %for dim =3
@@ -293,46 +300,41 @@ qd = [thetad2{j}';...
 qdd = [thetadd2{j}';...
     zdd2{j}'];
 
-fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc);
+fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
 if(estimateParamsFminConFlag)  
  [pEstimated{j},fval] = fmincon(fun, p0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+ save('params.mat', 'pEstimated');
 else
- pEstimated{j} = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc);
+ pEstimated{j} = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface);
+ %load('params.mat');
 end
 
 end
 
-if(estimateParamsFminConFlag)  
-save('params.mat', 'pEstimated');
-else
-%load('params.mat');
-end
 IpulleyEst= zeros(numOfSets,1);
 kpulleyEst= zeros(numOfSets,1);
 bpulleyEst= zeros(numOfSets,1);
-bsurfaceEst = zeros(numOfSets,1);
 
 for i=1:numOfSets
 IpulleyEst(i) = pEstimated{i}(1);
 kpulleyEst(i) = pEstimated{i}(2);
 bpulleyEst(i) = pEstimated{i}(3);
-bsurfaceEst(i) = pEstimated{i}(4);
 end
 
 figure(701); clf; hold on; plot(IpulleyEst); xlabel('data set number');title('IpulleyEst');
 figure(702); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('kpulleyEst');
 figure(703); clf; hold on; plot(kpulleyEst); xlabel('data set number');title('bpulleyEst');
-figure(704); clf; hold on; plot(bsurfaceEst); xlabel('data set number');title('bsurfaceEst');
 
+%% Batch Estimate
 if(calcAllOfOneCombinedFlag)
 q = [];
 qd = q;
 qdd = q;
 
 for j =1:numOfSets
-qNew = [theta{j}';...
+qNew = [thetaIC{j}';...
     z{j}'];
 q = [q,qNew];
 
@@ -345,12 +347,20 @@ qddNew = [thetadd{j}';...
 qdd = [qdd,qddNew];
 end
 
-fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc);
+if(estimateParamsFminConFlag)  
+%FMINCON
+  fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
 options = optimoptions(@fmincon);
 options = optimoptions(options, 'Display', 'iter');
 
-[pEstimatedAll,fval] = fmincon(fun, p0, [],[], [], [], ...
+ [pEstimatedAll,fval] = fmincon(fun, p0, [],[], [], [], ...
   min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+else
+  %OLS
+  pEstimatedAll = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface);
+end
+
+
 end
 
 end

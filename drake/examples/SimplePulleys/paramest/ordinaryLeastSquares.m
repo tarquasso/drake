@@ -1,6 +1,6 @@
-function p = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc)
+function p = ordinaryLeastSquares(q, qd, qdd, angleDeg, mdisc, bsurface)
 %% Position States Vector: q = [theta;z_disc] x numsamples
-%% Parameter Vector: p = [Ipulley;kpulley;bpulley;bsurface;lambda]; 
+%% Parameter Vector: p = [Ipulley;kpulley;bpulley;lambda(i)]; %lambda(i) for each sample 
 
 %rows are position states, columns are samples:
 [dim,numSamples] = size(q);
@@ -20,12 +20,11 @@ beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 %load urdf model
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 
-
 theta = q(1,:)';
 thetad = qd(1,:)';
 thetadd = qdd(1,:)';
 
-z = q(2,:)';
+%z = q(2,:)';
 zd = qd(2,:)';
 zdd = qdd(2,:)';
 
@@ -42,14 +41,14 @@ end
 zeroVec = zeros(numSamples,1);
 
 
-Wmat1 = [thetadd, thetad,  theta,   zeroVec, diag(-J(:,1))]; 
-Wmat2 = [zeroVec, zeroVec, zeroVec, zd,      diag(-J(:,2))];
+Wmat1 = [thetadd, thetad,  theta,   diag(-J(:,1))]; 
+Wmat2 = [zeroVec, zeroVec, zeroVec, diag(-J(:,2))];
 Wmat = [ Wmat1;...
          Wmat2];
        
 
 Gamma1 = zeroVec;
-Gamma2 = - mdisc * ( zdd + g * sin(beta) ) ;
+Gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
 Gamma = [Gamma1;
          Gamma2];
 

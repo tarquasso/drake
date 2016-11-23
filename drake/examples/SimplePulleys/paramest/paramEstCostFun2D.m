@@ -1,4 +1,4 @@
-function f = paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc)
+function f = paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface)
 %% Position States Vector: q = [theta;z_disc] x numsamples
 %% Parameter Vector: p = [Ipulley;kpulley;bpulley;bsurface]; 
 
@@ -28,8 +28,6 @@ beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 Ipulley = p(1);
 kpulley = p(2);
 bpulley = p(3);
-bsurface = p(4);
-
 
 %generate constraint with higher dimension (3 instead of 2)
 qUsedForConstraint = [q(1,:);zeros(1,numSamples);q(2,:)];
