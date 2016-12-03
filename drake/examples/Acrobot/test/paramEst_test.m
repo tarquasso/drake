@@ -2,6 +2,8 @@ function paramEst_test
 % global PTRUE
 tmp = addpathTemporary(fullfile(pwd,'..'));
 
+rngseed = rng(1); %fixed random seed
+  
 rtrue = AcrobotPlant;
 p_true = double(rtrue.getParams);
 % PTRUE = p_true;
@@ -15,6 +17,7 @@ for k = 1:20
   
   paramstd = 0.1; % Standard deviation of the parameter value percent error
   noisestd = sqrt([.00025, .00025, .00035, .00035]); % Noise standard deviation for theta1,theta2,theta1dot,theta2dot
+  % noisestd = zeros(1,4);%sqrt([.00025, .00025, .00035, .00035]); % Noise standard deviation for theta1,theta2,theta1dot,theta2dot
   numTests = 20;
   
   r = AcrobotPlant;

@@ -89,6 +89,9 @@ if ~(strcmp(options.method,'nonlinprog') ||...
   error('Method not recognized')
 end
 
+
+matlabSymsFlag = true;
+
 fprintf('Initializing ...\n');
 %% Initialize
 if (getOutputFrame(obj)~=getStateFrame(obj))
@@ -302,7 +305,7 @@ if isDynamic || isEnergetic
   end
 elseif strcmp(options.model,'simerr')
   fprintf('creating simerror functions ...\n');
-  if false
+  if matlabSymsFlag
     % Use built-in Matlab symbolic
     [xdot,dxdot,ps,qs,qds,us,ts] = dynamicsSym(pobj,t,[qt;qd],u);
     f = [xdot;dxdot];
@@ -312,8 +315,12 @@ elseif strcmp(options.model,'simerr')
 %     dfdp = @(pval,qval,qdval,uval,tval) dfdpMat(subsref(num2cell([pval;qval;qdval;uval;tval]'),struct('type','{}','subs',{{':'}})));
     nonlinfun = @(px) simerr(obj,xobs,u_data,px,t_data,options.C,dfdx,dfdp,'sym');
   else
-    % Faster substitution method adopted from Michael Posa
-%     vars = [paramsSym,q,qd,u,t];
+    %TODO: This needs debugging, since it runs much slower than matlab syms
+    % MSSPOLY is a faster substitution method adopted from Michael Posa
+    % This implementation, which is slow, uses the quotient/chain rule to 
+    % calculate the derivative of Hinv*A w.r.t x
+    % d(inv(H)*A)/dx = -inv(H)*dH/dx*inv(H)+inv(H)*dA/dx
+    %
     vars = [paramsSym;q;s;c;qd;u;t];
     xvar = [q;qd];
     A = B*u-C;
