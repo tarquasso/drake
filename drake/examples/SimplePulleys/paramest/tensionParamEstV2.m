@@ -190,7 +190,7 @@ zdNCBatch1d = zNCBatch1d;
 zddNCBatch1d = zNCBatch1d;
 numOfSets = size(zIC,1);
 rangeOfSets1DOF = 1:numOfSets;
-rangeOfSets1DOF = 2:2;
+%rangeOfSets1DOF = 2:2;
 
 numOfSetsAdj1DOF = length(rangeOfSets1DOF);
 
@@ -200,7 +200,7 @@ zdNCBatch1d = [zdNCBatch1d,zdIC{j}'];
 zddNCBatch1d = [zddNCBatch1d,zddIC{j}'];
 end
 
-  rangeOfModels1d = 0:0;
+  rangeOfModels1d = 3:3;
   numOfModels1d = length(rangeOfModels1d);
   for j = 1:numOfModels1d
   l = rangeOfModels1d(j);
@@ -211,7 +211,7 @@ end
    alpha1d = 0.05; % 95% confidence level
 
   [bBatch1d{j},bintBatch1d{j},rBatch1d{j},rintBatch1d{j},statsBatch1d(j,:)] = regress(gammaBatch1d,WBatch1d,alpha1d);
-  mdl1d = fitlm(WBatch1d,gammaBatch1d,'Intercept',false) %model fit without intercept term
+  mdl1d = fitlm(WBatch1d,gammaBatch1d);%,'Intercept',false) %model fit without intercept term
   %figure
   %plotResiduals(mdl1d)
   %mdl1dstep = step(mdl1d,'NSteps',20)
