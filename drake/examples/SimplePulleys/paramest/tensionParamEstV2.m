@@ -203,18 +203,18 @@ if(calcOneDofProblem)
     tICBatch1d = [tICBatch1d,timeStepsIC{j}'];
     %IMPORTANT: Adjust for Height offset
     zICAdj{j} = zIC{j}-zTouch;
-    zICBatch1d = [zICBatch1d,zICAdj{j}']; 
+    zICBatch1d = [zICBatch1d,zICAdj{j}'];
     zdICBatch1d = [zdICBatch1d,zdIC{j}'];
     zddICBatch1d = [zddICBatch1d,zddIC{j}'];
     figure(101);
-    subplot(3,1,1) 
+    subplot(3,1,1)
     
     plot(timeStepsIC{j}',zICAdj{j}','-.ob')
     hold on
     ylabel('z')
     xlabel('t')
     title('Z 1-D Model')
-
+    
     subplot(3,1,2)
     plot(timeStepsIC{j}',zdIC{j}','-.ob')
     hold on
@@ -228,7 +228,7 @@ if(calcOneDofProblem)
     ylabel('zdd')
     xlabel('t')
     title('ZDD 1-D Model')
-        
+    
   end
   
   % Try different model complexities
@@ -243,53 +243,53 @@ if(calcOneDofProblem)
       angleDeg, mdisc, bsurface, Mb, Mk);
     alpha1d = 0.05; % 95% confidence level
     
-    [bBatch1d{k},bintBatch1d{k},rBatch1d{k},rintBatch1d{k},statsBatch1d(k,:)] = regress(gammaBatch1d,WBatch1d,alpha1d);
+    [bBatch1d{k},bintBatch1d{k},rBatch1d{k},rintBatch1d{k}] = regress(gammaBatch1d,WBatch1d,alpha1d); %,statsBatch1d(k,:)
     mdl1d = fitlm(WBatch1d,gammaBatch1d);%,'Intercept',false) %model fit without intercept term
     %figure
     %plotResiduals(mdl1d)
     %mdl1dstep = step(mdl1d,'NSteps',20)
     %figure
-    %plotResiduals(mdl1dstep)   
-
+    %plotResiduals(mdl1dstep)
+    
   end
-
   
-    %%   Simulate the system
-for j = rangeOfSets1DOF
-
-%gravity
-gravity = 9.81;
-gStar = gravity*sind(angleDeg);
-params = bBatch1d{1};
-bStar = params(1);
-kStar = params(2);
-mStar =  mdisc;
-tfinal = timeStepsIC{j}(end)-timeStepsIC{j}(1);
-z0 = zICAdj{j}(1);
-zd0 = zdIC{j}(1);
-
-sol = simulateSecondOrderSystem(gStar,bStar,kStar,mStar,tfinal, z0,zd0);
-
-figure(101);
-timeSteps = timeStepsIC{j}-timeStepsIC{j}(1); %linspace(0,tf,10);
-[y,yd] = deval(sol,timeSteps);
-
-subplot(3,1,1)
-plot(timeStepsIC{j},y(1,:),'-.or')
-legend('data','estimated','Location','SouthEast')
-subplot(3,1,2)
-plot(timeStepsIC{j},y(2,:),'-.or')
-legend('data','estimated','Location','SouthEast')
-
-subplot(3,1,3)
-plot(timeStepsIC{j},yd(2,:),'-.or')
-legend('data','estimated')
-
-%fplot(@(x)deval(sol,x,1), timeRange)
-
-end
-
-
+  
+  %%   Simulate the system
+  for j = rangeOfSets1DOF
+    
+    %gravity
+    gravity = 9.81;
+    gStar = gravity*sind(angleDeg);
+    params = bBatch1d{1};
+    bStar = params(1);
+    kStar = params(2);
+    mStar =  mdisc;
+    tfinal = timeStepsIC{j}(end)-timeStepsIC{j}(1);
+    z0 = zICAdj{j}(1);
+    zd0 = zdIC{j}(1);
+    
+    sol = simulateSecondOrderSystem(gStar,bStar,kStar,mStar,tfinal, z0,zd0);
+    
+    figure(101);
+    timeSteps = timeStepsIC{j}-timeStepsIC{j}(1); %linspace(0,tf,10);
+    [y,yd] = deval(sol,timeSteps);
+    
+    subplot(3,1,1)
+    plot(timeStepsIC{j},y(1,:),'-.or')
+    legend('data','estimated','Location','SouthEast')
+    subplot(3,1,2)
+    plot(timeStepsIC{j},y(2,:),'-.or')
+    legend('data','estimated','Location','SouthEast')
+    
+    subplot(3,1,3)
+    plot(timeStepsIC{j},yd(2,:),'-.or')
+    legend('data','estimated')
+    
+    %fplot(@(x)deval(sol,x,1), timeRange)
+    
+  end
+  
+  
   figure(601); clf; hold on;
   plot(rangeOfModelComplexities1d,statsBatch1d(:,1));
   xlabel('model');title('Rsq statistics 1d');
@@ -375,22 +375,22 @@ end
 %% Generate MORE DATA points in between using fit
 
 if(generateDataPointsInBetween)
-timeSteps2 = cell( numOfSets, 1 );
-z2 = cell( numOfSets, 1 );
-zd2 = cell( numOfSets, 1 );
-zdd2 = cell( numOfSets, 1 );
-theta2 = cell( numOfSets, 1 );
-thetad2 = cell( numOfSets, 1 );
-thetadd2 = cell( numOfSets, 1 );
-numOfLargeData = 500;
-
-for j=1:numOfSets
-  timeSteps2{j} = linspace(timeStepsIC{j}(2),timeStepsIC{j}(end-1),numOfLargeData);
-  z2{j} = feval(zfitIC{j},timeSteps2{j});
-  [zd2{j}, zdd2{j}] = differentiate(zfitIC{j},timeSteps2{j});
-  theta2{j} = feval(thetafitIC{j},timeSteps2{j});
-  [thetad2{j}, thetadd2{j}] = differentiate(thetafitIC{j},timeSteps2{j});
-end
+  timeSteps2 = cell( numOfSets, 1 );
+  z2 = cell( numOfSets, 1 );
+  zd2 = cell( numOfSets, 1 );
+  zdd2 = cell( numOfSets, 1 );
+  theta2 = cell( numOfSets, 1 );
+  thetad2 = cell( numOfSets, 1 );
+  thetadd2 = cell( numOfSets, 1 );
+  numOfLargeData = 500;
+  
+  for j=1:numOfSets
+    timeSteps2{j} = linspace(timeStepsIC{j}(2),timeStepsIC{j}(end-1),numOfLargeData);
+    z2{j} = feval(zfitIC{j},timeSteps2{j});
+    [zd2{j}, zdd2{j}] = differentiate(zfitIC{j},timeSteps2{j});
+    theta2{j} = feval(thetafitIC{j},timeSteps2{j});
+    [thetad2{j}, thetadd2{j}] = differentiate(thetafitIC{j},timeSteps2{j});
+  end
 end
 %% Initial Parameter Guesses
 
