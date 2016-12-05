@@ -12,15 +12,14 @@ appendix = '_preprocessed';
 fullFilename = [filename,appendix,'.mat'];
 load(fullFilename)
 
-
 %% flags that define what part to execute
 calcBSurfaceFlag = false;
-calcOneDofProblem = true; % calculating Thetas
+calcOneDofProblem = false; % calculating one dof problem
 calcThetaFlag = false;
-generateDataPointsInBetween = true;
+generateDataPointsInBetween = false;
 
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
-calcAllOfOneCombinedFlag = false; % using fmincon to estimate the parameters for all contact phases as one data set
+calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for all contact phases as one data set
 
 % timeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC
 
@@ -175,17 +174,26 @@ if(calcBSurfaceFlag)
     
   end
   
-  save('dataBSurface.mat', 'bsurface');%,'thetadfmincon');
+  appendix = '_bSurface';
+  fullFilenameBSurface = [filename,appendix,'.mat'];
+  
+  save(fullFilenameBSurface, 'bsurface');
 else
-  load('dataBSurface.mat');
+  appendix = '_bSurface';
+  fullFilenameBSurface = [filename,appendix,'.mat'];
+  
+  load(fullFilenameBSurface);
 end
 
 
 numOfSets = size(zIC,1);
 
 
-%% 1DOF Batch Estimate
+%% 1DOF Estimates
 if(calcOneDofProblem)
+  
+  %% 1DOF Estimates
+  
   tICBatch1d = [];
   zICBatch1d = [];
   zdICBatch1d = zICBatch1d;
@@ -198,6 +206,8 @@ if(calcOneDofProblem)
   
   figure(101); clf; hold on;
   
+  figure(201); clf; hold on;
+  figure(202); clf; hold on;
   
   for j = rangeOfSets1DOF
     tICBatch1d = [tICBatch1d,timeStepsIC{j}'];
@@ -229,7 +239,52 @@ if(calcOneDofProblem)
     xlabel('t')
     title('ZDD 1-D Model')
     
+    
+    rangeOfModelComplexities1d = 0:0; % just first order model b = (b0 + b1*deltaz)
+    numOfModels1d = length(rangeOfModelComplexities1d);
+    for k = 1:numOfModels1d
+      l = rangeOfModelComplexities1d(k);
+      Mb = l;
+      Mk = l;
+      [gammaSingle1d{j},WSingle1d{j}] = softContactModel1D(zICAdj{j}', zdIC{j}', zddIC{j}', ...
+        angleDeg, mdisc, bsurface, Mb, Mk);
+      alpha1d = 0.05; % 95% confidence level
+      
+      [bSingle1d{j,k},bintSingle1d{j,k},rSingle1d{j,k},rintSingle1d{j,k}] = regress(gammaSingle1d{j},WSingle1d{j},alpha1d); %,statsSingle1d(k,:)
+      %mdlSingle1d = fitlm(WSingle1d{j},gammaSingle1d{j});%,'Intercept',false) %model fit without intercept term
+      %figure
+      %plotResiduals(mdl1d)
+      %mdl1dstep = step(mdl1d,'NSteps',20)
+      %figure
+      %plotResiduals(mdl1dstep)
+      
+    end
+    
+    b0Index = 1;
+    b0Est = bSingle1d{j,k}(b0Index);
+    b0EstErrLow = bSingle1d{j,k}(b0Index)-bintSingle1d{j,k}(b0Index,1);
+    b0EstErrUp = bintSingle1d{j,k}(b0Index,2)-bSingle1d{j,k}(b0Index);
+    
+    k0Index = 1+l+1;
+    k0Est = bSingle1d{j,k}(k0Index);
+    k0EstErrLow = bSingle1d{j,k}(k0Index)-bintSingle1d{j,k}(k0Index,1);
+    k0EstErrUp = bintSingle1d{j,k}(k0Index,2)-bSingle1d{j,k}(k0Index);
+    
+    figure(201);
+    errorbar(j,b0Est,b0EstErrLow,b0EstErrUp,...
+      '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
+    hold on;
+    xlabel('data set number');title('b0 of 1D Model');
+    
+    figure(202);
+    errorbar(j,k0Est,k0EstErrLow,k0EstErrUp,...
+      '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
+    hold on;
+    xlabel('data set number');title('k0 of 1D Model');
+    
   end
+  
+  %% Batch Evaluation
   
   % Try different model complexities
   
@@ -251,6 +306,26 @@ if(calcOneDofProblem)
     %figure
     %plotResiduals(mdl1dstep)
     
+    b0Index = 1;
+    b0Est = bBatch1d{k}(b0Index);
+    b0EstErrLow = bintBatch1d{k}(b0Index,1);
+    b0EstErrUp = bintBatch1d{k}(b0Index,2);
+    
+    k0Index = 1+l+1;
+    k0Est = bBatch1d{k}(k0Index);
+    k0EstErrLow = bintBatch1d{k}(k0Index,1);
+    k0EstErrUp = bintBatch1d{k}(k0Index,2); %absolute value
+    
+    figure(201);
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*b0Est);
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*b0EstErrUp,'--g');
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*b0EstErrLow,'--m');
+    
+    figure(202);
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*k0Est);
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*k0EstErrUp,'--g');
+    plot(rangeOfSets1DOF,ones(1,numOfSetsAdj1DOF)*k0EstErrLow,'--m');
+    
   end
   
   
@@ -261,14 +336,14 @@ if(calcOneDofProblem)
     gravity = 9.81;
     gStar = gravity*sind(angleDeg);
     params = bBatch1d{1};
-    bStar = params(1);
-    kStar = params(2);
+    bStar = params(1:k0Index-1);%+bsurface;
+    kStar = params(k0Index:k0Index+l);
     mStar =  mdisc;
     tfinal = timeStepsIC{j}(end)-timeStepsIC{j}(1);
     z0 = zICAdj{j}(1);
     zd0 = zdIC{j}(1);
     
-    sol = simulateSecondOrderSystem(gStar,bStar,kStar,mStar,tfinal, z0,zd0);
+    sol = simulateSecondOrderSystem(gStar,bStar,kStar, Mb, Mk,mStar,tfinal, z0,zd0);
     
     figure(101);
     timeSteps = timeStepsIC{j}-timeStepsIC{j}(1); %linspace(0,tf,10);
@@ -290,21 +365,21 @@ if(calcOneDofProblem)
   end
   
   
-  figure(601); clf; hold on;
-  plot(rangeOfModelComplexities1d,statsBatch1d(:,1));
-  xlabel('model');title('Rsq statistics 1d');
-  
-  figure(602); clf; hold on;
-  plot(rangeOfModelComplexities1d,statsBatch1d(:,2));
-  xlabel('model');title('F stat 1d');
-  
-  figure(603); clf; hold on;
-  plot(rangeOfModelComplexities1d,statsBatch1d(:,3));
-  xlabel('model');title('p value 1d');
-  
-  figure(604); clf; hold on;
-  plot(rangeOfModelComplexities1d,statsBatch1d(:,4));
-  xlabel('model');title('error covariance 1d');
+  %   figure(601); clf; hold on;
+  %   plot(rangeOfModelComplexities1d,statsBatch1d(:,1));
+  %   xlabel('model');title('Rsq statistics 1d');
+  %
+  %   figure(602); clf; hold on;
+  %   plot(rangeOfModelComplexities1d,statsBatch1d(:,2));
+  %   xlabel('model');title('F stat 1d');
+  %
+  %   figure(603); clf; hold on;
+  %   plot(rangeOfModelComplexities1d,statsBatch1d(:,3));
+  %   xlabel('model');title('p value 1d');
+  %
+  %   figure(604); clf; hold on;
+  %   plot(rangeOfModelComplexities1d,statsBatch1d(:,4));
+  %   xlabel('model');title('error covariance 1d');
   
 end
 
@@ -318,7 +393,7 @@ if(calcThetaFlag)
   lb = [-pi;-100];
   ub = [pi;100];
   
-  thetaIC = cell(numOfSets,1);
+  thetaOrigIC = cell(numOfSets,1);
   %thetadfmincon = cell(numOfSets,1);
   %thetaVec = zeros(size(z{1},1),2);
   %theta = zeros(size(z{1},1),1);
@@ -332,7 +407,7 @@ if(calcThetaFlag)
       fun = @(theta) resolveConstraintThetaCostFun([theta;0;zIC{j}(k)]);
       [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], options);
       
-      thetaIC{j}(k,1) = thetaTemp;
+      thetaOrigIC{j}(k,1) = thetaTemp;
       
       thetaIC0 = thetaTemp;
       %theta0 = thetaVecTemp(1);
@@ -340,37 +415,79 @@ if(calcThetaFlag)
       
     end
   end
-  save('dataTheta.mat', 'timeStepsIC', 'zIC','zdIC','zddIC','thetaIC','numOfSets');%,'thetadfmincon');
+  
+  %% fit curves for theta
+  thetafitIC = cell( numOfSets, 1 );
+  thetaIC = cell( numOfSets, 1 );
+  thetadIC = cell( numOfSets, 1 );
+  thetaddIC = cell( numOfSets, 1 );
+  
+  gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
+    'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
+  ft = fittype( 'poly5' );
+  
+  figure(500); clf; hold on;
+  figure(501); clf; hold on;
+  for j = 1: numOfSets
+    
+    figure(500);  hold on; plot(timeStepsIC{j}, thetaOrigIC{j},'b*');
+    [tData, thetaData] = prepareCurveData(  timeStepsIC{j}, thetaOrigIC{j});
+    
+    plot(tData, thetaData,'r+');
+    [thetafitIC{j}, gofTheta(j)] = fit( tData, thetaData, ft ,'Normalize','on');
+    
+    thetaIC{j} = feval(thetafitIC{j},timeStepsIC{j}); %take fitted theta values
+    
+    [thetadIC{j}, thetaddIC{j}] = differentiate(thetafitIC{j},timeStepsIC{j});
+    
+    figure(501);
+    p = plot(thetafitIC{j},tData,thetaData);%,[timeInterval{j}])
+    p(1).LineWidth = 2;
+  end
+  
+  appendix = '_theta';
+  fullFilenameTheta = [filename,appendix,'.mat'];
+  
+  save(fullFilenameTheta, 'timeStepsIC', 'zIC','zdIC','zddIC','thetaOrigIC','thetaIC','thetadIC','thetaddIC','thetafitIC','numOfSets');%,'thetadfmincon');
 else
-  load('dataTheta.mat');
+  appendix = '_theta';
+  fullFilenameTheta = [filename,appendix,'.mat'];
+  load(fullFilenameTheta);
 end
 
-%% fit curves for theta
-thetafitIC = cell( numOfSets, 1 );
-thetaCmpIC = cell( numOfSets, 1 );
-thetadIC = cell( numOfSets, 1 );
-thetaddIC = cell( numOfSets, 1 );
-
-gofTheta = struct( 'sse', cell( numOfSets, 1 ), ...
-  'rsquare', [], 'dfe', [], 'adjrsquare', [], 'rmse', [] );
-ft = fittype( 'poly5' );
 
 figure(500); clf; hold on;
 figure(501); clf; hold on;
 for j = 1: numOfSets
   
-  figure(500);  hold on; plot(timeStepsIC{j}, thetaIC{j},'b*');
-  [tData, thetaData] = prepareCurveData(  timeStepsIC{j}, thetaIC{j});
-  
-  plot(tData, thetaData,'r+');
-  [thetafitIC{j}, gofTheta(j)] = fit( tData, thetaData, ft ,'Normalize','on');
-  thetaCmpIC{j} = feval(thetafitIC{j},timeStepsIC{j});
-  [thetadIC{j}, thetaddIC{j}] = differentiate(thetafitIC{j},timeStepsIC{j});
-  
-  figure(501);
-  p = plot(thetafitIC{j},tData,thetaData);%,[timeInterval{j}])
+  figure(500);
+  plot(timeStepsIC{j}, thetaOrigIC{j},'b*');
+  p = plot(thetafitIC{j},timeStepsIC{j},thetaIC{j});%,[timeInterval{j}])
   p(1).LineWidth = 2;
+  
+  figure(502);
+  
+  subplot(3,1,1)
+  plot(timeStepsIC{j},thetaIC{j},'-.or')
+  title('theta')
+  hold on
+  ylabel('theta')
+  xlabel('t')
+  
+  subplot(3,1,2)
+  plot(timeStepsIC{j},thetadIC{j},'-.or')
+  hold on
+  title('thetad')
+  ylabel('thetad')
+  xlabel('t')
+  subplot(3,1,3)
+  plot(timeStepsIC{j},thetaddIC{j},'-.or')
+  hold on
+  title('thetadd')
+  ylabel('thetadd')
+  xlabel('t')
 end
+
 
 %% Generate MORE DATA points in between using fit
 
@@ -408,7 +525,7 @@ end
 %for dim =2
 
 rangeOfSets = 1:numOfSets;
-rangeOfSets = 3:3;
+%rangeOfSets = 3:3;
 
 numOfSetsAdj = length(rangeOfSets);
 
@@ -484,12 +601,12 @@ for i=1:numOfSetsAdj
     I0EstErrLow(i,j) = bint{i,j}(I0Index,1)-b{i,j}(I0Index);
     I0EstErrUp(i,j) = bint{i,j}(I0Index,2)-b{i,j}(I0Index);
     
-    b0Index = 2;
+    b0Index = 1+1;
     b0Est(i,j) = b{i,j}(b0Index);
     b0EstErrLow(i,j) = b{i,j}(b0Index)-bint{i,j}(b0Index,1);
     b0EstErrUp(i,j) = bint{i,j}(b0Index,2)-b{i,j}(b0Index);
     
-    k0Index = 3+l;
+    k0Index = 1+l+1+1;
     k0Est(i,j) = b{i,j}(k0Index);
     k0EstErrLow(i,j) = b{i,j}(k0Index)-bint{i,j}(k0Index,1);
     k0EstErrUp(i,j) = bint{i,j}(k0Index,2)-b{i,j}(k0Index);
@@ -500,11 +617,11 @@ end
 rangeOfSetsMat = repmat(rangeOfSets',1,numOfModels);
 rangeOfModelsCell = strcat({'Model '},int2str(rangeOfModels.')).';
 
-figure(701); clf; hold on;
-errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
-  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('data set number');title('I0');
-legend(rangeOfModelsCell)
+% figure(701); clf; hold on;
+% errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
+%   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
+% xlabel('data set number');title('I0');
+% legend(rangeOfModelsCell)
 
 figure(702); clf; hold on;
 errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
@@ -550,7 +667,7 @@ if(calcAllOfOneCombinedFlag)
     [pEstimatedAll,fval] = fmincon(fun, b0, [],[], [], [], ...
       min*ones(1,dimParams), max*ones(1,dimParams),[], options);
   else
-    rangeOfModels = 1:1;
+    rangeOfModels = 0:0;
     numOfModels = length(rangeOfModels);
     for j = 1:numOfModels
       l = rangeOfModels(j);

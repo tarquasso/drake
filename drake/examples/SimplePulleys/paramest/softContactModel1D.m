@@ -29,10 +29,10 @@ Phik = bsxfun(polyfun,z,(0:Mk));
 
 W = [zd.*Phib, z.*Phik];%,  oneVec];
 
-gamma = - mdisc * (zdd+g*sin(beta)) - bsurface* zd;% - mdisc * zdd - mdisc * g * sin(beta);  
+gamma = - mdisc * (zdd+g*sin(beta));% - bsurface* zd;% - mdisc * zdd - mdisc * g * sin(beta);  
 
 % Solve Least Squares for parameters:
-p = inv(W'* W) * W' * gamma;
+%p = inv(W'* W) * W' * gamma;
 
 %Transpose
 %p = p';

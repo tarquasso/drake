@@ -56,6 +56,21 @@ gamma = [gamma1;
          gamma2];
   
 
+% W1 = [thetad .* Phib,         theta.* Phik,              diag(-J(:,1))];%,  oneVec]; 
+% W2 = [zeros(numSamples,Mb+1),   zeros(numSamples,Mk+1),  diag(-J(:,2))];%,  oneVec];
+% W = [ W1;...
+%       W2];     
+% 
+% Ipulley = 0.00001798;
+% Ipulley = 0.00002365;
+% 
+%     
+% gamma1 = - Ipulley * thetadd;
+% gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
+% gamma = [gamma1;
+%          gamma2];
+
+
 %W = diag([100*ones(4,1);ones(numSamples,1)]);
 
 % Solve Least Squares for parameters:
