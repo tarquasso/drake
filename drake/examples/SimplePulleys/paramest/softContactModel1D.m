@@ -1,6 +1,6 @@
 function [gamma,W] = softContactModel1D(z, zd, zdd, angleDeg, mdisc, bsurface, Mb, Mk)
 %% Position States Vector: q = [theta;z_disc] x numsamples
-%% Parameter Vector: p = [Ipulley;kpulley;bpulley;lambda(i)]; %lambda(i) for each sample 
+%% Parameter Vector: p = [bi;ki]; %lambda(i) for each sample 
 
 %rows are position states, columns are samples:
 [dim,numSamples] = size(z);
@@ -27,12 +27,12 @@ polyfun = @(base,exponent) base.^exponent;
 Phib = bsxfun(polyfun,z,(0:Mb));
 Phik = bsxfun(polyfun,z,(0:Mk));
 
-W = [(zdd+g*sin(beta)), zd.*Phib, z.*Phik];%,  oneVec];
+W = [zd.*Phib, z.*Phik];%,  oneVec];
 
-gamma = -bsurface* zd;% - mdisc * zdd - mdisc * g * sin(beta);  
+gamma = - mdisc * (zdd+g*sin(beta)) - bsurface* zd;% - mdisc * zdd - mdisc * g * sin(beta);  
 
 % Solve Least Squares for parameters:
-%p = inv(Wmat'* Wmat) * Wmat' * Gamma;
+p = inv(W'* W) * W' * gamma;
 
 %Transpose
 %p = p';
