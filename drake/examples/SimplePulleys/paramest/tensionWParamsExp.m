@@ -2,6 +2,11 @@
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
 % r = TimeSteppingRigidBodyManipulator('tensionWParamsExp.urdf',.01,struct('twoD',true));
 
+% adjust gravity according to sliding table
+angelSlidingTableDegrees = 36;
+r = r.setGravity([0;-9.81*sind(angelSlidingTableDegrees)]);
+r = compile(r);
+
 trueParameters = getParams(r);
 
 v = r.constructVisualizer();

@@ -4,16 +4,22 @@ clear all
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
 
-dataSetName = 'set5';
-name = '16-May-2015 20_46_41';
-filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+if(false)
+  dataSetName = 'set5';
+  name = '16-May-2015 20_46_41';
+  filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+else
+  dataSetFolder = 'set1';
+  name = 'syntheticPaddleData';
+  filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
+end
 
 appendix = '_preprocessed';
 fullFilename = [filename,appendix,'.mat'];
 load(fullFilename)
 
 %% flags that define what part to execute
-calcBSurfaceFlag = false;
+calcBSurfaceFlag = true;
 calcOneDofProblem = false; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
@@ -98,6 +104,8 @@ if(calcBSurfaceFlag)
   %% Estimate All Data
   
   heightThreshold = 0.05+zTouch;
+  heightThreshold = inf;
+  
   
   tBatch = [];
   qBatch = [];
@@ -122,18 +130,18 @@ if(calcBSurfaceFlag)
     qddBatch = [qddBatch,qddNew];
   end
   
-  [bSurfaceEstBatch,frictionForceBatch,frictionForcehatBatch,rBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
+  [bSurfaceEstBatch,frictionForceBatch,frictionForcehatBatch,residualsBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
   
   bSurfaceEstBatch
   
   figure(50);clf; hold on;
-  plot(tBatch,qBatch,'k.',tBatch,qBatch,'k');
+  plot(tBatch,qBatch,'k');
   title('zBatch')
   figure(51);clf; hold on;
-  plot(tBatch,qdBatch,'k.',tBatch,qdBatch,'k');
+  plot(tBatch,qdBatch,'k');
   title('zdBatch')
   figure(52);clf; hold on;
-  plot(tBatch,qddBatch,'k.',tBatch,qddBatch,'k');
+  plot(tBatch,qddBatch,'k');
   title('zddBatch')
   figure(53);clf; hold on;
   plot(tBatch,frictionForceBatch,'k',tBatch,frictionForceBatch,'k.');
@@ -142,7 +150,7 @@ if(calcBSurfaceFlag)
   title('forceBatch')
   %set(h,'Interpreter','Latex');
   figure(54)
-  plot(tBatch,rBatch,'k.',tBatch,rBatch,'k');
+  plot(tBatch,residualsBatch,'k.',tBatch,residualsBatch,'k');
   title('residualsBatch')
   
   %% Test out the estimate
@@ -185,6 +193,7 @@ else
   load(fullFilenameBSurface);
 end
 
+%return
 
 numOfSets = size(zIC,1);
 
@@ -456,14 +465,14 @@ else
 end
 
 
-figure(500); clf; hold on;
+%figure(500); clf; hold on;
 figure(501); clf; hold on;
 for j = 1: numOfSets
   
-  figure(500);
-  plot(timeStepsIC{j}, thetaOrigIC{j},'b*');
-  p = plot(thetafitIC{j},timeStepsIC{j},thetaIC{j});%,[timeInterval{j}])
-  p(1).LineWidth = 2;
+  %figure(500);
+  %plot(timeStepsIC{j}, thetaOrigIC{j},'b*');
+  %p = plot(thetafitIC{j},timeStepsIC{j},thetaIC{j});%,[timeInterval{j}])
+  %p(1).LineWidth = 2;
   
   figure(502);
   
@@ -617,11 +626,11 @@ end
 rangeOfSetsMat = repmat(rangeOfSets',1,numOfModels);
 rangeOfModelsCell = strcat({'Model '},int2str(rangeOfModels.')).';
 
-% figure(701); clf; hold on;
-% errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
-%   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-% xlabel('data set number');title('I0');
-% legend(rangeOfModelsCell)
+figure(701); clf; hold on;
+errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
+  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
+xlabel('data set number');title('I0');
+legend(rangeOfModelsCell)
 
 figure(702); clf; hold on;
 errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
@@ -677,8 +686,8 @@ if(calcAllOfOneCombinedFlag)
         angleDeg, mdisc, bsurface,Mb,Mk);
       alpha = 0.05; % 95% confidence level
       
-      [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j},statsBatch(j,:)] = regress(gammaBatch,WBatch,alpha);
-      mdl = fitlm(WBatch,gammaBatch)%,'Intercept',false) %model fit without intercept term
+      [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j},statsBatch{j}] = regress(gammaBatch,WBatch,alpha); %,
+      mdl = fitlm(WBatch,gammaBatch);%,'Intercept',false) %model fit without intercept term
       %figure
       %plotResiduals(mdl)
       %mdl1 = step(mdl,'NSteps',20)
@@ -689,19 +698,19 @@ if(calcAllOfOneCombinedFlag)
     end
     
     figure(801); clf; hold on;
-    plot(rangeOfModels,statsBatch(:,1));
+    plot(rangeOfModels,statsBatch{j}(:,1));
     xlabel('model');title('Rsq statistics');
     
     figure(802); clf; hold on;
-    plot(rangeOfModels,statsBatch(:,2));
+    plot(rangeOfModels,statsBatch{j}(:,2));
     xlabel('model');title('F stat');
     
     figure(803); clf; hold on;
-    plot(rangeOfModels,statsBatch(:,3));
+    plot(rangeOfModels,statsBatch{j}(:,3));
     xlabel('model');title('p value');
     
     figure(804); clf; hold on;
-    plot(rangeOfModels,statsBatch(:,4));
+    plot(rangeOfModels,statsBatch{j}(:,4));
     xlabel('model');title('error covariance');
     
   end
