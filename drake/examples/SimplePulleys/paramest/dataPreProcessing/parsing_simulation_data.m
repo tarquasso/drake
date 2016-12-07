@@ -3,7 +3,7 @@ global generatePlot
 dataSetFolder = 'set1';
 subset = 'A';
 dataSetName = [dataSetFolder,subset];
-name = 'syntheticPaddleData';
+name = 'syntheticPaddleDataWithAccel';
 filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
 filenameWithExtension = [filename,'.mat'];
 load(filenameWithExtension);
@@ -23,11 +23,14 @@ generatePlot = true;
 
 %Truncate data (remove last just contact part)
 tf = 2.135;
+tf = 1.765;
 idxUsed = find(t < tf);
 %number of samples
 numberOfSamples = length(idxUsed);
 timeStepsTrimmed = t(idxUsed);
 xTrimmed = x(:,idxUsed);
+mdTrimmed = gradient(xTrimmed(1,:))./gradient(timeStepsTrimmed);
+xdTrimmed = [mdTrimmed;xd(:,idxUsed)];
 
 zTouch = discRadius; %touchpoint is measured based on the center of the disc
 
@@ -92,6 +95,45 @@ timeSteps = timeStepsTrimmed-timeStepsTrimmed(1);
 %   
 % end
 
+%% Get acceleration
+
+dt = gradient(timeSteps);
+dt1 = diff(timeSteps);
+dt1 = [dt1(1),dt1];
+figure(87); clf;
+plot(dt1,'r.')
+hold on
+plot(dt,'b.')
+
+%xdTrimmed = gradient(xTrimmed)./dt;
+xdTrimmedGrad = gradient(xTrimmed)./dt;
+xdTrimmedDiff = diff(xTrimmed,1,2);
+xdTrimmedDiff = [xdTrimmedDiff(:,1),xdTrimmedDiff];
+xdTrimmedDiff = xdTrimmedDiff./dt;
+figure(84); clf;
+plot((xTrimmed(1,:)),'m-..')
+hold on
+plot(xTrimmed(5,:),'r-.*')
+plot(xdTrimmed(2,:),'k-.^')
+
+plot(xdTrimmedGrad(2,:),'b-.o')
+
+plot(xdTrimmedDiff(2,:),'g-.+')
+legend('mode','x(5,:)','xd(2,:)','gradient','diff')
+title('Velocities Tehta - Different Methods')
+
+for i=1:3
+
+figure(85+i); clf;
+plot((xTrimmed(1,:)),'m-..')
+hold on
+plot(xdTrimmed(4+i,:),'k-.^')
+plot(xdTrimmedGrad(4+i,:),'b-.o')
+plot(xdTrimmedDiff(4+i,:),'g-.+')
+legend('mode','xd','gradient','diff')
+title(['Accelerations ','xd(',num2str(4+i),')',' Comparision- Different Methods'])
+end
+
 %% Extract each contact and each no_contact phase
 
 %% Separate flight and contact
@@ -104,6 +146,7 @@ timeStepsSplitNC = timeSteps(idxNC);
 timeStepsSplitIC = timeSteps(idxIC);
 xTrimmedNC = xTrimmed(:,idxNC);
 xTrimmedIC = xTrimmed(:,idxIC);
+
 
 if(generatePlot)
   %Add a line to the z coordinate
@@ -143,9 +186,8 @@ if(generatePlot)
   title(['Acceleration zdd',' (',dataSetName,')'])
   
   
-    figure(32); clf; hold on
+  figure(32); clf; hold on
   plot(timeStepsSplitNC,xTrimmedNC(2,:),'g.','LineWidth',3.0)
-  plot(timeSteps(1,[1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
   plot(timeStepsSplitIC,xTrimmedIC(2,:),'r.','LineWidth',3.0)
   %axis([-inf inf minHeight maxHeight])
   title(['Theta - Separated (',dataSetName,')'])
@@ -161,24 +203,40 @@ if(generatePlot)
   xlabel('time [s]')
   ylabel('thetadd')
   title(['Angular Acceleration thetadd',' (',dataSetName,')'])
+  
+  figure(42); clf; hold on
+  plot(timeStepsSplitNC,xTrimmedNC(3,:),'g.','LineWidth',3.0)
+  plot(timeStepsSplitIC,xTrimmedIC(3,:),'r.','LineWidth',3.0)
+  %axis([-inf inf minHeight maxHeight])
+  title(['X - Separated (',dataSetName,')'])
+  xlabel('time [s]')
+  ylabel('Pos x')
+  
+  figure(43);clf; hold on;
+  xlabel('time [s]')
+  ylabel('xd')
+  title(['Velocity xd',' (',dataSetName,')'])
+  
+  figure(44);clf; hold on;
+  xlabel('time [s]')
+  ylabel('xdd')
+  title(['Acceleration xdd',' (',dataSetName,')'])
 end
 
 typeNC = 'NoSplit';
-offsetStepNC = 0; %defines additional points looked at before or after a contact data set
 minDataPointsNC = 5;
-[numOfSetsNC,timeStepsSplitNC,xTrimmedSplitNC] = extractSetsSim(idxNC,timeSteps,xTrimmed,offsetStepNC,minDataPointsNC,typeNC);
+[numOfSetsNC,timeStepsSplitNC,xTrimmedSplitNC,xdTrimmedSplitNC] = extractSetsSim(idxNC,timeSteps,xTrimmed,xdTrimmed,minDataPointsNC,typeNC);
 
 typeIC = 'NoSplit';
-offsetStepIC = 0; % taking one additional data point at start and end of the data set
 minDataPointsIC = 5;
-[numOfSetsIC,timeStepsSplitIC,xTrimmedSplitIC] = extractSetsSim(idxIC,timeSteps,xTrimmed,offsetStepIC,minDataPointsIC,typeIC);
+[numOfSetsIC,timeStepsSplitIC,xTrimmedSplitIC,xdTrimmedSplitIC] = extractSetsSim(idxIC,timeSteps,xTrimmed,xdTrimmed,minDataPointsIC,typeIC);
 
 
 [timeStepsNC,thetaNC,thetadNC,thetaddNC,xNC,xdNC,xddNC,zNC,zdNC,zddNC] = ...
-  extractIndividualStates(numOfSetsNC,timeStepsSplitNC, xTrimmedSplitNC);
+  extractIndividualStates(numOfSetsNC,timeStepsSplitNC, xTrimmedSplitNC,xdTrimmedSplitNC);
 
 [timeStepsIC,thetaIC,thetadIC,thetaddIC,xIC,xdIC,xddIC,zIC,zdIC,zddIC] = ...
-  extractIndividualStates(numOfSetsIC,timeStepsSplitIC, xTrimmedSplitIC);
+  extractIndividualStates(numOfSetsIC,timeStepsSplitIC, xTrimmedSplitIC,xdTrimmedSplitIC);
 
 save(newFilename,'angleDeg','mdisc','spread','zTouch',...
    'timeStepsNC','thetaNC','thetadNC','thetaddNC','xNC','xdNC','xddNC','zNC','zdNC','zddNC',...

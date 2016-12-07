@@ -8,10 +8,12 @@ if(false)
   dataSetName = 'set5';
   name = '16-May-2015 20_46_41';
   filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
+  capturedDataFlag = true;
 else
   dataSetFolder = 'set1';
-  name = 'syntheticPaddleData';
+  name = 'syntheticPaddleDataWithAccel';
   filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
+  capturedDataFlag = false;
 end
 
 appendix = '_preprocessed';
@@ -112,7 +114,7 @@ if(calcBSurfaceFlag)
   qdBatch = [];
   qddBatch = [];
   
-  rangeTestedBatch = 2:numOfSetsNC;
+  rangeTestedBatch = 1:numOfSetsNC;
   
   for j =rangeTestedBatch
     
@@ -195,6 +197,7 @@ end
 
 %return
 
+
 numOfSets = size(zIC,1);
 
 
@@ -207,7 +210,6 @@ if(calcOneDofProblem)
   zICBatch1d = [];
   zdICBatch1d = zICBatch1d;
   zddICBatch1d = zICBatch1d;
-  numOfSets = size(zIC,1);
   rangeOfSets1DOF = 1:numOfSets;
   %rangeOfSets1DOF = 2:2; %picking contact phase 2
   
@@ -417,7 +419,7 @@ if(calcThetaFlag)
       [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], options);
       
       thetaOrigIC{j}(k,1) = thetaTemp;
-      
+      bBatch{j}
       thetaIC0 = thetaTemp;
       %theta0 = thetaVecTemp(1);
       %thetad0 = thetaVecTemp(2);
@@ -457,11 +459,13 @@ if(calcThetaFlag)
   appendix = '_theta';
   fullFilenameTheta = [filename,appendix,'.mat'];
   
-  save(fullFilenameTheta, 'timeStepsIC', 'zIC','zdIC','zddIC','thetaOrigIC','thetaIC','thetadIC','thetaddIC','thetafitIC','numOfSets');%,'thetadfmincon');
+  save(fullFilenameTheta, 'timeStepsIC', 'zIC','zdIC','zddIC','thetaOrigIC','thetaIC','thetadIC','thetaddIC','thetafitIC');%,'thetadfmincon');
 else
   appendix = '_theta';
   fullFilenameTheta = [filename,appendix,'.mat'];
-  load(fullFilenameTheta);
+  if(capturedDataFlag)
+    load(fullFilenameTheta);
+  end
 end
 
 
@@ -694,24 +698,25 @@ if(calcAllOfOneCombinedFlag)
       %figure
       %plotResiduals(mdl1)
       
+      bBatch{j}
       
     end
     
-    figure(801); clf; hold on;
-    plot(rangeOfModels,statsBatch{j}(:,1));
-    xlabel('model');title('Rsq statistics');
-    
-    figure(802); clf; hold on;
-    plot(rangeOfModels,statsBatch{j}(:,2));
-    xlabel('model');title('F stat');
-    
-    figure(803); clf; hold on;
-    plot(rangeOfModels,statsBatch{j}(:,3));
-    xlabel('model');title('p value');
-    
-    figure(804); clf; hold on;
-    plot(rangeOfModels,statsBatch{j}(:,4));
-    xlabel('model');title('error covariance');
+%     figure(801); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,1));
+%     xlabel('model');title('Rsq statistics');
+%     
+%     figure(802); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,2));
+%     xlabel('model');title('F stat');
+%     
+%     figure(803); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,3));
+%     xlabel('model');title('p value');
+%     
+%     figure(804); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,4));
+%     xlabel('model');title('error covariance');
     
   end
   

@@ -1,4 +1,4 @@
-function [numOfSetsNew,timeStepsSplit,xTrimmedSplit] = extractSetsSim(idxMode,timeSteps, xTrimmed,offsetStep,minDataPoints,type)
+function [numOfSetsNew,timeStepsSplit,xTrimmedSplit,xdTrimmedSplit] = extractSetsSim(idxMode,timeSteps, xTrimmed,xdTrimmed,minDataPoints,type)
 global generatePlot
 %% Define points when in contact and points when not in contact
 boolTransitions = diff(idxMode)> 1;
@@ -52,13 +52,15 @@ numOfSetsNew = length(idxEndNew);%sum(boolTransitionsStarts);
 idxExtended = cell(numOfSetsNew,1);
 timeStepsSplit = cell(numOfSetsNew,1);
 xTrimmedSplit = cell(numOfSetsNew,1);
+xdTrimmedSplit = cell(numOfSetsNew,1);
 
 
 for j = 1:numOfSetsNew
-  idxExtended{j} = (idxStartNew(j)-offsetStep):(idxEndNew(j)+offsetStep);
+  idxExtended{j} = idxStartNew(j):idxEndNew(j);
   timeStepsSplit{j} = timeSteps(idxExtended{j});
   xTrimmedSplit{j} = xTrimmed(:,idxExtended{j});
-   
+  xdTrimmedSplit{j} = xdTrimmed(:,idxExtended{j}); 
+  
   if(generatePlot)
     figure(22);
     plot(timeStepsSplit{j}(1),xTrimmedSplit{j}(4,1),'m*','LineWidth',4.5)
