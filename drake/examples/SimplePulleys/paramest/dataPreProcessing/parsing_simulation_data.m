@@ -103,6 +103,7 @@ dt1 = [dt1(1),dt1];
 figure(87); clf;
 plot(dt1,'r.')
 hold on
+grid on
 plot(dt,'b.')
 
 %xdTrimmed = gradient(xTrimmed)./dt;
@@ -113,12 +114,14 @@ xdTrimmedDiff = xdTrimmedDiff./dt;
 figure(84); clf;
 plot((xTrimmed(1,:)),'m-..')
 hold on
+grid on
 plot(xTrimmed(5,:),'r-.*')
 plot(xdTrimmed(2,:),'k-.^')
 
 plot(xdTrimmedGrad(2,:),'b-.o')
 
 plot(xdTrimmedDiff(2,:),'g-.+')
+
 legend('mode','x(5,:)','xd(2,:)','gradient','diff')
 title('Velocities Tehta - Different Methods')
 
@@ -127,6 +130,7 @@ for i=1:3
 figure(85+i); clf;
 plot((xTrimmed(1,:)),'m-..')
 hold on
+grid on
 plot(xdTrimmed(4+i,:),'k-.^')
 plot(xdTrimmedGrad(4+i,:),'b-.o')
 plot(xdTrimmedDiff(4+i,:),'g-.+')
@@ -141,7 +145,6 @@ modeNC = 1;
 modeIC = 2;
 idxNC = find (xTrimmed(1,:) == modeNC);
 idxIC = find (xTrimmed(1,:) == modeIC);
-
 timeStepsSplitNC = timeSteps(idxNC);
 timeStepsSplitIC = timeSteps(idxIC);
 xTrimmedNC = xTrimmed(:,idxNC);
