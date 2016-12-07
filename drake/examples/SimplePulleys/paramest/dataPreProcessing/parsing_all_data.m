@@ -2,7 +2,7 @@
 
 %% SET 5 - A
 clear all
-close all
+%close all
 clc
 dataSetFolder = 'set5';
 name = '16-May-2015 20_46_41';
@@ -38,7 +38,7 @@ processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
   minHeightAfterScaling,angleDeg,mdisc,discRadius,spread,...
   errStartTime,errEndTime,optiTrackWandScalingFactor,dataSetName);
 
-
+return
 %% SET 5 - B
 clear all
 close all

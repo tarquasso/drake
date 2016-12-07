@@ -1,5 +1,6 @@
 %% Set the following parameters to false after running it for the first time:
 clear all
+close all
 
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
@@ -10,7 +11,7 @@ if(false)
   filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
   capturedDataFlag = true;
 else
-  dataSetFolder = 'set1';
+  dataSetFolder = 'set2';
   name = 'syntheticPaddleDataWithAccel';
   filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
   capturedDataFlag = false;
@@ -134,7 +135,7 @@ if(calcBSurfaceFlag)
   
   [bSurfaceEstBatch,frictionForceBatch,frictionForcehatBatch,residualsBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
   
-  bSurfaceEstBatch
+  bfrictionSurface = bSurfaceEstBatch(1)
   
   figure(50);clf; hold on;
   plot(tBatch,qBatch,'k');
@@ -690,7 +691,7 @@ if(calcAllOfOneCombinedFlag)
         angleDeg, mdisc, bsurface,Mb,Mk);
       alpha = 0.05; % 95% confidence level
       
-      [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j},statsBatch{j}] = regress(gammaBatch,WBatch,alpha); %,
+      [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j}] = regress(gammaBatch,WBatch,alpha); %statsBatch{j}
       mdl = fitlm(WBatch,gammaBatch);%,'Intercept',false) %model fit without intercept term
       %figure
       %plotResiduals(mdl)
@@ -698,27 +699,37 @@ if(calcAllOfOneCombinedFlag)
       %figure
       %plotResiduals(mdl1)
       
-      bBatch{j}
       
     end
     
-%     figure(801); clf; hold on;
-%     plot(rangeOfModels,statsBatch{j}(:,1));
-%     xlabel('model');title('Rsq statistics');
-%     
-%     figure(802); clf; hold on;
-%     plot(rangeOfModels,statsBatch{j}(:,2));
-%     xlabel('model');title('F stat');
-%     
-%     figure(803); clf; hold on;
-%     plot(rangeOfModels,statsBatch{j}(:,3));
-%     xlabel('model');title('p value');
-%     
-%     figure(804); clf; hold on;
-%     plot(rangeOfModels,statsBatch{j}(:,4));
-%     xlabel('model');title('error covariance');
+    paramsEstimated.I = bBatch{j}(1);
+    paramsEstimated.b = bBatch{j}(2);
+    paramsEstimated.bSurface = bfrictionSurface;
+    paramsEstimated.k = bBatch{j}(3);
+    paramsEstimated.lamdas = bBatch{j}(4:end)';
     
+    
+    %     figure(801); clf; hold on;
+    %     plot(rangeOfModels,statsBatch{j}(:,1));
+    %     xlabel('model');title('Rsq statistics');
+    %
+    %     figure(802); clf; hold on;
+    %     plot(rangeOfModels,statsBatch{j}(:,2));
+    %     xlabel('model');title('F stat');
+    %
+    %     figure(803); clf; hold on;
+    %     plot(rangeOfModels,statsBatch{j}(:,3));
+    %     xlabel('model');title('p value');
+    %
+    %     figure(804); clf; hold on;
+    %     plot(rangeOfModels,statsBatch{j}(:,4));
+    %     xlabel('model');title('error covariance');
+if(~capturedDataFlag)
+    paramsUsed
+end 
+    paramsEstimated
   end
+  
   
   
 end

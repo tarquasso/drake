@@ -1,9 +1,13 @@
 global generatePlot
 
-dataSetFolder = 'set1';
+dataSetFolder = 'set2';
 subset = 'A';
 dataSetName = [dataSetFolder,subset];
 name = 'syntheticPaddleDataWithAccel';
+paramsUsed.I = 0.00001798;
+paramsUsed.b= 0.001;
+paramsUsed.bSurface = 0.3;
+paramsUsed.k = 4;
 filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
 filenameWithExtension = [filename,'.mat'];
 load(filenameWithExtension);
@@ -22,8 +26,8 @@ discRadius = 0.044230;
 generatePlot = true;
 
 %Truncate data (remove last just contact part)
-tf = 2.135;
-tf = 1.765;
+tf = 2.52;
+%tf = 1.765;
 idxUsed = find(t < tf);
 %number of samples
 numberOfSamples = length(idxUsed);
@@ -153,7 +157,7 @@ xTrimmedIC = xTrimmed(:,idxIC);
 
 if(generatePlot)
   %Add a line to the z coordinate
-  figure(21); clf; hold on
+  figure(21); hold on
   plot(timeSteps,xTrimmed(4,:),'g','LineWidth',1.0);
   plot(timeStepsSplitNC,xTrimmedNC(4,:),'b.','LineWidth',2.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
@@ -243,6 +247,6 @@ minDataPointsIC = 5;
 
 save(newFilename,'angleDeg','mdisc','spread','zTouch',...
    'timeStepsNC','thetaNC','thetadNC','thetaddNC','xNC','xdNC','xddNC','zNC','zdNC','zddNC',...
-   'timeStepsIC','thetaIC','thetadIC','thetaddIC','xIC','xdIC','xddIC','zIC','zdIC','zddIC');
+   'timeStepsIC','thetaIC','thetadIC','thetaddIC','xIC','xdIC','xddIC','zIC','zdIC','zddIC','paramsUsed');
 
   

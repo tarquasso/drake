@@ -101,7 +101,7 @@ posDiscIC = posDisc(idxIC,:);
 
 if(generatePlot)
   %Add a line to the z coordinate
-  figure(21); clf; hold on
+  figure(21); hold on
   plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
   plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',2.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
