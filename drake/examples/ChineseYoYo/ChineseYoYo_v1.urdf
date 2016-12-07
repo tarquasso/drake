@@ -7,15 +7,15 @@
   <parameter name="m1" value="0.1" lb="0" /> <!-- just a guess on m1 -->
   <!-- m1 = 0.1; r1 = 0.03793/2; I1xx = 1/4*m1*r1^2;  I1yy = 1/2*m1*r1^2;  I1zz = I1xx;-->
   <parameter name="ixx1" value="0.00000899" lb="0" />
-  <parameter name="iyy1" value="0.00001798" lb="0" />
+  <parameter name="iyy1" value="0.000107687954594736" lb="0" />
   <parameter name="izz1" value="0.00000899" lb="0" />
 <!--  <parameter name="ixx1" value="0.00005" lb="0" />
   <parameter name="iyy1" value="0.0001" lb="0" />
   <parameter name="izz1" value="0.00005" lb="0" /> -->
 <!--  <parameter name="b1" value="0.0003" lb="0" />
   <parameter name="k1" value="2" lb="0" /> -->
-  <parameter name="b1" value="0.001" lb="0" />
-  <parameter name="k1" value="4" lb="0" />
+  <parameter name="b1" value="0.000550304675835062" lb="0" />
+  <parameter name="k1" value="0.797496299490406" lb="0" />
 
 <!-- Parameters for Load - measured-->
   <parameter name="m2" value="0.131" lb="0" /> <!-- 0.06947 -->
@@ -23,6 +23,7 @@
   <parameter name="ixx2" value="0.00006491" lb="0" />
   <parameter name="iyy2" value="0.00012813" lb="0" />
   <parameter name="izz2" value="0.00006491" lb="0" />
+  <parameter name="bsurface" value="0.213679574645237" lb="0" />
 
   <link name="base">
     <!--visual>
@@ -108,7 +109,7 @@
     <axis xyz="1 0 0"/>
     <parent link="base"/>
     <child link="load_x"/>
-    <dynamics damping="0.3"/>
+    <dynamics damping="$bsurface"/>
   </joint>
   <joint name="load_z" type="prismatic">
     <origin xyz="0 0 0"/>
