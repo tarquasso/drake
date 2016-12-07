@@ -7,10 +7,13 @@ classdef ChineseYoYo < HybridDrakeSystem
   
   methods
     function obj = ChineseYoYo
-      in_contact = PlanarRigidBodyManipulator('ChineseYoYo.urdf');
+      in_contact = PlanarRigidBodyManipulator('ChineseYoYo_v1.urdf');
+%       in_contact = PlanarRigidBodyManipulator('ChineseYoYo.urdf');
       %in_contact = TimeSteppingRigidBodyManipulator('tension.urdf',.01,struct('twoD',true));
       isTSRBM = isa(in_contact,'TimeSteppingRigidBodyManipulator');
       
+      in_contact = in_contact.setGravity([0;-9.81*sind(36)]);
+      in_contact = compile(in_contact);
         
       % manually remove the ball from the pulley system:
       if(isTSRBM)
@@ -57,7 +60,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       % detect when the ball makes contact with the string
       % currently implemented as: z position of the ball <= 4
       % todo: generalize this using line segements of the cable constraint?
-      g = x(3) - 4;  % x(3) = load_z
+      g = x(3) - 0.04423;  % x(3) = load_z
       dg = [0,0,0,1,0,0,0];
     end
     
@@ -65,7 +68,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       % detect when the ball leaves the string
       % currently implemented as: z position of the ball > 4
       % todo: generalize this
-      g = 4 - x(3);
+      g = 0.04423 - x(3);
       dg = -[0,0,0,1,0,0,0];
     end
     
@@ -103,9 +106,9 @@ classdef ChineseYoYo < HybridDrakeSystem
       % barf
       x0 = Point(getStateFrame(obj));
       x0.m = 1;
-      x0.load_x = -0.25;  % was 1
-%       x0.load_x = -0.0585;
-      x0.load_z = 4.5;
+%       x0.load_x = -0.25;  % was 1
+      x0.load_x = -0.0005;
+      x0.load_z = 0.45;
       x0 = double(x0);
       x0(2:end) = resolveConstraints(obj.no_contact,x0(2:end));
     end
@@ -113,8 +116,8 @@ classdef ChineseYoYo < HybridDrakeSystem
     function v = constructVisualizer(obj)
       v1 = constructVisualizer(obj.no_contact);
       v2 = constructVisualizer(obj.in_contact);
-      v1.xlim = [-5 5];
-      v1.ylim = [-.2 6.2];
+      v1.xlim = [-0.2 0.2];
+      v1.ylim = [-.2 0.5];
       v2.xlim = v1.xlim; v2.ylim = v1.ylim;
       
       function mydraw(t,y)
@@ -144,7 +147,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       
       x0 = getInitialState(r);
       v.drawWrapper(0,x0);
-      [ytraj,xtraj] = simulate(r,[0 1],x0);
+      [ytraj,xtraj] = simulate(r,[0 5],x0);
       v.playback(ytraj,struct('slider',true));
       
       if (1) 
@@ -162,9 +165,9 @@ classdef ChineseYoYo < HybridDrakeSystem
           [T,U] = energy(r,x);
           E(i)= T+U;
           if (x(1)==1)
-            cable_length(i)=r.no_contact.position_constraints{1}.fcn.eval(x(2:(1+nq)));
+              cable_length(i)=r.no_contact.position_constraints{1}.fcn.eval(x(2:(1+nq)));
           else
-            cable_length(i)=r.in_contact.position_constraints{1}.fcn.eval(x(2:(1+nq)));
+              cable_length(i)=r.in_contact.position_constraints{1}.fcn.eval(x(2:(1+nq)));
           end
         end
         figure(1); clf;
@@ -177,6 +180,24 @@ classdef ChineseYoYo < HybridDrakeSystem
         
         t = linspace(xtraj.tspan(1), xtraj.tspan(end), 1001);
         x = eval(xtraj, t);
+        
+        xd = zeros(6,length(tt));
+        for i = 1:length(t)
+            xd(1:3,i) = x(5:7,i);
+            [H,C,B] = manipulatorDynamics(r.no_contact, x(2:4,i), x(5:7,i));
+            Hinv = inv(H);
+            if (x(1,i)==1)
+                cable_length(i)=r.no_contact.position_constraints{1}.fcn.eval(x(2:(1+nq)));
+                xd(4:6,i)  = -Hinv*C;
+                xd(4,i) = 0;
+            else
+                [cable_length(i),J,ddphi]=r.in_contact.position_constraints{1}.fcn.eval(x(2:(1+nq),i));
+                Jp = reshape(ddphi,length(x(2:4,i)),[])*x(5:7,i);
+                Hinvtilde = J*Hinv*J';
+                xd(4:6,i) = -Hinv*( (eye(3)-J'*inv(Hinvtilde)*J*Hinv)*C + J'*inv(Hinvtilde)*Jp'*x(5:7,i) );
+            end
+        end
+        
         figure(2), clf
         subplot(2,2,1)
         plot(t,x(2,:), 'LineWidth', 2)
