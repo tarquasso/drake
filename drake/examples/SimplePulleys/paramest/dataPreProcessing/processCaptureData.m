@@ -355,7 +355,7 @@ for j = 1: numOfSets
     plot(timeStepsExpandedUseful{j},zdd{j});
   end
   
-  %% Gernerate more data
+  %% Generate more data
   elementsToCheck = size(timeStepsExpanded{j},1)*10;
   
   timeStepsLarge{j}  = linspace(timeStepsExpanded{j}(1),timeStepsExpanded{j}(end),elementsToCheck);

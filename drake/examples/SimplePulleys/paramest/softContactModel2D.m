@@ -15,7 +15,7 @@ assert(size(qd,2)==size(qdd,2),'qd and qdd do not contain same number of samples
 %gravity
 g = 9.81;
 %angle of inclined plane
-beta = angleDeg * pi/180; % angle of the sliding platform for the disk
+%beta = angleDeg * pi/180; % angle of the sliding platform for the disk
 
 %load urdf model
 r = PlanarRigidBodyManipulator('tensionWParamsExp.urdf');
@@ -51,10 +51,25 @@ W = [ W1;...
       W2];     
 
 gamma1 = zeroVec;
-gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
+gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sind(angleDeg)  ;
 gamma = [gamma1;
          gamma2];
   
+
+% W1 = [thetad .* Phib,         theta.* Phik,              diag(-J(:,1))];%,  oneVec]; 
+% W2 = [zeros(numSamples,Mb+1),   zeros(numSamples,Mk+1),  diag(-J(:,2))];%,  oneVec];
+% W = [ W1;...
+%       W2];     
+% 
+% Ipulley = 0.00001798;
+% Ipulley = 0.00002365;
+% 
+%     
+% gamma1 = - Ipulley * thetadd;
+% gamma2 = - bsurface* zd - mdisc * zdd - mdisc * g * sin(beta)  ;
+% gamma = [gamma1;
+%          gamma2];
+
 
 %W = diag([100*ones(4,1);ones(numSamples,1)]);
 
