@@ -108,7 +108,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       x0.m = 1;
 %       x0.load_x = -0.25;  % was 1
       x0.load_x = -0.0005;
-      x0.load_z = 0.45;
+      x0.load_z = 0.4672;
       x0 = double(x0);
       x0(2:end) = resolveConstraints(obj.no_contact,x0(2:end));
     end
@@ -180,6 +180,11 @@ classdef ChineseYoYo < HybridDrakeSystem
         
         t = linspace(xtraj.tspan(1), xtraj.tspan(end), 1001);
         x = eval(xtraj, t);
+        %positionInaccuracy = 0.0005; %submillimeter accuracy according to optitrack
+        %noiseAmplitude = [positionInaccuracy,positionInaccuracy,positionInaccuracy];
+        %someNoise = positionInaccuracy * ((rand(size(x))*2)-1);
+        
+        %x(2:6,:) = x(2:6,:) + someNoise;
         
         xd = zeros(6,length(tt));
         for i = 1:length(t)
