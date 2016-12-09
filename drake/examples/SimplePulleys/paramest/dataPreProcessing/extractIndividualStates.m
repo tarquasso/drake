@@ -40,39 +40,39 @@ zddMode{j} = xdTrimmedSplitMode{j}(7,:)';
 
 if(generatePlot)
     figure(22);
-    p1 = plot(timeStepsSplitMode{j}',zMode{j},'-.ob');
+    p1 = plot(timeStepsSplitMode{j}',zMode{j},'-..b');
     p1(1).LineWidth = 1;
     
     figure(23)
-    p2 = plot(timeStepsSplitMode{j}',zdMode{j},'-.ob');
+    p2 = plot(timeStepsSplitMode{j}',zdMode{j},'-..b');
     p2(1).LineWidth = 1;
     
     figure(24)
-    p3 = plot(timeStepsSplitMode{j}',zddMode{j},'-.ob');
+    p3 = plot(timeStepsSplitMode{j}',zddMode{j},'-..b');
     p3(1).LineWidth = 1;
   
     figure(32);
-    p1 = plot(timeStepsSplitMode{j}',thetaMode{j},'-.ob');
+    p1 = plot(timeStepsSplitMode{j}',thetaMode{j},'-..b');
     p1(1).LineWidth = 1;
     
     figure(33)
-    p2 = plot(timeStepsSplitMode{j}',thetadMode{j},'-.ob');
+    p2 = plot(timeStepsSplitMode{j}',thetadMode{j},'-..b');
     p2(1).LineWidth = 1;
     
     figure(34)
-    p3 = plot(timeStepsSplitMode{j}',thetaddMode{j},'-.ob');
+    p3 = plot(timeStepsSplitMode{j}',thetaddMode{j},'-..b');
     p3(1).LineWidth = 1;
   
     figure(42);
-    p1 = plot(timeStepsSplitMode{j}',xMode{j},'-.ob');
+    p1 = plot(timeStepsSplitMode{j}',xMode{j},'-..b');
     p1(1).LineWidth = 1;
     
     figure(43)
-    p2 = plot(timeStepsSplitMode{j}',xdMode{j},'-.ob');
+    p2 = plot(timeStepsSplitMode{j}',xdMode{j},'-..b');
     p2(1).LineWidth = 1;
     
     figure(44)
-    p3 = plot(timeStepsSplitMode{j}',xddMode{j},'-.ob');
+    p3 = plot(timeStepsSplitMode{j}',xddMode{j},'-..b');
     p3(1).LineWidth = 1;
 end
 end

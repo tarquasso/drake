@@ -4,10 +4,16 @@ dataSetFolder = 'set2';
 subset = 'A';
 dataSetName = [dataSetFolder,subset];
 name = 'syntheticPaddleDataWithAccel';
-paramsUsed.I = 0.00001798;
-paramsUsed.b= 0.001;
-paramsUsed.bSurface = 0.3;
-paramsUsed.k = 4;
+% paramsUsed.I = 0.00001798;
+% paramsUsed.b= 0.001;
+% paramsUsed.bSurface = 0.3;
+% paramsUsed.k = 4;
+
+paramsUsed.I = 0.000107687954594736;
+paramsUsed.b= 0.000550304675835062;
+paramsUsed.bSurface = 0.213679574645237;
+paramsUsed.k = 0.797496299490406;
+
 filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
 filenameWithExtension = [filename,'.mat'];
 load(filenameWithExtension);
@@ -41,10 +47,10 @@ zTouch = discRadius; %touchpoint is measured based on the center of the disc
 
 %% Plot the data Before Defining
 if(generatePlot)
-
+  
   touchPoint = discRadius;
-  staticSpringStrectchingPoint = discRadius;
-
+  staticSpringStretchingPoint = discRadius;
+  
   yLabels = { 'angle theta[rad]',...
     'horizontal coordinate x [m]',...
     'height coordinate z [m]'};
@@ -52,15 +58,18 @@ if(generatePlot)
     'Sim Data X',...
     'Sim Data Z'};
   for i = 1:3 %only plot z axis
-    figure(i); clf; 
-    plot(timeStepsTrimmed,xTrimmed(i+1,:),'-.ob'); 
-    hold on; xlabel('time [s]');
+    figure(i); clf;
+    plot(timeStepsTrimmed,xTrimmed(i+1,:),'-.ob');
+    hold on; grid on;
+    xlabel('time [s]');
     if(i == 3) %for z axis
       plot(timeStepsTrimmed(1,[1,end]),[touchPoint,touchPoint],'g','LineWidth',2)
-      plot(timeStepsTrimmed(1,[1,end]),[staticSpringStrectchingPoint,staticSpringStrectchingPoint],'y','LineWidth',2)  
+      plot(timeStepsTrimmed(1,[1,end]),[staticSpringStretchingPoint,staticSpringStretchingPoint],'y','LineWidth',2)
     end
     
     ylabel(yLabels{i}); title(titleLabels{i})
+    options.Format = 'eps';
+    hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',titleLabels{i},'.eps'],options);
   end
 end
 
@@ -69,24 +78,24 @@ end
 %   timeStepsOrig < expEndTime & ...
 %   (timeStepsOrig < errStartTime |...
 %   timeStepsOrig > errEndTime));
-% 
+%
 % % adding first and last element to it - needed for data fitting
 % indicesExperiment = [indicesExperiment(1)-1;indicesExperiment;indicesExperiment(end)+1];
 
 %extract time and subtract start value
 timeSteps = timeStepsTrimmed-timeStepsTrimmed(1);
-% 
+%
 % %% Plot the data After Defining
 % if(generatePlot)
 %   yLabels2 = { 'horizontal coordinate x [m]',...
 %     'normal to plane coordinate y[m]'...
 %     'height coordinate z [m]'};
-%   
+%
 %   titleLabels2 = {'X Coordinate of Data Set',...
 %     'Y Coordinate of Data Set',...
 %     'Z Coordinate of Data Set'};
 %   for i = 1:3
-%     figure(i+10); clf; 
+%     figure(i+10); clf;
 %     plot(timeSteps,posDisc(:,i),'-.or','LineWidth',0.6); hold on; xlabel('time [s]');
 %     ylabel(yLabels2{i}); title(titleLabels2{i})
 %     if(i == 3) %for z axis
@@ -96,7 +105,7 @@ timeSteps = timeStepsTrimmed-timeStepsTrimmed(1);
 %     options.Format = 'eps';
 %     hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',titleLabels2{i},'.eps'],options);
 %   end
-%   
+%
 % end
 
 %% Get acceleration
@@ -104,11 +113,12 @@ timeSteps = timeStepsTrimmed-timeStepsTrimmed(1);
 dt = gradient(timeSteps);
 dt1 = diff(timeSteps);
 dt1 = [dt1(1),dt1];
-figure(87); clf;
+figure(83); clf;
 plot(dt1,'r.')
 hold on
 grid on
 plot(dt,'b.')
+title('different dt')
 
 %xdTrimmed = gradient(xTrimmed)./dt;
 xdTrimmedGrad = gradient(xTrimmed)./dt;
@@ -126,20 +136,29 @@ plot(xdTrimmedGrad(2,:),'b-.o')
 
 plot(xdTrimmedDiff(2,:),'g-.+')
 
-legend('mode','x(5,:)','xd(2,:)','gradient','diff')
-title('Velocities Tehta - Different Methods')
+legend('mode','thetad = x(5,:) ','thetad = xd(2,:)','gradient','diff')
+plotName = 'Velocities thetad =  - Different Methods';
+title(plotName)
+axis([84,105,-inf,inf]);
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',plotName,'.eps'],options);
 
 for i=1:3
-
-figure(85+i); clf;
-plot((xTrimmed(1,:)),'m-..')
-hold on
-grid on
-plot(xdTrimmed(4+i,:),'k-.^')
-plot(xdTrimmedGrad(4+i,:),'b-.o')
-plot(xdTrimmedDiff(4+i,:),'g-.+')
-legend('mode','xd','gradient','diff')
-title(['Accelerations ','xd(',num2str(4+i),')',' Comparision- Different Methods'])
+  
+  figure(85+i); clf; grid on;
+  plot((xTrimmed(1,:)),'m-..')
+  hold on
+  grid on
+  plot(xdTrimmed(4+i,:),'k-.^')
+  plot(xdTrimmedGrad(4+i,:),'b-.o')
+  plot(xdTrimmedDiff(4+i,:),'g-.+')
+  legend('mode','xd','gradient','diff')
+  plotName = ['Accelerations ','xd(',num2str(4+i),')',' Comparision- Different Methods'];
+  title(plotName)
+  axis([84,105,-inf,inf]);
+  
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',plotName,'.eps'],options);
 end
 
 %% Extract each contact and each no_contact phase
@@ -157,23 +176,24 @@ xTrimmedIC = xTrimmed(:,idxIC);
 
 if(generatePlot)
   %Add a line to the z coordinate
-  figure(21); hold on
+  figure(21); hold on; grid on;
   plot(timeSteps,xTrimmed(4,:),'g','LineWidth',1.0);
   plot(timeStepsSplitNC,xTrimmedNC(4,:),'b.','LineWidth',2.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
   plot(timeStepsSplitIC,xTrimmedIC(4,:),'r.','LineWidth',2.0)
   xlabel('time [s]')
   %axis([-inf inf minHeight maxHeight])
-  title(['Height z - Unseparated (',dataSetName,')'])
+  plotName = ['Height z - Unseparated (',dataSetName,')'];
+  title(plotName);
   typeofPlot = 'z';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
 
-%% 
+%%
 if(generatePlot)
   
-  figure(22); clf; hold on
+  figure(22); clf; hold on; grid on;
   plot(timeStepsSplitNC,xTrimmedNC(4,:),'g.','LineWidth',3.0)
   plot(timeSteps(1,[1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
   plot(timeStepsSplitIC,xTrimmedIC(4,:),'r.','LineWidth',3.0)
@@ -182,18 +202,19 @@ if(generatePlot)
   xlabel('time [s]')
   ylabel('z')
   
-  figure(23);clf; hold on;
+  
+  figure(23);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('zd')
   title(['Velocity zd',' (',dataSetName,')'])
   
-  figure(24);clf; hold on;
+  figure(24);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('zdd')
   title(['Acceleration zdd',' (',dataSetName,')'])
   
   
-  figure(32); clf; hold on
+  figure(32); clf; hold on; grid on;
   plot(timeStepsSplitNC,xTrimmedNC(2,:),'g.','LineWidth',3.0)
   plot(timeStepsSplitIC,xTrimmedIC(2,:),'r.','LineWidth',3.0)
   %axis([-inf inf minHeight maxHeight])
@@ -201,17 +222,17 @@ if(generatePlot)
   xlabel('time [s]')
   ylabel('Angle theta')
   
-  figure(33);clf; hold on;
+  figure(33);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('thetad')
   title(['Angular Velocity thetad',' (',dataSetName,')'])
   
-  figure(34);clf; hold on;
+  figure(34);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('thetadd')
   title(['Angular Acceleration thetadd',' (',dataSetName,')'])
   
-  figure(42); clf; hold on
+  figure(42); clf; hold on; grid on;
   plot(timeStepsSplitNC,xTrimmedNC(3,:),'g.','LineWidth',3.0)
   plot(timeStepsSplitIC,xTrimmedIC(3,:),'r.','LineWidth',3.0)
   %axis([-inf inf minHeight maxHeight])
@@ -219,12 +240,12 @@ if(generatePlot)
   xlabel('time [s]')
   ylabel('Pos x')
   
-  figure(43);clf; hold on;
+  figure(43);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('xd')
   title(['Velocity xd',' (',dataSetName,')'])
   
-  figure(44);clf; hold on;
+  figure(44);clf; hold on; grid on;
   xlabel('time [s]')
   ylabel('xdd')
   title(['Acceleration xdd',' (',dataSetName,')'])
@@ -245,8 +266,70 @@ minDataPointsIC = 5;
 [timeStepsIC,thetaIC,thetadIC,thetaddIC,xIC,xdIC,xddIC,zIC,zdIC,zddIC] = ...
   extractIndividualStates(numOfSetsIC,timeStepsSplitIC, xTrimmedSplitIC,xdTrimmedSplitIC);
 
-save(newFilename,'angleDeg','mdisc','spread','zTouch',...
-   'timeStepsNC','thetaNC','thetadNC','thetaddNC','xNC','xdNC','xddNC','zNC','zdNC','zddNC',...
-   'timeStepsIC','thetaIC','thetadIC','thetaddIC','xIC','xdIC','xddIC','zIC','zdIC','zddIC','paramsUsed');
 
+if(generatePlot)
   
+  figure(22);
+  title(['Height z - Separated (',dataSetName,')'])
+  typeofPlot = 'zsep';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(23);
+  title(['Velocity zd',' (',dataSetName,')'])
+  typeofPlot = 'zd';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(24);
+  title(['Acceleration zdd',' (',dataSetName,')'])
+  typeofPlot = 'zdd';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  
+  figure(32);
+  title(['Theta - Separated (',dataSetName,')'])
+  typeofPlot = 'theta';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(33);
+  title(['Angular Velocity thetad',' (',dataSetName,')'])
+  typeofPlot = 'thetad';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(34);
+  title(['Angular Acceleration thetadd',' (',dataSetName,')'])
+  typeofPlot = 'thetadd';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  
+  figure(42);
+  title(['X - Separated (',dataSetName,')'])
+  typeofPlot = 'x';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(43);
+  title(['Velocity xd',' (',dataSetName,')'])
+  typeofPlot = 'xd';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(44);
+  title(['Acceleration xdd',' (',dataSetName,')'])
+  typeofPlot = 'xdd';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+end
+
+
+
+save(newFilename,'angleDeg','mdisc','spread','zTouch',...
+  'timeStepsNC','thetaNC','thetadNC','thetaddNC','xNC','xdNC','xddNC','zNC','zdNC','zddNC',...
+  'timeStepsIC','thetaIC','thetadIC','thetaddIC','xIC','xdIC','xddIC','zIC','zdIC','zddIC','paramsUsed');
+

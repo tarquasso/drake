@@ -5,25 +5,26 @@ close all
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
 
-if(false)
+if(true)
   dataSetName = 'set5';
   name = '16-May-2015 20_46_41';
   filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
   capturedDataFlag = true;
 else
-  dataSetFolder = 'set2';
+  dataSetName = 'set2';
   name = 'syntheticPaddleDataWithAccel';
-  filename = ['~/soft_modeling_repo/dev/simulation/',dataSetFolder,'/',name];
+  filename = ['~/soft_modeling_repo/dev/simulation/',dataSetName,'/',name];
   capturedDataFlag = false;
 end
 
 appendix = '_preprocessed';
 fullFilename = [filename,appendix,'.mat'];
 load(fullFilename)
+[pathstr,name,ext] = fileparts(fullFilename);
 
 %% flags that define what part to execute
 calcBSurfaceFlag = true;
-calcOneDofProblem = false; % calculating one dof problem
+calcOneDofProblem = true; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
 
@@ -47,12 +48,7 @@ if(calcBSurfaceFlag)
   
   rangeTested = 1:numOfSetsNC;
   
-  figure(30);clf;hold on;
-  title('z')
-  figure(31);clf;hold on;
-  title('zd')
-  figure(32);clf;hold on;
-  title('zdd')
+  figure(30);clf;
   figure(40);clf;hold on;
   title('force')
   figure(41);clf;hold on;
@@ -68,27 +64,61 @@ if(calcBSurfaceFlag)
     %bsurfaceEstTustin(j,:) = ordinaryLeastSquaresNoContactTustin(qd, qdd, angleDeg, mdisc);
     
     figure(30);
-    plot(t,q,'k.');
-    plot(t,q,'k');
-    figure(31);
-    plot(t,qd,'k.');
-    plot(t,qd,'k');
-    figure(32);
-    plot(t,qdd,'k.');
-    plot(t,qdd,'k');
+    subplot(3,1,1)
+    
+    plot(t,q,'k-..');
+    hold on;
+    %plot(t,q,'k');
+    %figure(31);
+    subplot(3,1,2)
+    plot(t,qd,'k-..');
+    hold on;
+    %plot(t,qd,'k');
+    %figure(32);
+    subplot(3,1,3)
+    plot(t,qdd,'k-..');
+    hold on;
+    %plot(t,qdd,'k');
     figure(40)
-    plot(t,force{j},t,force{j},'.');
-    plot(t,forcehat{j},'r',t,forcehat{j},'r*');
-    h = legend('$f$','$f$','$\hat{f}$','$\hat{f}$');
+    plot(t,force{j},'-..');
+    plot(t,forcehat{j},'r-*'); %,t,forcehat{j},'r*');
+    h = legend('$f$','$\hat{f}$');
     set(h,'Interpreter','Latex');
     figure(41)
-    plot(t,r{j},'.');
-    plot(t,r{j});
+    plot(t,r{j},'-..');
+    %plot(t,r{j});
     
   end
   
   figure(30);
+  subplot(3,1,1)
   axis([-inf inf zTouch inf])
+  title('zNC')
+  subplot(3,1,2)
+  axis([-inf inf -inf inf])
+  
+  title('zdNC')
+  subplot(3,1,3)
+  title('zddNC')
+  axis([-inf inf -inf inf])
+  
+  typeofPlot = 'bsurface_allzNC';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(40);
+  title('force')
+  
+  typeofPlot = 'bsurface_force';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(41);
+  title('residuals')
+  
+  typeofPlot = 'bsurface_residuals';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   for i = 1:1
     bSlip = bsurfaceEst(rangeTested,i);
@@ -105,6 +135,11 @@ if(calcBSurfaceFlag)
     %axis([-inf inf 0.0 1])
   end
   %% Estimate All Data
+  figure(34)
+  typeofPlot = 'bsurface';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
   
   heightThreshold = 0.05+zTouch;
   heightThreshold = inf;
@@ -340,6 +375,16 @@ if(calcOneDofProblem)
     
   end
   
+  figure(201);
+  
+  typeofPlot = 'b01d';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  figure(202);
+  
+  typeofPlot = 'k01d';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   %%   Simulate the system
   for j = rangeOfSets1DOF
@@ -348,9 +393,9 @@ if(calcOneDofProblem)
     gravity = 9.81;
     gStar = gravity*sind(angleDeg);
     params = bBatch1d{1};
-    bStar = params(1:k0Index-1);%+bsurface;
-    kStar = params(k0Index:k0Index+l);
-    mStar =  mdisc;
+    bStar = params(1:k0Index-1)%+bsurface;
+    kStar = params(k0Index:k0Index+l)
+    mStar =  mdisc
     tfinal = timeStepsIC{j}(end)-timeStepsIC{j}(1);
     z0 = zICAdj{j}(1);
     zd0 = zdIC{j}(1);
@@ -376,6 +421,11 @@ if(calcOneDofProblem)
     
   end
   
+  figure(101)
+  typeofPlot = 'z1dof';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
   
   %   figure(601); clf; hold on;
   %   plot(rangeOfModelComplexities1d,statsBatch1d(:,1));
@@ -400,8 +450,8 @@ if(calcThetaFlag)
   thetaIC0 = 0;
   thetadIC0 = 0;
   
-  options = optimoptions(@fmincon);
-  options = optimoptions(options, 'SpecifyObjectiveGradient', true, 'Display', 'none');
+  optionsfmincon = optimoptions(@fmincon);
+  optionsfmincon = optimoptions(optionsfmincon, 'SpecifyObjectiveGradient', true, 'Display', 'none');
   lb = [-pi;-100];
   ub = [pi;100];
   
@@ -417,10 +467,9 @@ if(calcThetaFlag)
       %[thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
       %thetadfmincon{j}(k,1) = thetaVecTemp(2);
       fun = @(theta) resolveConstraintThetaCostFun([theta;0;zIC{j}(k)]);
-      [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], options);
+      [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], optionsfmincon);
       
       thetaOrigIC{j}(k,1) = thetaTemp;
-      bBatch{j}
       thetaIC0 = thetaTemp;
       %theta0 = thetaVecTemp(1);
       %thetad0 = thetaVecTemp(2);
@@ -457,6 +506,7 @@ if(calcThetaFlag)
     p(1).LineWidth = 2;
   end
   
+  
   appendix = '_theta';
   fullFilenameTheta = [filename,appendix,'.mat'];
   
@@ -471,7 +521,7 @@ end
 
 
 %figure(500); clf; hold on;
-figure(501); clf; hold on;
+figure(502); clf; hold on;
 for j = 1: numOfSets
   
   %figure(500);
@@ -482,26 +532,30 @@ for j = 1: numOfSets
   figure(502);
   
   subplot(3,1,1)
-  plot(timeStepsIC{j},thetaIC{j},'-.or')
+  plot(timeStepsIC{j},thetaIC{j},'-..r')
   title('theta')
   hold on
   ylabel('theta')
   xlabel('t')
   
   subplot(3,1,2)
-  plot(timeStepsIC{j},thetadIC{j},'-.or')
+  plot(timeStepsIC{j},thetadIC{j},'-..r')
   hold on
   title('thetad')
   ylabel('thetad')
   xlabel('t')
   subplot(3,1,3)
-  plot(timeStepsIC{j},thetaddIC{j},'-.or')
+  plot(timeStepsIC{j},thetaddIC{j},'-..r')
   hold on
   title('thetadd')
   ylabel('thetadd')
   xlabel('t')
 end
 
+figure(502)
+typeofPlot = 'alltheta';
+optionsPlot.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
 
 %% Generate MORE DATA points in between using fit
 
@@ -576,9 +630,9 @@ for i =1:numOfSetsAdj
     dimParams = size(b0,2);
     
     fun = @(p) paramEstCostFun2D(p, q, qd, qdd, angleDeg, mdisc, bsurface);
-    options = optimoptions(@fmincon);
-    options = optimoptions(options, 'Display', 'iter');
-    [pEst{i},fval] = fmincon(fun, b0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+    optionsfmincon = optimoptions(@fmincon);
+    optionsfmincon = optimoptions(optionsfmincon, 'Display', 'iter');
+    [pEst{i},fval] = fmincon(fun, b0, [],[], [], [], min*ones(1,dimParams), max*ones(1,dimParams),[], optionsfmincon);
     save('params.mat', 'pEstimated');
   else
     rangeOfModels = 0:0;
@@ -636,27 +690,37 @@ errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
 xlabel('data set number');title('I0');
 legend(rangeOfModelsCell)
+typeofPlot = 'I0Est';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
 figure(702); clf; hold on;
 errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
 xlabel('data set number');title('b0');
 legend(rangeOfModelsCell)
+typeofPlot = 'b0Est';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
 figure(703); clf; hold on;
 errorbar(rangeOfSetsMat,k0Est,k0EstErrLow,k0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
 xlabel('data set number');title('k0');
 legend(rangeOfModelsCell)
-
+typeofPlot = 'k0Est';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
 %% Batch Estimate
 if(calcAllOfOneCombinedFlag)
+  tBatch = [];
   qBatch = [];
   qdBatch = qBatch;
   qddBatch = qBatch;
   
   for j =rangeOfSets
+    tBatch = [tBatch,timeStepsIC{j}'];
     qNewBatch = [thetaIC{j}';...
       zIC{j}'];
     qBatch = [qBatch,qNewBatch];
@@ -675,11 +739,11 @@ if(calcAllOfOneCombinedFlag)
     
     %FMINCON
     fun = @(b) paramEstCostFun2D(b, qBatch, qdBatch, qddBatch, angleDeg, mdisc, bsurface);
-    options = optimoptions(@fmincon);
-    options = optimoptions(options, 'Display', 'iter');
+    optionsfmincon = optimoptions(@fmincon);
+    optionsfmincon = optimoptions(optionsfmincon, 'Display', 'iter');
     
     [pEstimatedAll,fval] = fmincon(fun, b0, [],[], [], [], ...
-      min*ones(1,dimParams), max*ones(1,dimParams),[], options);
+      min*ones(1,dimParams), max*ones(1,dimParams),[], optionsfmincon);
   else
     rangeOfModels = 0:0;
     numOfModels = length(rangeOfModels);
@@ -707,8 +771,15 @@ if(calcAllOfOneCombinedFlag)
     paramsEstimated.bSurface = bfrictionSurface;
     paramsEstimated.k = bBatch{j}(3);
     paramsEstimated.lamdas = bBatch{j}(4:end)';
+    figure(1000)
+    plot(tBatch,paramsEstimated.lamdas,'-.o')
+    title('Lambdas')
+    xlabel('time');
+    ylabel('force lambda');
     
-    
+    typeofPlot = 'lambdas';
+    options.Format = 'eps';
+    hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
     %     figure(801); clf; hold on;
     %     plot(rangeOfModels,statsBatch{j}(:,1));
     %     xlabel('model');title('Rsq statistics');
@@ -724,9 +795,9 @@ if(calcAllOfOneCombinedFlag)
     %     figure(804); clf; hold on;
     %     plot(rangeOfModels,statsBatch{j}(:,4));
     %     xlabel('model');title('error covariance');
-if(~capturedDataFlag)
-    paramsUsed
-end 
+    if(~capturedDataFlag)
+      paramsUsed
+    end
     paramsEstimated
   end
   
