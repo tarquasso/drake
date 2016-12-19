@@ -100,39 +100,95 @@ posDiscIC = posDisc(idxIC,:);
 %maxHeight = maxHeightAfterScaling - touchPointAfterScaling + discRadius;
 
 if(generatePlot)
+plotFontSize = 18;
+xHandleFontSize = 20;
+yHandleFontSize = 20;
+
   %Add a line to the z coordinate
-  figure(21); hold on
+  figure(20); hold on;
+  set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+
   plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
   plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',2.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
   plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',2.0)
-  xlabel('time [s]')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Height $z \ [m]$','Interpreter','LaTex')
   %axis([-inf inf minHeight maxHeight])
   title(['Height z - Unseparated (',dataSetName,')'])
-  typeofPlot = 'z';
-  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
 
 if(generatePlot)
+
+  figure(21); clf; hold on
+    set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',3.5)
+  plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
+  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.5)
+  %axis([-inf inf minHeight maxHeight])
+  title(['Height z - Separated (',dataSetName,')'])
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Height $z \ [m]$','Interpreter','LaTex')
   
-  figure(22); clf; hold on
-  plot(timeStepsNC,posDiscNC(:,3),'g.','LineWidth',3.0)
+  figure(22); clf; hold on;
+    set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',3.0)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
   plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.0)
   %axis([-inf inf minHeight maxHeight])
   title(['Height z - Separated (',dataSetName,')'])
-  xlabel('time [s]')
-  ylabel('z')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Height $z \ [m]$','Interpreter','LaTex')
+  
+  figure(25); clf; hold on
+    set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  plot(timeStepsNC,posDiscNC(:,3),'r.','LineWidth',3.0,'markers',12)
+  plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
+  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.0,'markers',12)
+  %axis([-inf inf minHeight maxHeight])
+  title(['Height z - Fit Result (',dataSetName,')'])
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Height $z \ [m]$','Interpreter','LaTex')
   
   figure(23);clf; hold on;
-  xlabel('time [s]')
-  ylabel('zd')
-  title(['Velocity zd',' (',dataSetName,')'])
+    set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Velocity $\dot{z} \ [\frac{m}{s}]$','Interpreter','LaTex')
+  title(['Velocity (Fitted)',' (',dataSetName,')'])
   
   figure(24);clf; hold on;
-  xlabel('time [s]')
-  ylabel('zdd')
-  title(['Acceleration zdd',' (',dataSetName,')'])
+    set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Acceleration $\ddot{z} \ [\frac{m}{s^2}]$','Interpreter','LaTex')
+  title(['Acceleration (Fitted)',' (',dataSetName,')'])
   
 end
 
@@ -172,13 +228,33 @@ end
 
 %% more plotting
 if(generatePlot)
-  figure(22)
-  typeofPlot = 'z';
+  figure(20)
+  typeofPlot = 'z_unsep';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(21)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(zIC{1})*1.01 max(zNC{1})*1.01])
+  typeofPlot = 'z_plain';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+
+  figure(22)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(zIC{1})*1.01 max(zNC{1})*1.01])
+
+  typeofPlot = 'z';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options); 
+  figure(25)
+  axis([timeStepsNC{1}(end)*1.02 timeStepsIC{2}(1)*0.98 min(zIC{1})*1.05 max(zNC{2})*1.05])
+
+  typeofPlot = 'z_zoom';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
   figure(23)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) -inf inf])
   typeofPlot = 'zd';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+
   figure(24)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) -inf inf])
   typeofPlot = 'zdd';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
@@ -256,8 +332,8 @@ for j = 1:numOfSetsNew
    
   if(generatePlot)
     figure(22);
-    plot(timeStepsSplit{j}(1),posDiscSplit{j}(1,3),'m*','LineWidth',4.5)
-    plot(timeStepsSplit{j}(end),posDiscSplit{j}(end,3),'k*','LineWidth',4.5)
+    plot(timeStepsSplit{j}(1),posDiscSplit{j}(1,3),'m*','LineWidth',2.5)
+    plot(timeStepsSplit{j}(end),posDiscSplit{j}(end,3),'k*','LineWidth',2.5)
   end
 end
 
@@ -338,21 +414,28 @@ for j = 1: numOfSets
   
   if(generatePlot)
     figure(22);
-    p1 = plot(timeStepsExpandedUseful{j},z{j});
+    p1 = plot(timeStepsExpandedUseful{j},z{j},'-b','LineWidth',0.5,'markers',12);
     %     p1 = plot(zfit{j},timeStepsExpanded{j},z{j});%,[timeInterval{j}])\
-    p1(1).LineWidth = 1;
-    plot(timeStepsExpanded{j},z_pred{j},'r');
+    %p1(1).LineWidth = 0.5;
+    plot(timeStepsExpanded{j},z_pred{j}(:,1),'-g','LineWidth',0.4);
+    plot(timeStepsExpanded{j},z_pred{j}(:,1),'-m','LineWidth',0.4);
+
     %plot(zfit{j},'predobs');
         
+    figure(25);
+    plot(timeStepsExpandedUseful{j},z{j},'-b','LineWidth',0.5,'markers',8);
+    plot(timeStepsExpanded{j},z_pred{j}(:,1),'-g','LineWidth',0.4,'markers',8);
+    plot(timeStepsExpanded{j},z_pred{j}(:,2),'-m','LineWidth',0.4,'markers',8);
+
     figure(23)
-    p2 = plot(timeStepsExpandedUseful{j},zd{j},'.');
+    p2 = plot(timeStepsExpandedUseful{j},zd{j},'.r','LineWidth',0.9,'markers',10);
     p2(1).LineWidth = 1;
-    plot(timeStepsExpandedUseful{j},zd{j});
+    plot(timeStepsExpandedUseful{j},zd{j},'-k','LineWidth',0.9,'markers',10);
     
     figure(24)
-    p3 = plot(timeStepsExpandedUseful{j},zdd{j},'.');
+    p3 = plot(timeStepsExpandedUseful{j},zdd{j},'.r','LineWidth',0.9,'markers',10);
     p3(1).LineWidth = 1;
-    plot(timeStepsExpandedUseful{j},zdd{j});
+    plot(timeStepsExpandedUseful{j},zdd{j},'-k','LineWidth',0.9,'markers',10);
   end
   
   %% Generate more data
@@ -406,10 +489,9 @@ for j = 1: numOfSets
   if(generatePlot)
     figure(22);
     p1 = plot(timeSteps{j},z{j});
-    p1(1).LineWidth = 1;
+    p1(1).LineWidth = 0.6;
     %plot the predicition bounds:
-    plot(timeSteps{j},zpred{j},'r');
-
+    plot(timeSteps{j},zpred{j},'.-k','LineWidth',0.5);
     figure(23)
     p2 = plot(timeSteps{j},zd{j},'.');
     p2(1).LineWidth = 1;

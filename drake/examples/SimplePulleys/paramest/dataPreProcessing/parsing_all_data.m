@@ -1,8 +1,8 @@
 %% Parse in all data files 4-6
 
 %% SET 5 - A
-clear all
-%close all
+%clear all
+close all
 clc
 dataSetFolder = 'set5';
 name = '16-May-2015 20_46_41';
