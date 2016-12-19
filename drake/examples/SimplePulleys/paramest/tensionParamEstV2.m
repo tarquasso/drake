@@ -269,21 +269,21 @@ if(calcOneDofProblem)
     plot(timeStepsIC{j}',zICAdj{j}','-.ob')
     hold on
     ylabel('z')
-    xlabel('t')
+    xlabel('Time $t \ [s]$','Interpreter','LaTex')
     title('Z 1-D Model')
     
     subplot(3,1,2)
     plot(timeStepsIC{j}',zdIC{j}','-.ob')
     hold on
     ylabel('zd')
-    xlabel('t')
+    xlabel('Time $t \ [s]$','Interpreter','LaTex')
     title('ZD 1-D Model')
     
     subplot(3,1,3)
     plot(timeStepsIC{j}',zddIC{j}','-.ob')
     hold on
     ylabel('zdd')
-    xlabel('t')
+    xlabel('Time $t \ [s]$','Interpreter','LaTex')
     title('ZDD 1-D Model')
     
     
@@ -533,23 +533,25 @@ for j = 1: numOfSets
   
   subplot(3,1,1)
   plot(timeStepsIC{j},thetaIC{j},'-..r')
-  title('theta')
   hold on
-  ylabel('theta')
-  xlabel('t')
-  
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Angle $theta \ [rad]$','Interpreter','LaTex')
+  title('Angle Virtual Pulley $\theta$','Interpreter','Latex');
+
   subplot(3,1,2)
   plot(timeStepsIC{j},thetadIC{j},'-..r')
   hold on
-  title('thetad')
-  ylabel('thetad')
-  xlabel('t')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Angular Velocity $\dot{\theta} \ [\frac{rad}{s}]$','Interpreter','LaTex')
+  title('Angular Velocity Virtual Pulley $\dot{\theta}$','Interpreter','Latex');
+
   subplot(3,1,3)
   plot(timeStepsIC{j},thetaddIC{j},'-..r')
   hold on
-  title('thetadd')
-  ylabel('thetadd')
-  xlabel('t')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')    
+  ylabel('Angular Acceleration $\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
+  title('Angular Acceleration Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
+
 end
 
 figure(502)
