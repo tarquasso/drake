@@ -23,8 +23,8 @@ load(fullFilename)
 [pathstr,name,ext] = fileparts(fullFilename);
 
 %% flags that define what part to execute
-calcBSurfaceFlag = true;
-calcOneDofProblem = true; % calculating one dof problem
+calcBSurfaceFlag = false;
+calcOneDofProblem = false; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
 
@@ -519,9 +519,90 @@ else
   end
 end
 
+thetaNC = zNC;
+for k=1:length(thetaNC)
+thetaNC{k} = 0*thetaNC{k};
+end
+thetadNC = thetaNC;
+thetaddNC = thetaNC;
 
-%figure(500); clf; hold on;
-figure(502); clf; hold on;
+plotFontSize = 12;
+xHandleFontSize = 17;
+yHandleFontSize = 17;
+
+figure(502); clf;
+
+% [ha, pos] = tight_subplot(3,1,[0. .1],[.1 .1],[.1 .1]); 
+
+subplot(3,1,1); hold on
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+set(gca,'XTick',[]);
+%xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\theta \ [rad]$','Interpreter','LaTex')
+title('Virtual Pulley Angle and Derivatives ($\theta, \dot{\theta} , \ddot{\theta}$)','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaIC{1})*1.01 max(thetaNC{1})*1.01])
+
+subplot(3,1,2); hold on
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+set(gca,'XTick',[]);
+%xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\dot{\theta} \ [\frac{rad}{s}]$','Interpreter','LaTex')
+%title('Angular Velocity of the Virtual Pulley $\dot{\theta}$','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetadIC{1})*1.01 max(thetadIC{1})*1.01])
+
+subplot(3,1,3); hold on;
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
+%title('Angular Acceleration of the Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaddIC{1})*1.01 max(thetaddIC{1})*1.01])
+
+figure(503); clf; hold on
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\theta \ [rad]$','Interpreter','LaTex')
+% title('Virtual Pulley Angle and Derivatives ($\theta, \dot{\theta} , \ddot{\theta}$)','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaIC{1})*1.01 max(thetaNC{1})*1.01])
+
+figure(504); clf; hold on
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\dot{\theta} \ [\frac{rad}{s}]$','Interpreter','LaTex')
+%title('Angular Velocity of the Virtual Pulley $\dot{\theta}$','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetadIC{1})*1.01 max(thetadIC{1})*1.01])
+
+figure(505); clf; hold on
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('$\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
+%title('Angular Acceleration of the Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
+axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaddIC{1})*1.01 max(thetaddIC{1})*1.01])
+
+
 for j = 1: numOfSets
   
   %figure(500);
@@ -530,32 +611,52 @@ for j = 1: numOfSets
   %p(1).LineWidth = 2;
   
   figure(502);
-  
   subplot(3,1,1)
-  plot(timeStepsIC{j},thetaIC{j},'-..r')
-  hold on
-  xlabel('Time $t \ [s]$','Interpreter','LaTex')
-  ylabel('Angle $theta \ [rad]$','Interpreter','LaTex')
-  title('Angle Virtual Pulley $\theta$','Interpreter','Latex');
+  plot(timeStepsIC{j},thetaIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetaNC{j},'-..b','markers',5)
 
   subplot(3,1,2)
-  plot(timeStepsIC{j},thetadIC{j},'-..r')
-  hold on
-  xlabel('Time $t \ [s]$','Interpreter','LaTex')
-  ylabel('Angular Velocity $\dot{\theta} \ [\frac{rad}{s}]$','Interpreter','LaTex')
-  title('Angular Velocity Virtual Pulley $\dot{\theta}$','Interpreter','Latex');
-
+  plot(timeStepsIC{j},thetadIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetadNC{j},'-..b','markers',5)
+  
   subplot(3,1,3)
-  plot(timeStepsIC{j},thetaddIC{j},'-..r')
-  hold on
-  xlabel('Time $t \ [s]$','Interpreter','LaTex')    
-  ylabel('Angular Acceleration $\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
-  title('Angular Acceleration Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
+  plot(timeStepsIC{j},thetaddIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetaddNC{j},'-..b','markers',5)
+  
+  
+  figure(503);
+  plot(timeStepsIC{j},thetaIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetaNC{j},'-..b','markers',5)
+  
+  figure(504);
+  plot(timeStepsIC{j},thetadIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetadNC{j},'-..b','markers',5)
 
+  figure(505);
+  plot(timeStepsIC{j},thetaddIC{j},'-..r','markers',9)
+  plot(timeStepsNC{j},thetaddNC{j},'-..b','markers',5)
+  
 end
+ 
 
-figure(502)
+
+figure(502);
 typeofPlot = 'alltheta';
+optionsPlot.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+
+figure(503);
+typeofPlot = 'theta';
+optionsPlot.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+
+figure(504);
+typeofPlot = 'thetad';
+optionsPlot.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+
+figure(505);
+typeofPlot = 'thetadd';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
 
