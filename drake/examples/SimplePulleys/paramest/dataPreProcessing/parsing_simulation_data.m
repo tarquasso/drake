@@ -168,8 +168,8 @@ modeNC = 1;
 modeIC = 2;
 idxNC = find (xTrimmed(1,:) == modeNC);
 idxIC = find (xTrimmed(1,:) == modeIC);
-timeStepsSplitNC = timeSteps(idxNC);
-timeStepsSplitIC = timeSteps(idxIC);
+timeStepsNC = timeSteps(idxNC);
+timeStepsIC = timeSteps(idxIC);
 xTrimmedNC = xTrimmed(:,idxNC);
 xTrimmedIC = xTrimmed(:,idxIC);
 
@@ -177,14 +177,17 @@ xTrimmedIC = xTrimmed(:,idxIC);
 if(generatePlot)
     %Add a line to the z coordinate
     figure(21); hold on; grid on;
-    plot(timeSteps,xTrimmed(4,:),'g','LineWidth',1.0);
-    plot(timeStepsSplitNC,xTrimmedNC(4,:),'b.','LineWidth',2.0)
+    %plot(timeSteps,xTrimmed(4,:),'g','LineWidth',1.0);
+    plot(timeStepsNC,xTrimmedNC(4,:),'b.','LineWidth',2.0,'markers',12)
     plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
-    plot(timeStepsSplitIC,xTrimmedIC(4,:),'r.','LineWidth',2.0)
-    xlabel('time [s]')
+    plot(timeStepsIC,xTrimmedIC(4,:),'r.','LineWidth',2.0,'markers',12)
+    xlabel('time $t [s]$','Interpreter','LaTex')
+    ylabel('$z$','Interpreter','LaTex')
+
     %axis([-inf inf minHeight maxHeight])
-    plotName = ['Height z - Unseparated (',dataSetName,')'];
+    plotName = ['Height z - Unseparated (',dataSetName,')','Interpreter','LaTex'];
     title(plotName);
+    axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmedIC(4,:))*1.01 max(xTrimmedNC(4,:))*1.01])
     typeofPlot = 'z';
     options.Format = 'eps';
     hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -194,9 +197,9 @@ end
 if(generatePlot)
     
     figure(22); clf; hold on; grid on;
-    plot(timeStepsSplitNC,xTrimmedNC(4,:),'g.','LineWidth',3.0)
+    %plot(timeStepsNC,xTrimmedNC(4,:),'g.','LineWidth',3.0)
     plot(timeSteps(1,[1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
-    plot(timeStepsSplitIC,xTrimmedIC(4,:),'r.','LineWidth',3.0)
+    %plot(timeStepsIC,xTrimmedIC(4,:),'r.','LineWidth',3.0)
     %axis([-inf inf minHeight maxHeight])
     xlabel('time $t [s]$','Interpreter','LaTex')
     ylabel('$z$','Interpreter','LaTex')
@@ -213,8 +216,8 @@ if(generatePlot)
     title(['Acceleration $\ddot{z}$',' (',dataSetName,')'],'Interpreter','LaTex')
     
     figure(32); clf; hold on; grid on;
-    plot(timeStepsSplitNC,xTrimmedNC(2,:),'g.','LineWidth',3.0)
-    plot(timeStepsSplitIC,xTrimmedIC(2,:),'r.','LineWidth',3.0)
+    %plot(timeStepsNC,xTrimmedNC(2,:),'g.','LineWidth',3.0)
+    %plot(timeStepsIC,xTrimmedIC(2,:),'r.','LineWidth',3.0)
     %axis([-inf inf minHeight maxHeight])
     xlabel('time $t [s]$','Interpreter','LaTex')
     ylabel('$\theta$','Interpreter','LaTex')
@@ -231,8 +234,8 @@ if(generatePlot)
     title(['Angular Acceleration $\ddot{\theta}$',' (',dataSetName,')'],'Interpreter','LaTex')
     
     figure(42); clf; hold on; grid on;
-    plot(timeStepsSplitNC,xTrimmedNC(3,:),'g.','LineWidth',3.0)
-    plot(timeStepsSplitIC,xTrimmedIC(3,:),'r.','LineWidth',3.0)
+    %plot(timeStepsNC,xTrimmedNC(3,:),'g.','LineWidth',3.0)
+    %plot(timeStepsIC,xTrimmedIC(3,:),'r.','LineWidth',3.0)
     %axis([-inf inf minHeight maxHeight])
     xlabel('time [s]')
     ylabel('$x$','Interpreter','LaTex')
@@ -257,57 +260,67 @@ typeIC = 'NoSplit';
 minDataPointsIC = 5;
 [numOfSetsIC,timeStepsSplitIC,xTrimmedSplitIC,xdTrimmedSplitIC] = extractSetsSim(idxIC,timeSteps,xTrimmed,xdTrimmed,minDataPointsIC,typeIC);
 
+typeNC = 'NC';
+[timeStepsSplitNC,thetaNC,thetadNC,thetaddNC,xNC,xdNC,xddNC,zNC,zdNC,zddNC] = ...
+  extractIndividualStates(numOfSetsNC,timeStepsSplitNC, xTrimmedSplitNC,xdTrimmedSplitNC,typeNC);
 
-[timeStepsNC,thetaNC,thetadNC,thetaddNC,xNC,xdNC,xddNC,zNC,zdNC,zddNC] = ...
-  extractIndividualStates(numOfSetsNC,timeStepsSplitNC, xTrimmedSplitNC,xdTrimmedSplitNC);
-
-[timeStepsIC,thetaIC,thetadIC,thetaddIC,xIC,xdIC,xddIC,zIC,zdIC,zddIC] = ...
-  extractIndividualStates(numOfSetsIC,timeStepsSplitIC, xTrimmedSplitIC,xdTrimmedSplitIC);
+typeIC = 'IC';
+[timeStepsSplitIC,thetaIC,thetadIC,thetaddIC,xIC,xdIC,xddIC,zIC,zdIC,zddIC] = ...
+  extractIndividualStates(numOfSetsIC,timeStepsSplitIC, xTrimmedSplitIC,xdTrimmedSplitIC,typeIC);
 
 
 if(generatePlot)
   
   figure(22);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(4,:))*0.99 max(xTrimmed(4,:))*1.01])
   typeofPlot = 'zsep';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(23);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(7,:))*0.99 max(xTrimmed(7,:))*1.01])
   typeofPlot = 'zd';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(24);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xdTrimmed(7,:))*0.99 max(xdTrimmed(7,:))*1.01])
   typeofPlot = 'zdd';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(32);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(2,:))*0.99 max(xTrimmed(2,:))*1.01])
   typeofPlot = 'theta';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(33);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(5,:))*0.99 max(xTrimmed(5,:))*1.01])
   typeofPlot = 'thetad';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(34);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xdTrimmed(5,:))*0.99 max(xdTrimmed(5,:))*1.01])
   typeofPlot = 'thetadd';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(42);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(3,:))*0.99 max(xTrimmed(3,:))*1.01])
   typeofPlot = 'x';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(43);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xTrimmed(6,:))*0.99 max(xTrimmed(6,:))*1.01])
   typeofPlot = 'xd';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(44);
+  axis([timeStepsNC(1) timeStepsNC(end) min(xdTrimmed(6,:))*0.99 max(xdTrimmed(6,:))*1.01])
   typeofPlot = 'xdd';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
