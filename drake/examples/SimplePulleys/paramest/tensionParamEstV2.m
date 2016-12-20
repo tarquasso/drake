@@ -1,5 +1,5 @@
 %% Set the following parameters to false after running it for the first time:
-clear all
+%clear all
 close all
 
 %% Parse in Optitrack Capture Data
@@ -23,7 +23,7 @@ load(fullFilename)
 [pathstr,name,ext] = fileparts(fullFilename);
 
 %% flags that define what part to execute
-calcBSurfaceFlag = false;
+calcBSurfaceFlag = true;
 calcOneDofProblem = false; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
@@ -37,6 +37,7 @@ calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for 
 % generatePlot = true;
 
 %% Estimate bsurface
+
 if(calcBSurfaceFlag)
   
   numOfSetsNC = size(zdNC,1);
@@ -49,8 +50,17 @@ if(calcBSurfaceFlag)
   rangeTested = 1:numOfSetsNC;
   
   figure(30);clf;
+  
   figure(40);clf;hold on;
-  title('force')
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  title('Force Estimate Individual')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Force $F \ [N]$','Interpreter','LaTex')
+  
   figure(41);clf;hold on;
   title('residuals')
   
@@ -80,9 +90,9 @@ if(calcBSurfaceFlag)
     hold on;
     %plot(t,qdd,'k');
     figure(40)
-    plot(t,force{j},'-..');
-    plot(t,forcehat{j},'r-*'); %,t,forcehat{j},'r*');
-    h = legend('$f$','$\hat{f}$');
+    plot(t,force{j},'.-.r');
+    plot(t,forcehat{j},'-*k'); %,t,forcehat{j},'r*');
+    h = legend('Data','Estimate','Location','NorthWest');
     set(h,'Interpreter','Latex');
     figure(41)
     plot(t,r{j},'-..');
@@ -106,9 +116,7 @@ if(calcBSurfaceFlag)
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
-  figure(40);
-  title('force')
-  
+  figure(40);    
   typeofPlot = 'bsurface_force';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -120,22 +128,38 @@ if(calcBSurfaceFlag)
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
+  plotFontSize = 17;
+  xHandleFontSize = 17;
+  yHandleFontSize = 17;
+  
+  figure(34); clf; hold on;
+  i = 1;
+  ylabel(['$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
+  xlabel('Data Set Number');
+  title(['Surface Friction ','$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
+
+  %axis([-inf inf 0.0 1])
+  
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
   for i = 1:1
-    bSlip = bsurfaceEst(rangeTested,i);
-    bSlipMean = mean(bSlip);
-    
-    figure(33+i); clf; hold on;
-    plot(rangeTested,bSlip);
-    plot(rangeTested,bSlip,'r.','LineWidth',2);
-    plot(rangeTested([1,end]),[bSlipMean,bSlipMean]);
-    ylabel(['b_',i,' friction coeff']);
-    xlabel('data set number');
-    legend('experiment value','mean')
-    title(['b_',i,' Friction']);
-    %axis([-inf inf 0.0 1])
+      bSlip = bsurfaceEst(rangeTested,i);
+      bSlipMean = mean(bSlip);
+      
+      figure(33+i);
+      %plot(rangeTested,bSlip);
+      plot(rangeTested,bSlip,'.-.k','LineWidth',2,'MarkerEdgeColor','r','MarkerFaceColor','r','markers',22);
+      plot(rangeTested([1,end]),[bSlipMean,bSlipMean],'LineWidth',2);
+    legend('Individual Phases','Mean','Location','NorthWest');
+
   end
   %% Estimate All Data
   figure(34)
+
   typeofPlot = 'bsurface';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -181,16 +205,38 @@ if(calcBSurfaceFlag)
   figure(52);clf; hold on;
   plot(tBatch,qddBatch,'k');
   title('zddBatch')
-  figure(53);clf; hold on;
-  plot(tBatch,frictionForceBatch,'k',tBatch,frictionForceBatch,'k.');
-  plot(tBatch,frictionForcehatBatch,'r',tBatch,frictionForcehatBatch,'r*');
-  h = legend('Friction Force Data','','Friction Force Estimated','');
-  title('forceBatch')
-  %set(h,'Interpreter','Latex');
-  figure(54)
-  plot(tBatch,residualsBatch,'k.',tBatch,residualsBatch,'k');
-  title('residualsBatch')
   
+  figure(53);clf; hold on;
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  plot(tBatch,frictionForceBatch,'.r','markers',12);
+  plot(tBatch,frictionForcehatBatch,'*k','markers',8);
+  legend('Data','Estimated','Location','NorthWest');
+  title('Force Estimate Batch')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('Force $F \ [N]$','Interpreter','LaTex')
+  
+    typeofPlot = 'bsurface_force_batch';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
+  figure(54); hold on  
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  plot(tBatch,residualsBatch,'.k');
+  title('residualsBatch')
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('residuals','Interpreter','LaTex')
+  
+
   %% Test out the estimate
   for j = rangeTestedBatch
     
@@ -526,9 +572,7 @@ end
 thetadNC = thetaNC;
 thetaddNC = thetaNC;
 
-plotFontSize = 12;
-xHandleFontSize = 17;
-yHandleFontSize = 17;
+
 
 figure(502); clf;
 
