@@ -23,10 +23,11 @@ load(fullFilename)
 [pathstr,name,ext] = fileparts(fullFilename);
 
 %% flags that define what part to execute
-calcBSurfaceFlag = true;
+calcBSurfaceFlag = false;
 calcOneDofProblem = false; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
+parameterEstimationStep = false;
 
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
 calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for all contact phases as one data set
@@ -575,9 +576,6 @@ thetaddNC = thetaNC;
 
 
 figure(502); clf;
-
-% [ha, pos] = tight_subplot(3,1,[0. .1],[.1 .1],[.1 .1]); 
-
 subplot(3,1,1); hold on
 set(gca,'FontSize',plotFontSize)
 xhandle=get(gca,'Xlabel');
@@ -613,34 +611,48 @@ ylabel('$\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
 %title('Angular Acceleration of the Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
 axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaddIC{1})*1.01 max(thetaddIC{1})*1.01])
 
-figure(503); clf; hold on
-set(gca,'FontSize',plotFontSize)
+plotFontSizeWide = 30;
+xHandleFontSizeWide = 30;
+yHandleFontSizeWide = 30;
+markerSizeICWide = 30;
+markerSizeNCWide = 15;
+lineWidthSizeWide = 3.5;
+
+sizeDescriptor = [.1 .1 1 .4];
+hFig1 = figure(503); clf; hold on
+set(hFig1,'units','normalized','position',sizeDescriptor);
+
+set(gca,'FontSize',plotFontSizeWide)
 xhandle=get(gca,'Xlabel');
 yhandle=get(gca,'Ylabel');
-set(xhandle,'Fontsize',xHandleFontSize)
-set(yhandle,'Fontsize',yHandleFontSize)
+set(xhandle,'Fontsize',xHandleFontSizeWide)
+set(yhandle,'Fontsize',yHandleFontSizeWide)
 xlabel('Time $t \ [s]$','Interpreter','LaTex')
 ylabel('$\theta \ [rad]$','Interpreter','LaTex')
 % title('Virtual Pulley Angle and Derivatives ($\theta, \dot{\theta} , \ddot{\theta}$)','Interpreter','Latex');
 axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaIC{1})*1.01 max(thetaNC{1})*1.01])
 
-figure(504); clf; hold on
-set(gca,'FontSize',plotFontSize)
+hFig2 = figure(504); clf; hold on
+set(hFig2,'units','normalized','position',sizeDescriptor);
+
+set(gca,'FontSize',plotFontSizeWide)
 xhandle=get(gca,'Xlabel');
 yhandle=get(gca,'Ylabel');
-set(xhandle,'Fontsize',xHandleFontSize)
-set(yhandle,'Fontsize',yHandleFontSize)
+set(xhandle,'Fontsize',xHandleFontSizeWide)
+set(yhandle,'Fontsize',yHandleFontSizeWide)
 xlabel('Time $t \ [s]$','Interpreter','LaTex')
 ylabel('$\dot{\theta} \ [\frac{rad}{s}]$','Interpreter','LaTex')
 %title('Angular Velocity of the Virtual Pulley $\dot{\theta}$','Interpreter','Latex');
 axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetadIC{1})*1.01 max(thetadIC{1})*1.01])
 
-figure(505); clf; hold on
-set(gca,'FontSize',plotFontSize)
+hFig3 =figure(505); clf; hold on
+set(hFig3,'units','normalized','position',sizeDescriptor);
+
+set(gca,'FontSize',plotFontSizeWide)
 xhandle=get(gca,'Xlabel');
 yhandle=get(gca,'Ylabel');
-set(xhandle,'Fontsize',xHandleFontSize)
-set(yhandle,'Fontsize',yHandleFontSize)
+set(xhandle,'Fontsize',xHandleFontSizeWide)
+set(yhandle,'Fontsize',yHandleFontSizeWide)
 xlabel('Time $t \ [s]$','Interpreter','LaTex')
 ylabel('$\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
 %title('Angular Acceleration of the Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
@@ -669,16 +681,16 @@ for j = 1: numOfSets
   
   
   figure(503);
-  plot(timeStepsIC{j},thetaIC{j},'-..r','markers',9)
-  plot(timeStepsNC{j},thetaNC{j},'-..b','markers',5)
+  plot(timeStepsIC{j},thetaIC{j},'-..r','LineWidth',lineWidthSizeWide,'markers',markerSizeICWide)
+  plot(timeStepsNC{j},thetaNC{j},'-..b','LineWidth',lineWidthSizeWide,'markers',markerSizeNCWide)
   
   figure(504);
-  plot(timeStepsIC{j},thetadIC{j},'-..r','markers',9)
-  plot(timeStepsNC{j},thetadNC{j},'-..b','markers',5)
+  plot(timeStepsIC{j},thetadIC{j},'-..r','LineWidth',lineWidthSizeWide,'markers',markerSizeICWide)
+  plot(timeStepsNC{j},thetadNC{j},'-..b','LineWidth',lineWidthSizeWide,'markers',markerSizeNCWide)
 
   figure(505);
-  plot(timeStepsIC{j},thetaddIC{j},'-..r','markers',9)
-  plot(timeStepsNC{j},thetaddNC{j},'-..b','markers',5)
+  plot(timeStepsIC{j},thetaddIC{j},'-..r','LineWidth',lineWidthSizeWide,'markers',markerSizeICWide)
+  plot(timeStepsNC{j},thetaddNC{j},'-..b','LineWidth',lineWidthSizeWide,'markers',markerSizeNCWide)
   
 end
  
@@ -724,7 +736,9 @@ if(generateDataPointsInBetween)
     [thetad2{j}, thetadd2{j}] = differentiate(thetafitIC{j},timeSteps2{j});
   end
 end
+
 %% Initial Parameter Guesses
+if(parameterEstimationStep)
 
 %for dim =3
 % q = [theta{j}';...
@@ -950,4 +964,5 @@ if(calcAllOfOneCombinedFlag)
   
   
   
+end
 end
