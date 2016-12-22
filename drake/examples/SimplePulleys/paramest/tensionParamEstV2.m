@@ -136,7 +136,7 @@ if(calcBSurfaceFlag)
   figure(34); clf; hold on;
   i = 1;
   ylabel(['$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
-  xlabel('Data Set Number');
+  xlabel('Phase Number');
   title(['Surface Friction ','$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
 
   %axis([-inf inf 0.0 1])
@@ -368,13 +368,15 @@ if(calcOneDofProblem)
     errorbar(j,b0Est,b0EstErrLow,b0EstErrUp,...
       '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
     hold on;
-    xlabel('data set number');title('b0 of 1D Model');
+    xlabel('Phase Number');
+    title('b_0 of 1D Model');
     
     figure(202);
     errorbar(j,k0Est,k0EstErrLow,k0EstErrUp,...
       '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
     hold on;
-    xlabel('data set number');title('k0 of 1D Model');
+    xlabel('Phase Number');
+    title('k_0 of 1D Model');
     
   end
   
@@ -849,7 +851,7 @@ rangeOfModelsCell = strcat({'Model '},int2str(rangeOfModels.')).';
 figure(701); clf; hold on;
 errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('data set number');title('I0');
+xlabel('phase number');title('I0');
 legend(rangeOfModelsCell)
 typeofPlot = 'I0Est';
 options.Format = 'eps';
@@ -858,7 +860,7 @@ hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 figure(702); clf; hold on;
 errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('data set number');title('b0');
+xlabel('phase number');title('b0');
 legend(rangeOfModelsCell)
 typeofPlot = 'b0Est';
 options.Format = 'eps';
@@ -867,7 +869,7 @@ hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 figure(703); clf; hold on;
 errorbar(rangeOfSetsMat,k0Est,k0EstErrLow,k0EstErrUp,...
   '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('data set number');title('k0');
+xlabel('phase number');title('k0');
 legend(rangeOfModelsCell)
 typeofPlot = 'k0Est';
 options.Format = 'eps';
