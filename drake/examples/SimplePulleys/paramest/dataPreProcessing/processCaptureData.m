@@ -105,6 +105,20 @@ xHandleFontSize = 20;
 yHandleFontSize = 20;
 
   %Add a line to the z coordinate
+  figure(19); hold on;
+  set(gca,'FontSize',plotFontSize)  
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+%   plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
+  plot(timeStepsNC,posDiscNC(:,1),'b.','LineWidth',2.0,'markers',13)
+  plot(timeStepsIC,posDiscIC(:,1),'r.','LineWidth',2.0,'markers',13)
+  xlabel('Time $t \ [s]$','Interpreter','LaTex')
+  ylabel('$x \ [m]$','Interpreter','LaTex')
+  %axis([-inf inf minHeight maxHeight])
+  title(['Horizontal Coordinate $x$ - Separated (',dataSetName,')'],'Interpreter','LaTex')
+  
   figure(20); hold on;
   set(gca,'FontSize',plotFontSize)  
   xhandle=get(gca,'Xlabel');
@@ -112,14 +126,15 @@ yHandleFontSize = 20;
   set(xhandle,'Fontsize',xHandleFontSize)
   set(yhandle,'Fontsize',yHandleFontSize)
 
-  plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
-  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',2.0)
+  %plot(timeSteps,posDisc(:,i),'g','LineWidth',1.0);
+  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',2.0,'markers',13)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',2)
-  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',2.0)
+  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',2.0,'markers',13)
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Height $z \ [m]$','Interpreter','LaTex')
   %axis([-inf inf minHeight maxHeight])
   title(['Height z - Unseparated (',dataSetName,')'])
+  
 end
 
 if(generatePlot)
@@ -130,11 +145,11 @@ if(generatePlot)
   yhandle=get(gca,'Ylabel');
   set(xhandle,'Fontsize',xHandleFontSize)
   set(yhandle,'Fontsize',yHandleFontSize)
-  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',3.5)
+  plot(timeStepsNC,posDiscNC(:,3),'b.','LineWidth',3.5,'markers',13)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
-  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.5)
+  plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.5,'markers',13)
   %axis([-inf inf minHeight maxHeight])
-  title(['Height z - Separated (',dataSetName,')'])
+  title(['Height $z$ - Separated (',dataSetName,')'],'Interpreter','LaTex')
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Height $z \ [m]$','Interpreter','LaTex')
   
@@ -228,33 +243,45 @@ end
 
 %% more plotting
 if(generatePlot)
+  figure(19)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,1))*0.99 max(posDisc(:,1))*1.01])
+  grid on
+  typeofPlot = 'x_unsep';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  
   figure(20)
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,3))*0.99 max(posDisc(:,3))*1.01])
+  grid on
   typeofPlot = 'z_unsep';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(21)
   axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(zIC{1})*1.01 max(zNC{1})*1.01])
+  grid on
   typeofPlot = 'z_plain';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
   figure(22)
   axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(zIC{1})*1.01 max(zNC{1})*1.01])
-
+  grid on
   typeofPlot = 'z';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options); 
+  
   figure(25)
   axis([timeStepsNC{1}(end)*1.02 timeStepsIC{2}(1)*0.98 min(zIC{1})*1.05 max(zNC{2})*1.05])
-
+  grid on
   typeofPlot = 'z_zoom';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(23)
   axis([timeStepsNC{1}(1) timeStepsIC{end}(end) -inf inf])
+  grid on
   typeofPlot = 'zd';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
   figure(24)
   axis([timeStepsNC{1}(1) timeStepsIC{end}(end) -inf inf])
+  grid on
   typeofPlot = 'zdd';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 end
