@@ -221,5 +221,9 @@ classdef ChineseYoYo < HybridDrakeSystem
         ylabel('$z$', 'Interpreter', 'LaTeX', 'FontSize', 15)
       end
     end
+    function getManipulatorEquations()
+      r = ChineseYoYo();
+      [H,C_times_v,G,B] = r.in_contact.manipulatorEquations()
+    end
   end
 end

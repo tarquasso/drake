@@ -659,5 +659,10 @@ classdef SoftPaddleHybrid < HybridDrakeSystem
       axis('tight')
       ylabel('$u$','Interpreter','LaTeX')
     end
+    function getManipulatorEquations()
+      r = SoftPaddleHybrid();
+      % [H,C_times_v,G,B] = r.no_contact.manipulatorEquations()
+      [H,C_times_v,G,B] = r.in_contact.manipulatorEquations()
+    end
   end
 end
