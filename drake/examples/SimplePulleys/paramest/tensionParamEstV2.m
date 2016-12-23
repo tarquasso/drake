@@ -5,7 +5,7 @@ close all
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
 
-if(false)
+if(true)
   dataSetName = 'set5';
   name = '16-May-2015 20_46_41';
   filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
@@ -255,8 +255,8 @@ if(calcBSurfaceFlag)
   
   bSurfaceEstBatch(1)
   bsurface = bSurfBatch(1)
-  bfrictionSurfaceMin = bSurfBatchint(1)
-  bfrictionSurfaceMax = bSurfBatchint(2) 
+  bsurfaceMin = bSurfBatchint(1)
+  bsurfaceMax = bSurfBatchint(2) 
   
   
   figure(50);clf; hold on;
@@ -336,7 +336,7 @@ if(calcBSurfaceFlag)
   appendix = '_bSurface';
   fullFilenameBSurface = [filename,appendix,'.mat'];
   
-  save(fullFilenameBSurface, 'bsurface');
+  save(fullFilenameBSurface, 'bsurface', 'bsurfaceMin', 'bsurfaceMax');
 else
   appendix = '_bSurface';
   fullFilenameBSurface = [filename,appendix,'.mat'];
@@ -1064,10 +1064,16 @@ if(calcAllOfOneCombinedFlag)
     end
     
     paramsEstimated.I = bBatch{j}(1);
+    paramsEstimated.Iint = bintBatch{j}(1,:);
     paramsEstimated.b = bBatch{j}(2);
+    paramsEstimated.bint = bintBatch{j}(2,:);
     paramsEstimated.bSurface = bsurface;
+    paramsEstimated.bSurfaceint = [bsurfaceMin,bsurfaceMax];
     paramsEstimated.k = bBatch{j}(3);
-    paramsEstimated.lamdas = bBatch{j}(4:end)';
+    paramsEstimated.kint = bintBatch{j}(3,:);
+    paramsEstimated.lamdas = bBatch{j}(4:end);
+    paramsEstimated.lamdasint = bintBatch{j}(4:end,:);
+    
     
   end
   
@@ -1091,7 +1097,7 @@ set(yhandle,'Fontsize',yHandleFontSize)
 startIdx = 1;
 for j =rangeOfSets
   endIdx = length(timeStepsIC{j})+startIdx-1;
-  plot(timeStepsIC{j},paramsEstimated.lamdas(startIdx:endIdx)','.-.b','LineWidth',1.5,'markers',18)
+  plot(timeStepsIC{j},paramsEstimated.lamdas(startIdx:endIdx),'.-.b','LineWidth',1.5,'markers',18)
   startIdx = endIdx +1;
 end
 axis
