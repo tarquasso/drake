@@ -1,11 +1,11 @@
 %% Set the following parameters to false after running it for the first time:
-%clear all
+clear all
 close all
 
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
 
-if(true)
+if(false)
   dataSetName = 'set5';
   name = '16-May-2015 20_46_41';
   filename = ['~/soft_modeling_repo/dev/tracking/data/',dataSetName,'/',name];
@@ -23,11 +23,11 @@ load(fullFilename)
 [pathstr,name,ext] = fileparts(fullFilename);
 
 %% flags that define what part to execute
-calcBSurfaceFlag = false;
-calcOneDofProblem = false; % calculating one dof problem
+calcBSurfaceFlag = true;
+calcOneDofProblem = true; % calculating one dof problem
 calcThetaFlag = false;
 generateDataPointsInBetween = false;
-parameterEstimationStep = false;
+parameterEstimationStep = true;
 
 estimateParamsFminConFlag = false; %using fmin con to estimate the parameters for each contact phase individually
 calcAllOfOneCombinedFlag = true; % using fmincon to estimate the parameters for all contact phases as one data set
@@ -45,12 +45,24 @@ if(calcBSurfaceFlag)
   bsurfaceEstViscous = zeros(numOfSetsNC,2);
   force = cell(numOfSetsNC,1);
   forcehat = cell(numOfSetsNC,1);
+  rSurf= cell(numOfSetsNC,1);
+  rintSurf= cell(numOfSetsNC,1);
   r = cell(numOfSetsNC,1);
   bsurfaceEst = zeros(numOfSetsNC,3);
   
   rangeTested = 1:numOfSetsNC;
   
+  %plotting
+  plotFontSize = 14;
+  xHandleFontSize = 20;
+  yHandleFontSize = 20;
+ 
   figure(30);clf;
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
   
   figure(40);clf;hold on;
   set(gca,'FontSize',plotFontSize)
@@ -71,6 +83,10 @@ if(calcBSurfaceFlag)
     qd = [zdNC{j}'];
     qdd = [zddNC{j}'];
     [bsurfaceEst(j,:),force{j},forcehat{j},r{j},~] = ordinaryLeastSquaresNoContact(qd, qdd, angleDeg, mdisc);
+    [gammaSurf,wSurf] = ordinaryLeastSquaresNoContactPreProcess(qd, qdd, angleDeg, mdisc);
+    alphaSurf = 0.05; % 95% confidence level
+    
+    [bSurf(j,:),bSurfint(j,:),rSurf{j},rintSurf{j}] = regress(gammaSurf,wSurf,alphaSurf); %,statsBatch1d(k,:)
     
     %bsurfaceEstTustin(j,:) = ordinaryLeastSquaresNoContactTustin(qd, qdd, angleDeg, mdisc);
     
@@ -91,8 +107,8 @@ if(calcBSurfaceFlag)
     hold on;
     %plot(t,qdd,'k');
     figure(40)
-    plot(t,force{j},'.-.r');
-    plot(t,forcehat{j},'-*k'); %,t,forcehat{j},'r*');
+    plot(t,force{j},'.c','markers',12);
+    plot(t,forcehat{j},'.m','markers',12); %,t,forcehat{j},'r*');
     h = legend('Data','Estimate','Location','NorthWest');
     set(h,'Interpreter','Latex');
     figure(41)
@@ -100,6 +116,43 @@ if(calcBSurfaceFlag)
     %plot(t,r{j});
     
   end
+  
+  %Alternative plot with error bars
+  bfEst =   bSurf(rangeTested,1);
+  bfEstMean = mean(bfEst);
+  bfEstint =   bSurfint(rangeTested,:);
+  
+  bfEstErrLow = bfEst-bfEstint(:,1);
+  bfEstErrUp = bfEstint(:,2)-bfEst;
+  
+  figure(38);clf;hold on;
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  e = errorbar(rangeTested,bfEst,bfEstErrLow,bfEstErrUp,...
+    '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
+%   e.Marker = '*';
+% e.MarkerSize = 10;
+% e.Color = 'black';
+% e.CapSize = 15;
+
+  hold on;
+  
+  plot(rangeTested([1,end]),[bfEstMean,bfEstMean],'g','LineWidth',1.9);
+  
+  xlabel('Phase Number','Interpreter','Latex');
+  ylabel('$b_f \ [\frac{kg}{s^2}]$','Interpreter','Latex');
+  legend('Individual Phases','Mean','Location','NorthWest');
+  title('Surface Friction $b_f$','Interpreter','Latex');
+  grid on
+  axis([rangeTested(1) rangeTested(end) min(bfEstint(:,1)) max(bfEstint(:,2))])
+  typeofPlot = 'bsurface_errorbar';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+    
   
   figure(30);
   subplot(3,1,1)
@@ -133,13 +186,12 @@ if(calcBSurfaceFlag)
   xHandleFontSize = 17;
   yHandleFontSize = 17;
   
-  figure(34); clf; hold on;
+  figure(34); clf; hold on; grid on;
   i = 1;
-  ylabel(['$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
-  xlabel('Phase Number');
+  ylabel('$b_{f}$','Interpreter','LaTex');
+  xlabel('Phase Number','Interpreter','LaTex');
   title(['Surface Friction ','$b_{f,',num2str(i-1),'}$'],'Interpreter','LaTex');
 
-  %axis([-inf inf 0.0 1])
   
   set(gca,'FontSize',plotFontSize)
   xhandle=get(gca,'Xlabel');
@@ -156,11 +208,13 @@ if(calcBSurfaceFlag)
       plot(rangeTested,bSlip,'.-.k','LineWidth',2,'MarkerEdgeColor','r','MarkerFaceColor','r','markers',22);
       plot(rangeTested([1,end]),[bSlipMean,bSlipMean],'LineWidth',2);
     legend('Individual Phases','Mean','Location','NorthWest');
-
-  end
+    
+  end  
+  
   %% Estimate All Data
   figure(34)
-
+  axis([rangeTested(1) rangeTested(2) min(bSlip) max(bSlip)])
+  
   typeofPlot = 'bsurface';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -194,8 +248,16 @@ if(calcBSurfaceFlag)
   end
   
   [bSurfaceEstBatch,frictionForceBatch,frictionForcehatBatch,residualsBatch,~] = ordinaryLeastSquaresNoContact(qdBatch, qddBatch, angleDeg, mdisc);
+ [gammaSurfBatch,wSurfBatch] = ordinaryLeastSquaresNoContactPreProcess(qdBatch, qddBatch, angleDeg, mdisc);
+    alphaSurf = 0.05; % 95% confidence level
+    
+  [bSurfBatch,bSurfBatchint] = regress(gammaSurfBatch,wSurfBatch,alphaSurf); %,statsBatch1d(k,:)
   
-  bfrictionSurface = bSurfaceEstBatch(1)
+  bSurfaceEstBatch(1)
+  bsurface = bSurfBatch(1)
+  bfrictionSurfaceMin = bSurfBatchint(1)
+  bfrictionSurfaceMax = bSurfBatchint(2) 
+  
   
   figure(50);clf; hold on;
   plot(tBatch,qBatch,'k');
@@ -207,6 +269,10 @@ if(calcBSurfaceFlag)
   plot(tBatch,qddBatch,'k');
   title('zddBatch')
   
+  plotFontSize = 14;
+  xHandleFontSize = 20;
+  yHandleFontSize = 20;
+  
   figure(53);clf; hold on;
   set(gca,'FontSize',plotFontSize)
   xhandle=get(gca,'Xlabel');
@@ -214,8 +280,8 @@ if(calcBSurfaceFlag)
   set(xhandle,'Fontsize',xHandleFontSize)
   set(yhandle,'Fontsize',yHandleFontSize)
   
-  plot(tBatch,frictionForceBatch,'.r','markers',12);
-  plot(tBatch,frictionForcehatBatch,'*k','markers',8);
+  plot(tBatch,frictionForceBatch,'.c','markers',12);
+  plot(tBatch,frictionForcehatBatch,'.m','markers',12);
   legend('Data','Estimated','Location','NorthWest');
   title('Force Estimate Batch')
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
@@ -299,9 +365,25 @@ if(calcOneDofProblem)
   numOfSetsAdj1DOF = length(rangeOfSets1DOF);
   
   figure(101); clf; hold on;
+    set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
   
   figure(201); clf; hold on;
+    set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
   figure(202); clf; hold on;
+    set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
   
   for j = rangeOfSets1DOF
     tICBatch1d = [tICBatch1d,timeStepsIC{j}'];
@@ -365,18 +447,22 @@ if(calcOneDofProblem)
     k0EstErrUp = bintSingle1d{j,k}(k0Index,2)-bSingle1d{j,k}(k0Index);
     
     figure(201);
+    
     errorbar(j,b0Est,b0EstErrLow,b0EstErrUp,...
       '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
     hold on;
-    xlabel('Phase Number');
-    title('b_0 of 1D Model');
+    xlabel('Phase Number','Interpreter','Latex');
+    ylabel('$b_{1D} \ [\frac{kg}{s}]$ ','Interpreter','Latex');
+    title('Linear Damping $b_{1D}$ of 1D Model','Interpreter','Latex');
     
     figure(202);
     errorbar(j,k0Est,k0EstErrLow,k0EstErrUp,...
       '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
     hold on;
-    xlabel('Phase Number');
-    title('k_0 of 1D Model');
+    xlabel('Phase Number','Interpreter','Latex');
+    ylabel('$k_{1D} \ [\frac{kg}{s^2}]$ ','Interpreter','Latex');
+
+    title('Linear Stiffness $k_{1D}$ of 1D Model','Interpreter','Latex');
     
   end
   
@@ -576,6 +662,9 @@ thetadNC = thetaNC;
 thetaddNC = thetaNC;
 
 
+plotFontSize = 18;
+xHandleFontSize = 22;
+yHandleFontSize = 22;
 
 figure(502); clf;
 subplot(3,1,1); hold on
@@ -699,21 +788,25 @@ end
 
 
 figure(502);
+grid on;
 typeofPlot = 'alltheta';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
 
 figure(503);
+grid on;
 typeofPlot = 'theta';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
 
 figure(504);
+grid on;
 typeofPlot = 'thetad';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
 
 figure(505);
+grid on;
 typeofPlot = 'thetadd';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
@@ -829,7 +922,7 @@ for i=1:numOfSetsAdj
     l = rangeOfModels(j);
     I0Index = 1;
     I0Est(i,j) = b{i,j}(I0Index);
-    I0EstErrLow(i,j) = bint{i,j}(I0Index,1)-b{i,j}(I0Index);
+    I0EstErrLow(i,j) = b{i,j}(I0Index)-bint{i,j}(I0Index,1);
     I0EstErrUp(i,j) = bint{i,j}(I0Index,2)-b{i,j}(I0Index);
     
     b0Index = 1+1;
@@ -848,29 +941,70 @@ end
 rangeOfSetsMat = repmat(rangeOfSets',1,numOfModels);
 rangeOfModelsCell = strcat({'Model '},int2str(rangeOfModels.')).';
 
+
+plotFontSize = 17;
+xHandleFontSize = 20;
+yHandleFontSize = 20;
+
+
 figure(701); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
 errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
-  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('phase number');title('I0');
-legend(rangeOfModelsCell)
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
+xlabel('Phase Number','Interpreter','LaTex');
+ylabel('$I_s$','Interpreter','LaTex');
+title('Inertia $I_s$','Interpreter','LaTex');
+% legend(rangeOfModelsCell)
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(I0Est-I0EstErrLow) max(I0Est+I0EstErrUp)])
 typeofPlot = 'I0Est';
+grid on
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
 figure(702); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
 errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
-  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('phase number');title('b0');
-legend(rangeOfModelsCell)
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
+xlabel('Phase Number','Interpreter','LaTex');
+ylabel('$b$','Interpreter','LaTex');
+title('Damping $b$','Interpreter','LaTex');
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(b0Est-b0EstErrLow) max(b0Est+b0EstErrUp)])
+
+% legend(rangeOfModelsCell)
+grid on
 typeofPlot = 'b0Est';
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 
 figure(703); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
 errorbar(rangeOfSetsMat,k0Est,k0EstErrLow,k0EstErrUp,...
-  '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18);
-xlabel('phase number');title('k0');
-legend(rangeOfModelsCell)
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
+xlabel('Phase Number','Interpreter','LaTex');
+ylabel('$k$','Interpreter','LaTex');
+title('Stiffness $k$','Interpreter','LaTex');
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(k0Est-k0EstErrLow) max(k0Est+k0EstErrUp)])
+
+% legend(rangeOfModelsCell)
+grid on
 typeofPlot = 'k0Est';
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -931,40 +1065,61 @@ if(calcAllOfOneCombinedFlag)
     
     paramsEstimated.I = bBatch{j}(1);
     paramsEstimated.b = bBatch{j}(2);
-    paramsEstimated.bSurface = bfrictionSurface;
+    paramsEstimated.bSurface = bsurface;
     paramsEstimated.k = bBatch{j}(3);
     paramsEstimated.lamdas = bBatch{j}(4:end)';
-    figure(1000)
-    plot(tBatch,paramsEstimated.lamdas,'-.o')
-    title('Lambdas')
-    xlabel('time');
-    ylabel('force lambda');
     
-    typeofPlot = 'lambdas';
-    options.Format = 'eps';
-    hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
-    %     figure(801); clf; hold on;
-    %     plot(rangeOfModels,statsBatch{j}(:,1));
-    %     xlabel('model');title('Rsq statistics');
-    %
-    %     figure(802); clf; hold on;
-    %     plot(rangeOfModels,statsBatch{j}(:,2));
-    %     xlabel('model');title('F stat');
-    %
-    %     figure(803); clf; hold on;
-    %     plot(rangeOfModels,statsBatch{j}(:,3));
-    %     xlabel('model');title('p value');
-    %
-    %     figure(804); clf; hold on;
-    %     plot(rangeOfModels,statsBatch{j}(:,4));
-    %     xlabel('model');title('error covariance');
-    if(~capturedDataFlag)
-      paramsUsed
-    end
-    paramsEstimated
   end
   
+  appendix = '_estimates';
+  fullFilenameEstimates = [filename,appendix,'.mat'];
+  save(fullFilenameEstimates, 'paramsEstimated');%,'thetadfmincon');
   
-  
+else
+  appendix = '_estimates';
+  fullFilenameEstimates = [filename,appendix,'.mat'];
+  load(fullFilenameEstimates);
 end
+
+figure(1000);clf;hold on; grid on;
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
+startIdx = 1;
+for j =rangeOfSets
+  endIdx = length(timeStepsIC{j})+startIdx-1;
+  plot(timeStepsIC{j},paramsEstimated.lamdas(startIdx:endIdx)','.-.b','LineWidth',1.5,'markers',18)
+  startIdx = endIdx +1;
+end
+axis
+xlabel('time $t \ [s]$','Interpreter','LaTex');
+ylabel('$\hat{\lambda}$','Interpreter','LaTex');
+title('Estimated Contact Forces $\hat{\lambda}$','Interpreter','LaTex');
+axis([timeStepsIC{1}(1) timeStepsIC{end}(end) min(paramsEstimated.lamdas) max(paramsEstimated.lamdas)])
+
+typeofPlot = 'lambdas';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+%     figure(801); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,1));
+%     xlabel('model');title('Rsq statistics');
+%
+%     figure(802); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,2));
+%     xlabel('model');title('F stat');
+%
+%     figure(803); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,3));
+%     xlabel('model');title('p value');
+%
+%     figure(804); clf; hold on;
+%     plot(rangeOfModels,statsBatch{j}(:,4));
+%     xlabel('model');title('error covariance');
+if(~capturedDataFlag)
+  paramsUsed
+end
+paramsEstimated
 end

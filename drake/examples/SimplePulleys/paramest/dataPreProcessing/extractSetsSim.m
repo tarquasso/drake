@@ -54,7 +54,7 @@ timeStepsSplit = cell(numOfSetsNew,1);
 xTrimmedSplit = cell(numOfSetsNew,1);
 xdTrimmedSplit = cell(numOfSetsNew,1);
 
-
+markerSize = 12;
 for j = 1:numOfSetsNew
   idxExtended{j} = idxStartNew(j):idxEndNew(j);
   timeStepsSplit{j} = timeSteps(idxExtended{j});
@@ -63,8 +63,8 @@ for j = 1:numOfSetsNew
   
   if(generatePlot)
     figure(22);
-    plot(timeStepsSplit{j}(1),xTrimmedSplit{j}(4,1),'m*','LineWidth',4.5)
-    plot(timeStepsSplit{j}(end),xTrimmedSplit{j}(4,end),'k*','LineWidth',4.5)
+    plot(timeStepsSplit{j}(1),xTrimmedSplit{j}(4,1),'m*','LineWidth',4.5,'markers',markerSize)
+    plot(timeStepsSplit{j}(end),xTrimmedSplit{j}(4,end),'k*','LineWidth',4.5,'markers',markerSize)
   end
 end
 

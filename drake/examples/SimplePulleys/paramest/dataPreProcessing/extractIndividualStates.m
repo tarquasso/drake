@@ -47,41 +47,41 @@ if(typeIC)
 else
  colorCode =  'b';
 end
-
+markerSize = 12;
   figure(22);
-    p1 = plot(timeStepsSplitMode{j}',zMode{j},['-..',colorCode]);
+    p1 = plot(timeStepsSplitMode{j}',zMode{j},['-..',colorCode],'markers',markerSize);
     p1(1).LineWidth = 1;
     
     figure(23)
-    p2 = plot(timeStepsSplitMode{j}',zdMode{j},['-..',colorCode]);
+    p2 = plot(timeStepsSplitMode{j}',zdMode{j},['-..',colorCode],'markers',markerSize);
     p2(1).LineWidth = 1;
     
     figure(24)
-    p3 = plot(timeStepsSplitMode{j}',zddMode{j},['-..',colorCode]);
+    p3 = plot(timeStepsSplitMode{j}',zddMode{j},['-..',colorCode],'markers',markerSize);
     p3(1).LineWidth = 1;
   
     figure(32);
-    p1 = plot(timeStepsSplitMode{j}',thetaMode{j},['-..',colorCode]);
+    p1 = plot(timeStepsSplitMode{j}',thetaMode{j},['-..',colorCode],'markers',markerSize);
     p1(1).LineWidth = 1;
     
     figure(33)
-    p2 = plot(timeStepsSplitMode{j}',thetadMode{j},['-..',colorCode]);
+    p2 = plot(timeStepsSplitMode{j}',thetadMode{j},['-..',colorCode],'markers',markerSize);
     p2(1).LineWidth = 1;
     
     figure(34)
-    p3 = plot(timeStepsSplitMode{j}',thetaddMode{j},['-..',colorCode]);
+    p3 = plot(timeStepsSplitMode{j}',thetaddMode{j},['-..',colorCode],'markers',markerSize);
     p3(1).LineWidth = 1;
   
     figure(42);
-    p1 = plot(timeStepsSplitMode{j}',xMode{j},['-..',colorCode]);
+    p1 = plot(timeStepsSplitMode{j}',xMode{j},['-..',colorCode],'markers',markerSize);
     p1(1).LineWidth = 1;
     
     figure(43)
-    p2 = plot(timeStepsSplitMode{j}',xdMode{j},['-..',colorCode]);
+    p2 = plot(timeStepsSplitMode{j}',xdMode{j},['-..',colorCode],'markers',markerSize);
     p2(1).LineWidth = 1;
     
     figure(44)
-    p3 = plot(timeStepsSplitMode{j}',xddMode{j},['-..',colorCode]);
+    p3 = plot(timeStepsSplitMode{j}',xddMode{j},['-..',colorCode],'markers',markerSize);
     p3(1).LineWidth = 1;
 end
 end

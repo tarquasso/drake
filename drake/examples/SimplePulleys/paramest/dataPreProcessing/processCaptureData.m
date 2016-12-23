@@ -133,7 +133,7 @@ yHandleFontSize = 20;
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Height $z \ [m]$','Interpreter','LaTex')
   %axis([-inf inf minHeight maxHeight])
-  title(['Height z - Unseparated (',dataSetName,')'])
+  title(['Height $z$ - Unseparated (',dataSetName,')'],'Interpreter','LaTex')
   
 end
 
@@ -164,7 +164,7 @@ if(generatePlot)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
   plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.0)
   %axis([-inf inf minHeight maxHeight])
-  title(['Height z - Separated (',dataSetName,')'])
+  title(['Height $z$ - Separated (',dataSetName,')'],'Interpreter','LaTex')
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Height $z \ [m]$','Interpreter','LaTex')
   
@@ -179,7 +179,7 @@ if(generatePlot)
   plot(timeSteps([1,end]),[zTouch,zTouch],'g','LineWidth',1.5)
   plot(timeStepsIC,posDiscIC(:,3),'r.','LineWidth',3.0,'markers',12)
   %axis([-inf inf minHeight maxHeight])
-  title(['Height z - Fit Result (',dataSetName,')'])
+  title(['Height $z$ - Fit Result (',dataSetName,')'],'Interpreter','LaTex')
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Height $z \ [m]$','Interpreter','LaTex')
   
@@ -192,7 +192,7 @@ if(generatePlot)
   
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Velocity $\dot{z} \ [\frac{m}{s}]$','Interpreter','LaTex')
-  title(['Velocity (Fitted)',' (',dataSetName,')'])
+  title(['Velocity  $\dot{z}$ (Fitted)',' (',dataSetName,')'],'Interpreter','LaTex')
   
   figure(24);clf; hold on;
     set(gca,'FontSize',plotFontSize)  
@@ -203,7 +203,7 @@ if(generatePlot)
   
   xlabel('Time $t \ [s]$','Interpreter','LaTex')
   ylabel('Acceleration $\ddot{z} \ [\frac{m}{s^2}]$','Interpreter','LaTex')
-  title(['Acceleration (Fitted)',' (',dataSetName,')'])
+  title(['Acceleration $\ddot{z}$ (Fitted)',' (',dataSetName,')'],'Interpreter','LaTex')
   
 end
 
@@ -229,28 +229,30 @@ else
 ftNC = fittype( 'poly4' ); %results in a linear model for the acceleration change due to sliding friction
 zdd_lbNC = -inf;
 zdd_ubNC = 0.0;
+type = 'NC';
 [timeStepsNC,zNC,zdNC,zddNC,timeStepsLargeNC,zLargeNC,zdLargeNC,zddLargeNC,zfitNC] ...
-  = fitCurves(numOfSetsNC,timeStepsSplitNC, posDiscSplitNC,offsetStepNC,ftNC,zdd_lbNC,zdd_ubNC);
+  = fitCurves(numOfSetsNC,timeStepsSplitNC, posDiscSplitNC,offsetStepNC,ftNC,zdd_lbNC,zdd_ubNC,type);
 
 %% Setting up the fitting for the contact phase
 ftIC = fittype( 'poly5' );
 zdd_lbIC = -sind(angleDeg)*9.81*1/2; %half the gravitational force because we do not know the sliding friction yet
 %zdd_lbIC = -inf; %half the gravitational force because we do not know the sliding friction yet
 zdd_ubIC = inf;
+type = 'IC';
 [timeStepsIC,zIC,zdIC,zddIC,timeStepsLargeIC,zLargeIC,zdLargeIC,zddLargeIC,zfitIC] ...
-  = fitCurves(numOfSetsIC,timeStepsSplitIC, posDiscSplitIC,offsetStepIC,ftIC,zdd_lbIC,zdd_ubIC);
+  = fitCurves(numOfSetsIC,timeStepsSplitIC, posDiscSplitIC,offsetStepIC,ftIC,zdd_lbIC,zdd_ubIC,type);
 end
 
 %% more plotting
 if(generatePlot)
   figure(19)
-  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,1))*0.99 max(posDisc(:,1))*1.01])
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,1)) max(posDisc(:,1))])
   grid on
   typeofPlot = 'x_unsep';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
   
   figure(20)
-  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,3))*0.99 max(posDisc(:,3))*1.01])
+  axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(posDisc(:,3)) max(posDisc(:,3))])
   grid on
   typeofPlot = 'z_unsep';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -268,7 +270,7 @@ if(generatePlot)
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options); 
   
   figure(25)
-  axis([timeStepsNC{1}(end)*1.02 timeStepsIC{2}(1)*0.98 min(zIC{1})*1.05 max(zNC{2})*1.05])
+  axis([timeStepsNC{1}(end)*1.02 timeStepsIC{2}(1)*0.98 min(zIC{1}) max(zNC{2})])
   grid on
   typeofPlot = 'z_zoom';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
@@ -351,7 +353,7 @@ idxExtended = cell(numOfSetsNew,1);
 timeStepsSplit = cell(numOfSetsNew,1);
 posDiscSplit = cell(numOfSetsNew,1);
 
-
+markerSize = 12;
 for j = 1:numOfSetsNew
   idxExtended{j} = (idxStartNew(j)-offsetStep):(idxEndNew(j)+offsetStep);
   timeStepsSplit{j} = timeSteps(idxExtended{j});
@@ -359,15 +361,15 @@ for j = 1:numOfSetsNew
    
   if(generatePlot)
     figure(22);
-    plot(timeStepsSplit{j}(1),posDiscSplit{j}(1,3),'m*','LineWidth',2.5)
-    plot(timeStepsSplit{j}(end),posDiscSplit{j}(end,3),'k*','LineWidth',2.5)
+    plot(timeStepsSplit{j}(1),posDiscSplit{j}(1,3),'m*','LineWidth',2.5,'markers',markerSize)
+    plot(timeStepsSplit{j}(end),posDiscSplit{j}(end,3),'k*','LineWidth',2.5,'markers',markerSize)
   end
 end
 
 end
 
 function [timeStepsExpandedUseful,z,zd,zdd,timeStepsLarge,zLarge,zdLarge,zddLarge,zfit] = ...
-  fitCurves(numOfSets,timeSteps, posDisc,offsetStep,ft,zdd_lb,zdd_ub)
+  fitCurves(numOfSets,timeSteps, posDisc,offsetStep,ft,zdd_lb,zdd_ub,type)
 
 global generatePlot
 
@@ -440,29 +442,38 @@ for j = 1: numOfSets
   zdd{j} = zdd{j}(idxUseful);
   
   if(generatePlot)
+    typeIC = strcmp(type,'IC'); % no contact
+    
+    if(typeIC)
+      colorCode = 'r';
+      markerSize = 13;
+    else
+      colorCode =  'b';
+    markerSize = 10;
+    end
     figure(22);
-    p1 = plot(timeStepsExpandedUseful{j},z{j},'-b','LineWidth',0.5,'markers',12);
+    p1 = plot(timeStepsExpandedUseful{j},z{j},['-..',colorCode],'markers',8);
     %     p1 = plot(zfit{j},timeStepsExpanded{j},z{j});%,[timeInterval{j}])\
-    %p1(1).LineWidth = 0.5;
+    p1(1).LineWidth = 1;
     plot(timeStepsExpanded{j},z_pred{j}(:,1),'-g','LineWidth',0.4);
     plot(timeStepsExpanded{j},z_pred{j}(:,1),'-m','LineWidth',0.4);
 
     %plot(zfit{j},'predobs');
         
     figure(25);
-    plot(timeStepsExpandedUseful{j},z{j},'-b','LineWidth',0.5,'markers',8);
+    plot(timeStepsExpandedUseful{j},z{j},['-..',colorCode],'markers',8);
     plot(timeStepsExpanded{j},z_pred{j}(:,1),'-g','LineWidth',0.4,'markers',8);
     plot(timeStepsExpanded{j},z_pred{j}(:,2),'-m','LineWidth',0.4,'markers',8);
 
     figure(23)
-    p2 = plot(timeStepsExpandedUseful{j},zd{j},'.r','LineWidth',0.9,'markers',10);
+    p2 = plot(timeStepsExpandedUseful{j},zd{j},['-..',colorCode],'markers',markerSize);
     p2(1).LineWidth = 1;
-    plot(timeStepsExpandedUseful{j},zd{j},'-k','LineWidth',0.9,'markers',10);
+%     plot(timeStepsExpandedUseful{j},zd{j},'-k','LineWidth',0.9,'markers',10);
     
     figure(24)
-    p3 = plot(timeStepsExpandedUseful{j},zdd{j},'.r','LineWidth',0.9,'markers',10);
+    p3 = plot(timeStepsExpandedUseful{j},zdd{j},['-..',colorCode],'markers',markerSize);
     p3(1).LineWidth = 1;
-    plot(timeStepsExpandedUseful{j},zdd{j},'-k','LineWidth',0.9,'markers',10);
+%     plot(timeStepsExpandedUseful{j},zdd{j},'-k','LineWidth',0.9,'markers',10);
   end
   
   %% Generate more data
