@@ -29,8 +29,8 @@ errEndTime = 5.963;
 optiTrackWandScalingFactor = 1/2;
 
 maxHeightAfterScaling = 0.46;
-touchPointAfterScaling = 0.0558/2;
-staticSpringStrectchingPointAfterScaling = 0.0528/2;
+touchPointAfterScaling = 0.0279; % = 0.0558/2;
+staticSpringStrectchingPointAfterScaling = 0.0264; % =0.0528/2;
 minHeightAfterScaling = -0.03;
 
 processCaptureData(filename,expStartTime,expEndTime,maxHeightAfterScaling,...
