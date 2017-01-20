@@ -240,7 +240,7 @@ type = 'NC';
 
 %% Setting up the fitting for the contact phase
 ftIC = fittype( 'poly5' );
-zdd_lbIC = -sind(angleDeg)*9.81*1/2; %half the gravitational force because we do not know the sliding friction yet
+zdd_lbIC = -sind(angleDeg)*9.81; %half the gravitational force because we do not know the sliding friction yet
 %zdd_lbIC = -inf; %half the gravitational force because we do not know the sliding friction yet
 zdd_ubIC = inf;
 type = 'IC';

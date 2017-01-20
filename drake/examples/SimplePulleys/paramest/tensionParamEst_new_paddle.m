@@ -1,22 +1,32 @@
 %% Set the following parameters to false after running it for the first time:
-clear all
-close all
 
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
-
-if(true)
+count = 1;
+while( count < 5)
+  clearvars -except count
+  close all
+  if(count == 1)
   dataSetName = 'set10';
   name = 'Juggler-Experiment_2017-01-19_15-59-05';
+  elseif(count == 2)
+  dataSetName = 'set11';
+  name = 'Juggler-Experiment_2017-01-19_16-03-32';
+  elseif(count == 3)
+  dataSetName = 'set12';
+  name = 'Juggler-Experiment_2017-01-19_16-04-44';
+  elseif(count == 4)
+  dataSetName = 'set13';
+  name = 'Juggler-Experiment_2017-01-19_16-05-25';
+  end
+  
   filename = ['~/Dropbox (MIT)/Robotics Research/soft_modeling_db/Paramater_Estimation_RSS_2017/',dataSetName,'/',name];
   capturedDataFlag = true;
-else
-  dataSetName = 'set2';
-  name = 'syntheticPaddleDataWithAccel';
-  filename = ['~/soft_modeling_repo/dev/simulation/',dataSetName,'/',name];
-  capturedDataFlag = false;
-end
 
+    %   dataSetName = 'set2';
+%   name = 'syntheticPaddleDataWithAccel';
+%   filename = ['~/soft_modeling_repo/dev/simulation/',dataSetName,'/',name];
+%   capturedDataFlag = false;
 
 appendix = '_preprocessed';
 fullFilename = [filename,appendix,'.mat'];
@@ -25,9 +35,9 @@ load(fullFilename)
 
 
 %% flags that define what part to execute
-calcBSurfaceFlag = false;
-calcOneDofProblem = false; % calculating one dof problem
-calcThetaFlag = false;
+calcBSurfaceFlag = true;
+calcOneDofProblem = true; % calculating one dof problem
+calcThetaFlag = true;
 generateDataPointsInBetween = false; %not needed
 parameterEstimationStep = true;
 
@@ -49,7 +59,7 @@ if(calcBSurfaceFlag)
   forcehat = cell(numOfSetsNC,1);
   rSurf= cell(numOfSetsNC,1);
   rintSurf= cell(numOfSetsNC,1);
-  r = cell(numOfSetsNC,1);
+  rSurf = cell(numOfSetsNC,1);
   bsurfaceEst = zeros(numOfSetsNC,3);
   
   rangeTested = 1:numOfSetsNC;
@@ -118,8 +128,8 @@ if(calcBSurfaceFlag)
     h = legend('Data','Estimate','Location','NorthWest');
     set(h,'Interpreter','Latex');
     figure(41)
-    plot(t,r{j},'-..');
-    %plot(t,r{j});
+    plot(t,rSurf{j},'-..');
+    %plot(t,rSurf{j});
     
   end
   
@@ -158,7 +168,7 @@ if(calcBSurfaceFlag)
   typeofPlot = 'bsurface_errorbar';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
-    
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   figure(30);
   subplot(3,1,1)
@@ -175,11 +185,13 @@ if(calcBSurfaceFlag)
   typeofPlot = 'bsurface_allzNC';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   figure(40);    
   typeofPlot = 'bsurface_force';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   figure(41);
   title('residuals')
@@ -187,6 +199,7 @@ if(calcBSurfaceFlag)
   typeofPlot = 'bsurface_residuals';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   plotFontSize = 17;
   xHandleFontSize = 17;
@@ -224,7 +237,7 @@ if(calcBSurfaceFlag)
   typeofPlot = 'bsurface';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
-  
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   heightThreshold = 0.05+zTouch;
   heightThreshold = inf;
@@ -296,6 +309,7 @@ if(calcBSurfaceFlag)
     typeofPlot = 'bsurface_force_batch';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   figure(54); hold on  
   set(gca,'FontSize',plotFontSize)
@@ -521,11 +535,13 @@ if(calcOneDofProblem)
   typeofPlot = 'b01d';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   figure(202);
   
   typeofPlot = 'k01d';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   %%   Simulate the system
   for j = rangeOfSets1DOF
@@ -566,7 +582,7 @@ if(calcOneDofProblem)
   typeofPlot = 'z1dof';
   options.Format = 'eps';
   hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
-  
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
   
   %   figure(601); clf; hold on;
   %   plot(rangeOfModelComplexities1d,statsBatch1d(:,1));
@@ -599,7 +615,7 @@ if(calcThetaFlag)
   %thetaVec = zeros(size(z{1},1),2);
   %theta = zeros(size(z{1},1),1);
   
-  r = PlanarRigidBodyManipulator('tensionWParamsExp_new_paddle.urdf');
+  planarManip = PlanarRigidBodyManipulator('tensionWParamsExp_new_paddle.urdf');
 
   for j = 1:numOfSetsThetaEst 
     numOfSamples = size(zIC{j},1);
@@ -608,7 +624,7 @@ if(calcThetaFlag)
       %fun = @(thetaVec) resolveConstraintThetaThetaDotCostFun([thetaVec(1);0;z{j}(k)], [thetaVec(2);0;zd{j}(k)]);
       %[thetaVecTemp,fval] = fmincon(fun, [theta0; thetad0], [], [], [], [], lb, ub, [], options);
       %thetadfmincon{j}(k,1) = thetaVecTemp(2);
-      fun = @(theta) resolveConstraintThetaCostFun_NewPaddle([theta;0;zIC{j}(k)],r);
+      fun = @(theta) resolveConstraintThetaCostFun_NewPaddle([theta;0;zIC{j}(k)],planarManip);
       [thetaTemp,fval] = fmincon(fun, thetaIC0, [], [], [], [], lb(1), ub(1), [], optionsfmincon);
       
       thetaOrigIC{j}(k,1) = thetaTemp;
@@ -802,25 +818,28 @@ grid on;
 typeofPlot = 'alltheta';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 figure(503);
 grid on;
 typeofPlot = 'theta';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 figure(504);
 grid on;
 typeofPlot = 'thetad';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 figure(505);
 grid on;
 typeofPlot = 'thetadd';
 optionsPlot.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],optionsPlot);
-
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 
 %% Generate MORE DATA points in between using fit
@@ -919,33 +938,33 @@ for i =1:numOfSetsAdj
 end
 %
 
-I0Est= zeros(numOfSetsAdj,1);
-IpulleyEstErr= zeros(numOfSetsAdj,2);
+paramsEstimatedIndividuals.I0Est= zeros(numOfSetsAdj,1);
+paramsEstimatedIndividuals.IpulleyEstErr= zeros(numOfSetsAdj,2);
 
-k0Est= zeros(numOfSetsAdj,1);
-kpulleyEstErr= zeros(numOfSetsAdj,2);
+paramsEstimatedIndividuals.k0Est= zeros(numOfSetsAdj,1);
+paramsEstimatedIndividuals.kpulleyEstErr= zeros(numOfSetsAdj,2);
 
-b0Est= zeros(numOfSetsAdj,1);
-bpulleyEstErr= zeros(numOfSetsAdj,2);
+paramsEstimatedIndividuals.b0Est= zeros(numOfSetsAdj,1);
+paramsEstimatedIndividuals.bpulleyEstErr= zeros(numOfSetsAdj,2);
 
 
 for i=1:numOfSetsAdj
   for j = 1:numOfModels
     l = rangeOfModels(j);
     I0Index = 1;
-    I0Est(i,j) = b{i,j}(I0Index);
-    I0EstErrLow(i,j) = b{i,j}(I0Index)-bint{i,j}(I0Index,1);
-    I0EstErrUp(i,j) = bint{i,j}(I0Index,2)-b{i,j}(I0Index);
+    paramsEstimatedIndividuals.I0Est(i,j) = b{i,j}(I0Index);
+    paramsEstimatedIndividuals.I0EstErrLow(i,j) = b{i,j}(I0Index)-bint{i,j}(I0Index,1);
+    paramsEstimatedIndividuals.I0EstErrUp(i,j) = bint{i,j}(I0Index,2)-b{i,j}(I0Index);
     
     b0Index = 1+1;
-    b0Est(i,j) = b{i,j}(b0Index);
-    b0EstErrLow(i,j) = b{i,j}(b0Index)-bint{i,j}(b0Index,1);
-    b0EstErrUp(i,j) = bint{i,j}(b0Index,2)-b{i,j}(b0Index);
+    paramsEstimatedIndividuals.b0Est(i,j) = b{i,j}(b0Index);
+    paramsEstimatedIndividuals.b0EstErrLow(i,j) = b{i,j}(b0Index)-bint{i,j}(b0Index,1);
+    paramsEstimatedIndividuals.b0EstErrUp(i,j) = bint{i,j}(b0Index,2)-b{i,j}(b0Index);
     
     k0Index = 1+l+1+1;
-    k0Est(i,j) = b{i,j}(k0Index);
-    k0EstErrLow(i,j) = b{i,j}(k0Index)-bint{i,j}(k0Index,1);
-    k0EstErrUp(i,j) = bint{i,j}(k0Index,2)-b{i,j}(k0Index);
+    paramsEstimatedIndividuals.k0Est(i,j) = b{i,j}(k0Index);
+    paramsEstimatedIndividuals.k0EstErrLow(i,j) = b{i,j}(k0Index)-bint{i,j}(k0Index,1);
+    paramsEstimatedIndividuals.k0EstErrUp(i,j) = bint{i,j}(k0Index,2)-b{i,j}(k0Index);
     
   end
 end
@@ -967,17 +986,18 @@ yhandle=get(gca,'Ylabel');
 set(xhandle,'Fontsize',xHandleFontSize)
 set(yhandle,'Fontsize',yHandleFontSize)
 
-errorbar(rangeOfSetsMat,I0Est,I0EstErrLow,I0EstErrUp,...
+errorbar(rangeOfSetsMat,paramsEstimatedIndividuals.I0Est,paramsEstimatedIndividuals.I0EstErrLow,paramsEstimatedIndividuals.I0EstErrUp,...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
 xlabel('Phase Number','Interpreter','LaTex');
 ylabel('$I_s$','Interpreter','LaTex');
 title('Inertia $I_s$','Interpreter','LaTex');
 % legend(rangeOfModelsCell)
-axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(I0Est-I0EstErrLow) max(I0Est+I0EstErrUp)])
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(paramsEstimatedIndividuals.I0Est-paramsEstimatedIndividuals.I0EstErrLow) max(paramsEstimatedIndividuals.I0Est+paramsEstimatedIndividuals.I0EstErrUp)])
 typeofPlot = 'I0Est';
 grid on
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 figure(702); clf; hold on;
 
@@ -987,18 +1007,19 @@ yhandle=get(gca,'Ylabel');
 set(xhandle,'Fontsize',xHandleFontSize)
 set(yhandle,'Fontsize',yHandleFontSize)
 
-errorbar(rangeOfSetsMat,b0Est,b0EstErrLow,b0EstErrUp,...
+errorbar(rangeOfSetsMat,paramsEstimatedIndividuals.b0Est,paramsEstimatedIndividuals.b0EstErrLow,paramsEstimatedIndividuals.b0EstErrUp,...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
 xlabel('Phase Number','Interpreter','LaTex');
 ylabel('$b$','Interpreter','LaTex');
 title('Damping $b$','Interpreter','LaTex');
-axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(b0Est-b0EstErrLow) max(b0Est+b0EstErrUp)])
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(paramsEstimatedIndividuals.b0Est-paramsEstimatedIndividuals.b0EstErrLow) max(paramsEstimatedIndividuals.b0Est+paramsEstimatedIndividuals.b0EstErrUp)])
 
 % legend(rangeOfModelsCell)
 grid on
 typeofPlot = 'b0Est';
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 figure(703); clf; hold on;
 
@@ -1008,18 +1029,19 @@ yhandle=get(gca,'Ylabel');
 set(xhandle,'Fontsize',xHandleFontSize)
 set(yhandle,'Fontsize',yHandleFontSize)
 
-errorbar(rangeOfSetsMat,k0Est,k0EstErrLow,k0EstErrUp,...
+errorbar(rangeOfSetsMat,paramsEstimatedIndividuals.k0Est,paramsEstimatedIndividuals.k0EstErrLow,paramsEstimatedIndividuals.k0EstErrUp,...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
 xlabel('Phase Number','Interpreter','LaTex');
 ylabel('$k$','Interpreter','LaTex');
 title('Stiffness $k$','Interpreter','LaTex');
-axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(k0Est-k0EstErrLow) max(k0Est+k0EstErrUp)])
+axis([rangeOfSetsMat(1) rangeOfSetsMat(end) min(paramsEstimatedIndividuals.k0Est-paramsEstimatedIndividuals.k0EstErrLow) max(paramsEstimatedIndividuals.k0Est+paramsEstimatedIndividuals.k0EstErrUp)])
 
 % legend(rangeOfModelsCell)
 grid on
 typeofPlot = 'k0Est';
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 %% Batch Estimate
 if(calcAllOfOneCombinedFlag)
@@ -1121,6 +1143,7 @@ axis([timeStepsIC{1}(1) timeStepsIC{end}(end) min(paramsEstimated.lamdas) max(pa
 typeofPlot = 'lambdas';
 options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 %     figure(801); clf; hold on;
 %     plot(rangeOfModels,statsBatch{j}(:,1));
 %     xlabel('model');title('Rsq statistics');
@@ -1140,4 +1163,17 @@ if(~capturedDataFlag)
   paramsUsed
 end
 paramsEstimated
+ 
+appendix = '_finalresults';
+fullFilenameFinalResults = [filename,appendix,'.mat'];
+ 
+save(fullFilenameFinalResults, 'angleDeg','mdisc','spread','zTouch',...
+      'paramsEstimated', 'paramsEstimatedIndividuals',...
+      'timeStepsNC','zNC','zdNC','zddNC','zfitNC',...
+      'timeStepsIC','zIC','zdIC','zddIC','zfitIC',...
+      'thetaOrigIC','thetaIC','thetadIC','thetaddIC','thetafitIC');
+
+end
+count = count +1;
+
 end
