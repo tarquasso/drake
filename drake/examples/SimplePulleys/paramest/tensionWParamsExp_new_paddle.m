@@ -10,7 +10,7 @@ r = compile(r);
 trueParameters = getParams(r);
 
 v = r.constructVisualizer();
-v.xlim = [-0.26 0.26];
+v.xlim = [-0.28 0.3];
 v.ylim = [-0.11 0.26];
 
 x0 = Point(getStateFrame(r));
@@ -31,7 +31,7 @@ v.drawWrapper(0,x0(1:3));
 x0 = resolveConstraints(r,x0,v);
 v.drawWrapper(0,x0(1:3));
 
-ytraj = simulate(r,[0 0.0567],x0); % time one contact = 5.929-5.812, observed from first contact in data set 5
+ytraj = simulate(r,[0 0.068],x0); % time one contact = 5.929-5.812, observed from first contact in data set 5
 if(1)
 ts = ytraj.getBreaks();
 len = [];

@@ -58,7 +58,7 @@
       </material>
       <origin xyz=".004 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size=".008 .01 .002"/>
+        <box size=".008 .01 .001"/>
       </geometry>
     </visual>
   </link>
@@ -91,7 +91,7 @@
   </link>
   
   <joint name="tensioner_angle" type="revolute">
-    <origin xyz="0.145 1 -0.008"/>
+    <origin xyz="0.271 1 -0.008"/>
     <axis xyz="0 1 0"/>
     <parent link="base"/>
     <child link="tensioner"/>
@@ -122,10 +122,10 @@
 
 
 <!--  <cable min_length="8" max_length="8"> --> <!-- good for if I take out the final pulley -->
-  <cable min_length="0.352831853071796" max_length="0.352831853071796"> <!-- cable length = 0.145 * 2 + 2*  pi*radius_pulley + radius_pulley * pi/2-->
-    <terminator link="base" xyz="-0.145 1 0" />
+  <cable min_length="0.604831853071796" max_length="0.604831853071796"> <!-- cable length = 0.271 * 2 + 2*  pi*radius_pulley + radius_pulley * pi/2-->
+    <terminator link="base" xyz="-0.271 1 0" />
     <pulley link="load" xyz="0 0 0" axis="0 -1 0" radius="0.0439"/>
-    <pulley link="base" xyz="0.145 1 -0.008" axis="0 1 0" radius=".008" number_of_wraps="1" />
+    <pulley link="base" xyz="0.271 1 -0.008" axis="0 1 0" radius=".008" number_of_wraps="1" />
     <terminator link="tensioner" xyz="0.0081 0 0"/>
   </cable>
 
