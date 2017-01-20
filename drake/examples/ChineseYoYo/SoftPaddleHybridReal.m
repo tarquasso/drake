@@ -14,7 +14,8 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
   
   methods
     function obj = SoftPaddleHybridReal()
-      in_contact = PlanarRigidBodyManipulator('SoftPaddleReal.urdf');
+      in_contact = PlanarRigidBodyManipulator('SoftPaddleReal_v1.urdf');
+      % in_contact = PlanarRigidBodyManipulator('SoftPaddleReal.urdf');
       taylorvar = false;
 
       %TODO: Set input frame

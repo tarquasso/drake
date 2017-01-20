@@ -7,8 +7,9 @@ classdef ChineseYoYo < HybridDrakeSystem
   
   methods
     function obj = ChineseYoYo
-      in_contact = PlanarRigidBodyManipulator('ChineseYoYo_v1.urdf');
-%       in_contact = PlanarRigidBodyManipulator('ChineseYoYo.urdf');
+      in_contact = PlanarRigidBodyManipulator('ChineseYoYo_v2.urdf');
+      % in_contact = PlanarRigidBodyManipulator('ChineseYoYo_v1.urdf');
+      % in_contact = PlanarRigidBodyManipulator('ChineseYoYo.urdf');
       %in_contact = TimeSteppingRigidBodyManipulator('tension.urdf',.01,struct('twoD',true));
       isTSRBM = isa(in_contact,'TimeSteppingRigidBodyManipulator');
       
