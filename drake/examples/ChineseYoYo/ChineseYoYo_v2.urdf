@@ -116,7 +116,7 @@
     <axis xyz="0 0 1"/>
     <parent link="load_x"/>
     <child link="load"/>
-    <dynamics damping="0.3"/>
+    <dynamics damping="$bsurface"/>
   </joint>
 
   <force_element name="tensioner_spring">
