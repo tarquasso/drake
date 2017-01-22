@@ -32,7 +32,7 @@ x0 = double(x0);
 x0(2:end) = resolveConstraints(p.no_contact,x0(2:end));
 v.drawWrapper(0,x0);
 
-%% Perturb along the psi direction
+%% Perturb along the x direction
 x0 = Point(getStateFrame(p));
 x0.m = 1;
 x0.load_x = -0.045-dSpatial/2;
