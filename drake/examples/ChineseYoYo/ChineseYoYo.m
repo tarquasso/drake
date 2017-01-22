@@ -61,7 +61,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       % detect when the ball makes contact with the string
       % currently implemented as: z position of the ball <= 4
       % todo: generalize this using line segements of the cable constraint?
-      g = x(3) - 0.04423;  % x(3) = load_z
+      g = x(3) - 0.0439;  % x(3) = load_z
       dg = [0,0,0,1,0,0,0];
     end
     
@@ -69,7 +69,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       % detect when the ball leaves the string
       % currently implemented as: z position of the ball > 4
       % todo: generalize this
-      g = 0.04423 - x(3);
+      g = 0.0439 - x(3);
       dg = -[0,0,0,1,0,0,0];
     end
     
@@ -117,13 +117,13 @@ classdef ChineseYoYo < HybridDrakeSystem
     function v = constructVisualizer(obj)
       v1 = constructVisualizer(obj.no_contact);
       v2 = constructVisualizer(obj.in_contact);
-      v1.xlim = [-0.2 0.2];
+      v1.xlim = [-0.3 0.3];
       v1.ylim = [-.2 0.5];
       v2.xlim = v1.xlim; v2.ylim = v1.ylim;
       
       function mydraw(t,y)
         mode = y(1); y=y(2:end);
-        if mode==1,
+        if mode==1
           v1.drawWrapper(t,y);
         elseif mode==2
           v2.drawWrapper(t,y);
@@ -148,7 +148,7 @@ classdef ChineseYoYo < HybridDrakeSystem
       
       x0 = getInitialState(r);
       v.drawWrapper(0,x0);
-      [ytraj,xtraj] = simulate(r,[0 5],x0);
+      [ytraj,xtraj] = simulate(r,[0 2],x0);
       v.playback(ytraj,struct('slider',true));
       
       if (1) 

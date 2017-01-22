@@ -17,6 +17,9 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
       in_contact = PlanarRigidBodyManipulator('SoftPaddleReal_v1.urdf');
       % in_contact = PlanarRigidBodyManipulator('SoftPaddleReal.urdf');
       taylorvar = false;
+      
+      in_contact = in_contact.setGravity([0; -9.81*sind(35.8)]);
+      in_contact = compile(in_contact);
 
       %TODO: Set input frame
       %obj = setInputFrame(obj,CoordinateFrame('AcrobotInput',1,'u',{'tau'}));
@@ -69,7 +72,7 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
       obj = setStateFrame(obj,getOutputFrame(obj));
       
       %Precalculations for guards:
-      obj.radius = 0.04423;
+      obj.radius = 0.0439;
       obj.paddleId = obj.no_contact.findLinkId('paddle'); % from findLinkId or findFrameInd)
       obj.dxzPaddleFramePos = [0,0,1];
       obj.dxzPaddleFrameNeg = [0,0,-1];
@@ -171,9 +174,9 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
       x0.m = 1;
 %       x0.load_x = -0.0378;  % was -0.045
       x0.paddle_angle = 0.0;
-      x0.load_x = -0.05;
-      x0.load_x = -0.0025;
-      x0.load_z = 0.4672;
+      x0.load_x = 500*0.0001;
+      x0.load_x = 0.001;
+      x0.load_z = 0.3;
       x0 = double(x0);
 %       x0(2:end) = resolveConstraints(obj.in_contact,x0(2:end));
       x0(2:end) = resolveConstraints(obj.no_contact,x0(2:end));
@@ -196,7 +199,7 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
     function v = constructVisualizer(obj)
       v1 = constructVisualizer(obj.no_contact);
       v2 = constructVisualizer(obj.in_contact);
-      v1.xlim = [-0.2 0.2];
+      v1.xlim = [-0.33 0.3];
       v1.ylim = [-0.25 0.515];
       v2.xlim = v1.xlim; v2.ylim = v1.ylim;
       
@@ -351,7 +354,7 @@ classdef SoftPaddleHybridReal < HybridDrakeSystem
       %v.playbackAVI(ytraj,'soft_juggler_passive')
       %save('sphtraj.mat','r','v','x0','ytraj','xtraj');
       
-      if (0) 
+      if (1) 
         % energy / cable length plotting 
         % note, set alpha=0 in Manipulator/computeConstraintForce to reveal
         % some artifacts, especially at the release guard when
