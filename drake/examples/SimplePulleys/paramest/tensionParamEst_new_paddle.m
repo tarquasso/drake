@@ -36,8 +36,8 @@ load(fullFilename)
 
 %% flags that define what part to execute
 calcBSurfaceFlag = true;
-calcOneDofProblem = true; % calculating one dof problem
-calcThetaFlag = true;
+calcOneDofProblem = false; % calculating one dof problem
+calcThetaFlag = false;
 generateDataPointsInBetween = false; %not needed
 parameterEstimationStep = true;
 
@@ -62,6 +62,7 @@ if(calcBSurfaceFlag)
   rSurf = cell(numOfSetsNC,1);
   bsurfaceEst = zeros(numOfSetsNC,3);
   
+  %rangeTested = 5:numOfSetsNC;
   rangeTested = 1:numOfSetsNC;
   
   %plotting
@@ -879,7 +880,9 @@ if(parameterEstimationStep)
 
 %for dim =2
 
+%rangeOfSets = 5:numOfSets;
 rangeOfSets = 1:numOfSets;
+
 %rangeOfSets = 3:3;
 
 numOfSetsAdj = length(rangeOfSets);
