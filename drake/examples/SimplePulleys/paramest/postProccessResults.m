@@ -3,7 +3,7 @@
 %% Parse in Optitrack Capture Data
 %loaded preprocessed data set
 count = 1;
-while( count < 2)
+while( count < 5)
   clearvars -except count
   close all
   if(count == 1)
@@ -67,6 +67,90 @@ savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 %       'timeStepsNC','zNC','zdNC','zddNC','zfitNC',...
 %       'timeStepsIC','zIC','zdIC','zddIC','zfitIC',...
 %       'thetaOrigIC','thetaIC','thetadIC','thetaddIC','thetafitIC');
+
+
+numOfSets = size(zIC,1);
+%rangeOfSets = 1:numOfSets;
+%rangeOfSets = 4:numOfSets;
+rangeOfSets = 5:min(20,numOfSets);
+
+plotFontSize = 17;
+xHandleFontSize = 20;
+yHandleFontSize = 20;
+
+figure(701); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
+errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.I0Est(rangeOfSets),...
+    paramsEstimatedIndividuals.I0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.I0EstErrUp(rangeOfSets,:),...
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
+xlabel('$z_{max}$','Interpreter','LaTex');
+ylabel('$I_s$','Interpreter','LaTex');
+title('Inertia $I_s$ over Peak Height $z_{max}$','Interpreter','LaTex');
+% legend(rangeOfModelsCell)
+axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01 ...
+    min(paramsEstimatedIndividuals.I0Est(rangeOfSets)-paramsEstimatedIndividuals.I0EstErrLow(rangeOfSets,:))...
+    max(paramsEstimatedIndividuals.I0Est(rangeOfSets)+paramsEstimatedIndividuals.I0EstErrUp(rangeOfSets,:))])
+typeofPlot = 'I0Est-height';
+%grid on
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
+
+figure(702); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
+errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.b0Est(rangeOfSets),...
+    paramsEstimatedIndividuals.b0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.b0EstErrUp(rangeOfSets,:),...
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
+xlabel('$z_{max}$','Interpreter','LaTex');
+ylabel('$b$','Interpreter','LaTex');
+title('Damping $b$ over Peak Height $z_{max}$','Interpreter','LaTex');
+axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01  ...
+    min(paramsEstimatedIndividuals.b0Est(rangeOfSets)-paramsEstimatedIndividuals.b0EstErrLow(rangeOfSets,:)) ...
+    max(paramsEstimatedIndividuals.b0Est(rangeOfSets)+paramsEstimatedIndividuals.b0EstErrUp(rangeOfSets,:))])
+
+% legend(rangeOfModelsCell)
+%grid on
+typeofPlot = 'b0Est-height';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
+
+figure(703); clf; hold on;
+
+set(gca,'FontSize',plotFontSize)
+xhandle=get(gca,'Xlabel');
+yhandle=get(gca,'Ylabel');
+set(xhandle,'Fontsize',xHandleFontSize)
+set(yhandle,'Fontsize',yHandleFontSize)
+
+errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.k0Est(rangeOfSets),...
+    paramsEstimatedIndividuals.k0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.k0EstErrUp(rangeOfSets,:),...
+'-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
+xlabel('$z_{max}$','Interpreter','LaTex');
+ylabel('$k$','Interpreter','LaTex');
+title('Stiffness $k$ over Peak Height $z_{max}$','Interpreter','LaTex');
+axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01 ...
+    min(paramsEstimatedIndividuals.k0Est(rangeOfSets)-paramsEstimatedIndividuals.k0EstErrLow(rangeOfSets,:))...
+    max(paramsEstimatedIndividuals.k0Est(rangeOfSets)+paramsEstimatedIndividuals.k0EstErrUp(rangeOfSets,:))])
+
+% legend(rangeOfModelsCell)
+%grid on
+typeofPlot = 'k0Est-height';
+options.Format = 'eps';
+hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
 
 count = count +1;
