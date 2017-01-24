@@ -135,12 +135,12 @@ if(calcBSurfaceFlag)
   end
   
   %Alternative plot with error bars
-  bfEst =   bSurf(rangeTested,1);
-  bfEstMean = mean(bfEst);
+  paramsEstimatedIndividuals.bfEst =   bSurf(rangeTested,1);
+  bfEstMean = mean(paramsEstimatedIndividuals.bfEst);
   bfEstint =   bSurfint(rangeTested,:);
   
-  bfEstErrLow = bfEst-bfEstint(:,1);
-  bfEstErrUp = bfEstint(:,2)-bfEst;
+  paramsEstimatedIndividuals.bfEstErrLow = paramsEstimatedIndividuals.bfEst-bfEstint(:,1);
+  paramsEstimatedIndividuals.bfEstErrUp = bfEstint(:,2)-paramsEstimatedIndividuals.bfEst;
   
   figure(38);clf;hold on;
   set(gca,'FontSize',plotFontSize)
@@ -149,7 +149,7 @@ if(calcBSurfaceFlag)
   set(xhandle,'Fontsize',xHandleFontSize)
   set(yhandle,'Fontsize',yHandleFontSize)
   
-  e = errorbar(rangeTested,bfEst,bfEstErrLow,bfEstErrUp,...
+  e = errorbar(rangeTested,paramsEstimatedIndividuals.bfEst,paramsEstimatedIndividuals.bfEstErrLow,paramsEstimatedIndividuals.bfEstErrUp,...
     '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','CapSize',18,'LineWidth',2);
 %   e.Marker = '*';
 % e.MarkerSize = 10;
