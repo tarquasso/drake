@@ -46,8 +46,8 @@ timeStepsNC_max(k) = timeStepsNC{k}(idx);
 plot(timeStepsNC{k},zNC{k},'k.-.')
 end
 plot(timeStepsNC_max,zNC_max,'ro')
-xlabel('time [s]')
-ylabel('z [m]')
+xlabel('Time $t \ [s]$','Interpreter','LaTex')
+ylabel('Height $z \ [m]$','Interpreter','LaTex')
 title('Maxima from no contact phases')
 
 g = fittype( @(a,b,c,x) a*exp(-b*x)+c, 'independent', {'x'},...
@@ -78,7 +78,7 @@ plotFontSize = 17;
 xHandleFontSize = 20;
 yHandleFontSize = 20;
 
-figure(701); clf; hold on;
+figure(1701); clf; hold on;
 
 set(gca,'FontSize',plotFontSize)
 xhandle=get(gca,'Xlabel');
@@ -89,9 +89,9 @@ set(yhandle,'Fontsize',yHandleFontSize)
 errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.I0Est(rangeOfSets),...
     paramsEstimatedIndividuals.I0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.I0EstErrUp(rangeOfSets,:),...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
-xlabel('$z_{max}$','Interpreter','LaTex');
-ylabel('$I_s$','Interpreter','LaTex');
-title('Inertia $I_s$ over Peak Height $z_{max}$','Interpreter','LaTex');
+xlabel('Peak Height $z_{max} \ [m]$','Interpreter','LaTex');
+ylabel('Inertia $I_s \ [kg m^2]$','Interpreter','LaTex');
+%title('Inertia $I_s$ over Peak Height $z_{max}$','Interpreter','LaTex');
 % legend(rangeOfModelsCell)
 axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01 ...
     min(paramsEstimatedIndividuals.I0Est(rangeOfSets)-paramsEstimatedIndividuals.I0EstErrLow(rangeOfSets,:))...
@@ -102,7 +102,7 @@ options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
-figure(702); clf; hold on;
+figure(1702); clf; hold on;
 
 set(gca,'FontSize',plotFontSize)
 xhandle=get(gca,'Xlabel');
@@ -113,9 +113,9 @@ set(yhandle,'Fontsize',yHandleFontSize)
 errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.b0Est(rangeOfSets),...
     paramsEstimatedIndividuals.b0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.b0EstErrUp(rangeOfSets,:),...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
-xlabel('$z_{max}$','Interpreter','LaTex');
-ylabel('$b$','Interpreter','LaTex');
-title('Damping $b$ over Peak Height $z_{max}$','Interpreter','LaTex');
+xlabel('Peak Height $z_{max} \ [m]$','Interpreter','LaTex');
+ylabel('Damping $b \ [\frac{kg m^2}{s}]$','Interpreter','LaTex');
+%title('Damping $b$ over Peak Height $z_{max}$','Interpreter','LaTex');
 axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01  ...
     min(paramsEstimatedIndividuals.b0Est(rangeOfSets)-paramsEstimatedIndividuals.b0EstErrLow(rangeOfSets,:)) ...
     max(paramsEstimatedIndividuals.b0Est(rangeOfSets)+paramsEstimatedIndividuals.b0EstErrUp(rangeOfSets,:))])
@@ -127,7 +127,7 @@ options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
-figure(703); clf; hold on;
+figure(1703); clf; hold on;
 
 set(gca,'FontSize',plotFontSize)
 xhandle=get(gca,'Xlabel');
@@ -135,12 +135,12 @@ yhandle=get(gca,'Ylabel');
 set(xhandle,'Fontsize',xHandleFontSize)
 set(yhandle,'Fontsize',yHandleFontSize)
 
-errorbar(zNC_max(rangeOfSets(1:end)),paramsEstimatedIndividuals.k0Est(rangeOfSets),...
+errorbar(zNC_max(rangeOfSets),paramsEstimatedIndividuals.k0Est(rangeOfSets),...
     paramsEstimatedIndividuals.k0EstErrLow(rangeOfSets,:),paramsEstimatedIndividuals.k0EstErrUp(rangeOfSets,:),...
 '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
-xlabel('$z_{max}$','Interpreter','LaTex');
-ylabel('$k$','Interpreter','LaTex');
-title('Stiffness $k$ over Peak Height $z_{max}$','Interpreter','LaTex');
+xlabel('Peak Height $z_{max} \ [m]$','Interpreter','LaTex');
+ylabel('Stiffness $k \ [\frac{kg m^2}{s^2}]$','Interpreter','LaTex');
+%title('Stiffness $k$ over Peak Height $z_{max}$','Interpreter','LaTex');
 axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01 ...
     min(paramsEstimatedIndividuals.k0Est(rangeOfSets)-paramsEstimatedIndividuals.k0EstErrLow(rangeOfSets,:))...
     max(paramsEstimatedIndividuals.k0Est(rangeOfSets)+paramsEstimatedIndividuals.k0EstErrUp(rangeOfSets,:))])
@@ -152,6 +152,43 @@ options.Format = 'eps';
 hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
 savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
 
+
+%% B Surface
+  bfEstMean = mean(paramsEstimatedIndividuals.bfEst);
+  figure(1038);clf;hold on;
+  
+  set(gca,'FontSize',plotFontSize)
+  xhandle=get(gca,'Xlabel');
+  yhandle=get(gca,'Ylabel');
+  set(xhandle,'Fontsize',xHandleFontSize)
+  set(yhandle,'Fontsize',yHandleFontSize)
+  
+  e = errorbar(zNC_max(rangeOfSets),paramsEstimatedIndividuals.bfEst(rangeOfSets)...
+    ,paramsEstimatedIndividuals.bfEstErrLow(rangeOfSets,:),...
+    paramsEstimatedIndividuals.bfEstErrUp(rangeOfSets,:),...
+    '-s','MarkerSize',5,'MarkerEdgeColor','red','MarkerFaceColor','red','LineWidth',2); %'CapSize',18,
+%   e.Marker = '*';
+% e.MarkerSize = 10;
+% e.Color = 'black';
+% e.CapSize = 15;
+
+  hold on;
+  
+  plot(zNC_max(rangeOfSets([1 end])),[bfEstMean,bfEstMean],'g','LineWidth',1.9);
+  
+  xlabel('Peak Height $z_{max} \ [m]$','Interpreter','Latex');
+  ylabel('Surface Friction $b_f \ [\frac{kg}{s}]$','Interpreter','Latex');
+  legend('Individual Estimates','Mean','Location','NorthEast');
+  %title('Surface Friction $b_f$ over Peak Height $z_{max}$','Interpreter','Latex');
+  %grid on
+  axis([zNC_max(rangeOfSets(end))*0.975 zNC_max(rangeOfSets(1))*1.01 ...
+    min(paramsEstimatedIndividuals.bfEst(rangeOfSets)-paramsEstimatedIndividuals.bfEstErrLow(rangeOfSets,:))...
+    max(paramsEstimatedIndividuals.bfEst(rangeOfSets)+paramsEstimatedIndividuals.bfEstErrUp(rangeOfSets,:))])
+  typeofPlot = 'bsurface_errorbar-height';
+  options.Format = 'eps';
+  hgexport(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.eps'],options);
+  savefig(gcf,[pathstr,'/plots/',dataSetName,'_',typeofPlot,'.fig']);
+  
 
 count = count +1;
 end

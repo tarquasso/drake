@@ -725,7 +725,7 @@ yhandle=get(gca,'Ylabel');
 set(xhandle,'Fontsize',xHandleFontSize)
 set(yhandle,'Fontsize',yHandleFontSize)
 xlabel('Time $t \ [s]$','Interpreter','LaTex')
-ylabel('$\ddot{\theta} \ [\frac{rad}{s^2}]$','Interpreter','LaTex')
+ylabel('$\ddot{\theta} \ [\frac{bsurfacerad}{s^2}]$','Interpreter','LaTex')
 %title('Angular Acceleration of the Virtual Pulley $\ddot{\theta}$','Interpreter','Latex');
 axis([timeStepsNC{1}(1) timeStepsIC{end}(end) min(thetaddIC{1})*1.01 max(thetaddIC{1})*1.01])
 
@@ -931,7 +931,8 @@ for i =1:numOfSetsAdj
       l = rangeOfModels(j);
       Mb = l;
       Mk = l;
-      [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, bsurface, Mb, Mk);
+      [gamma,W] = softContactModel2D(q, qd, qdd, angleDeg, mdisc, paramsEstimatedIndividuals.bfEst(j), Mb, Mk);
+            
       alpha = 0.05; % 95% confidence level
       [b{i,j},bint{i,j},r{i,j},rint{i,j}] = regress(gamma,W,alpha);
       %load('params.mat');
@@ -1087,6 +1088,7 @@ if(calcAllOfOneCombinedFlag)
       Mk = l;
       [gammaBatch,WBatch] = softContactModel2D(qBatch, qdBatch, qddBatch, ...
         angleDeg, mdisc, bsurface,Mb,Mk);
+            
       alpha = 0.05; % 95% confidence level
       
       [bBatch{j},bintBatch{j},rBatch{j},rintBatch{j}] = regress(gammaBatch,WBatch,alpha); %statsBatch{j}
