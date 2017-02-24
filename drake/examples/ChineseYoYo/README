@@ -1,0 +1,49 @@
+*Parameterestimation files are in:
+
+SimplePulley
+
+
+* Mirror Law Closed Form Formulation:
+
+SoftPaddle_v4.nb: For the real system, check if it is the same as SoftPaddle_v3.nb, which is only on the experiment computer.
+SoftPaddle_v5_simulation.nb: simulation version with different axes
+
+
+*Gain Calculation:
+poincareLinearMirrorLawControlReal_v1.m: Calculates the Poincare Gains based on the desire juggling height and x position and velocity and it uses SoftPaddleReal_v1.urdf.
+
+
+*Control files are in ChineseYoYo
+
+ChineseYoYo.m: test the URDF in passive mode with no paddle joint. it uses ChineseYoYO_v2.urdf
+
+ChineseYoYo_v2.urdf: contains the experimental parameters and is also used for the actual simulation
+
+SoftPaddleHybridReal.m: Just the plant with paddle joint, it is used by SoftPaddleControlReal_v2.m
+
+SoftPaddleReal_v1.urdf: almost the same as ChineseYoYo_v2.urdf, but also contains the paddle joint definition
+
+SoftPaddleControlReal_v2.m: Most up-to-date mirror law closed-loop control simulation. Needs the gains placed in here.
+
+
+
+*Unfinished work on MPC Controller:
+
+costFun.m
+costFunCumulative.m
+myfun
+NLPoincare.m
+runOptimGains.m
+
+
+* Old Files/Previous Versions:
+SoftPaddlePositionController.m
+SoftPaddlePositionControllerReal.m
+
+SoftPaddleReal.urdf: older design
+SoftPaddleHybrid.m: older design of SoftPaddleHybridReal.m
+SoftPaddleControlRealMl.m
+SoftPaddleControlReal.m
+SoftPaddleControl.m
+SoftPaddle.m
+SoftPaddle.urdf
