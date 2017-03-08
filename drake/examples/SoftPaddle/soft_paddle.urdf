@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+
+<robot xmlns="http://drake.mit.edu"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://drake.mit.edu ../../doc/drakeURDF.xsd" name="Pendulum">
+  <material name="green">
+ 	  <color rgba=".3 .6 .4 1" />
+  </material>
+  <material name="red">
+    <color rgba=".9 .1 0 1" />
+  </material>
+  <material name="blue">
+    <color rgba="0 0 1 1" />
+  </material>
+  <material name="grey">
+ 	  <color rgba=".5 .5 .5 1" />
+  </material>
+
+
+  <link name="world" drake_ignore="true">
+    <inertial> <!-- drc-viewer needs this to have inertia to parse properly.  remove it when that bug is fixed -->
+      <origin xyz="0 0 0" />
+      <mass value="0.01" />
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+  </link>
+  <link name="paddle_shaft">
+    <inertial>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <mass value="1"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0" />
+      <geometry>
+         <cylinder length=".15" radius=".03" />
+      </geometry>
+      <material name="grey" />
+    </visual> >
+  </link>
+  <joint name="shaft_weld" type="fixed" drake_ignore="true">
+    <parent link="world" />
+    <child link="paddle_shaft" />
+    <origin xyz="0 0 0" />
+  </joint>
+  <link name="paddle">
+    <inertial> 
+      <origin xyz="0.35 0 0" rpy="0 0 0" />
+      <mass value="1.0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/> 
+    </inertial>
+    <visual>
+      <origin xyz="0.35 0 0.0" rpy="0 0 0" />
+      <geometry>
+         <box size="0.7 0.1 0.03"/>
+      </geometry>
+      <material name="red" />
+    </visual> 
+  </link>
+  <joint name="phi" type="continuous">
+    <parent link="paddle_shaft"/>
+    <child link="paddle" />
+    <axis xyz="0 -1 0" />
+    <dynamics damping="0.1" />
+  </joint>
+
+  <link name="disk">
+    <inertial> 
+      <origin xyz="0.35 0 0.4" rpy="0 0 0" />
+      <mass value="0.1" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/> 
+    </inertial>
+    <visual>
+      <origin xyz="0.35 0 0.4" rpy="1.5708 0 0" />
+      <geometry>
+         <cylinder length=".025" radius=".04" />
+      </geometry>
+      <material name="green" />
+    </visual> 
+  </link>
+</robot>
