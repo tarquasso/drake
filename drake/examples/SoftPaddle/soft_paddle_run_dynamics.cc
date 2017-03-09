@@ -31,10 +31,10 @@ int do_main(int argc, char* argv[]) {
   auto paddle = builder.AddSystem<SoftPaddlePlant>();
   auto paddle_to_viz =
       builder.AddSystem<SoftPaddleStateToBotVisualizer>(*paddle);
-  const RigidBodyTree<double>& tree = paddle->get_rigid_body_tree_model();
+  //const RigidBodyTree<double>& tree = paddle->get_rigid_body_tree_model();
 
-  auto visualizer =
-      builder.AddSystem<systems::DrakeVisualizer>(tree, &lcm);
+  //auto visualizer =
+  //    builder.AddSystem<systems::DrakeVisualizer>(tree, &lcm);
 
   builder.Connect(source->get_output_port(), paddle->get_tau_port());
 
@@ -42,8 +42,8 @@ int do_main(int argc, char* argv[]) {
                   paddle_to_viz->get_paddle_state_port());
   builder.Connect(source->get_output_port(),
                   paddle_to_viz->get_paddle_angle_port());
-  builder.Connect(paddle_to_viz->get_bot_visualizer_port(),
-                  visualizer->get_input_port(0));
+  //builder.Connect(paddle_to_viz->get_bot_visualizer_port(),
+  //                visualizer->get_input_port(0));
 
   auto diagram = builder.Build();
 

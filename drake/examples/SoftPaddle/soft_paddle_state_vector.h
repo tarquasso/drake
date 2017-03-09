@@ -52,6 +52,12 @@ class SoftPaddleStateVector : public systems::BasicVector<T> {
   const T& zdot() const { return this->GetAtIndex(K::kZdot); }
   void set_zdot(const T& z) { this->SetAtIndex(K::kZdot, z); }
   //@}
+
+  SoftPaddleStateVector<T>* DoClone() const override {
+    auto result = new SoftPaddleStateVector;
+    result->set_value(this->get_value());
+    return result;
+  }
 };
 
 }  // namespace soft_paddle
