@@ -55,4 +55,31 @@ drake_cc_binary(
     ],
 )
 
+drake_cc_library(
+    name = "mirror_law_system",
+    srcs = ["mirror_law_system.cc"],
+    hdrs = ["mirror_law_system.h"],
+    deps = [
+        ":soft_paddle_plant",
+        ":soft_paddle_state_to_bot_visualizer",
+    ],
+)
+
+drake_cc_binary(
+    name = "soft_paddle_mirror_law_test",
+    srcs = [
+        "soft_paddle_mirror_law_test.cc",
+    ],
+    deps = [
+        ":mirror_law_system",
+        ":soft_paddle_state_to_bot_visualizer",
+        "//drake/common:drake_path",
+        "//drake/lcm",
+        "//drake/multibody:rigid_body_tree",
+        "//drake/multibody/rigid_body_plant:drake_visualizer",
+        "//drake/systems/analysis",
+        "//drake/systems/primitives:constant_vector_source",
+    ],
+)
+
 cpplint()

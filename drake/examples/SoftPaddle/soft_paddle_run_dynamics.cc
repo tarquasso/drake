@@ -22,6 +22,9 @@ namespace {
 using std::make_unique;
 using Eigen::Isometry3d;
 
+// WARNING!: As-is this does not run with the visualizer connected since it
+// seems like I didn't update this example to use the input to
+// SoftPaddleStateToBotVisualizer for the deformable element's positions.
 int do_main(int argc, char* argv[]) {
   lcm::DrakeLcm lcm;
 
@@ -29,12 +32,16 @@ int do_main(int argc, char* argv[]) {
   double phi = 5.0 * M_PI / 180.0;
   auto source = builder.AddSystem<systems::ConstantVectorSource>(phi);
   auto paddle = builder.AddSystem<SoftPaddlePlant>();
+
+  // As-is this does not work because I didn't connect the input to the
+  // deformable elements' positions. See how that's done in
+  // soft_paddle_mirror_law_test.cc (which does run successfully).
   auto paddle_to_viz =
       builder.AddSystem<SoftPaddleStateToBotVisualizer>(*paddle);
-  //const RigidBodyTree<double>& tree = paddle->get_rigid_body_tree_model();
+  const RigidBodyTree<double>& tree = paddle->get_rigid_body_tree_model();
 
-  //auto visualizer =
-  //    builder.AddSystem<systems::DrakeVisualizer>(tree, &lcm);
+  auto visualizer =
+      builder.AddSystem<systems::DrakeVisualizer>(tree, &lcm);
 
   builder.Connect(source->get_output_port(), paddle->get_tau_port());
 
@@ -42,8 +49,8 @@ int do_main(int argc, char* argv[]) {
                   paddle_to_viz->get_paddle_state_port());
   builder.Connect(source->get_output_port(),
                   paddle_to_viz->get_paddle_angle_port());
-  //builder.Connect(paddle_to_viz->get_bot_visualizer_port(),
-  //                visualizer->get_input_port(0));
+  builder.Connect(paddle_to_viz->get_bot_visualizer_port(),
+                  visualizer->get_input_port(0));
 
   auto diagram = builder.Build();
 

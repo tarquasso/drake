@@ -19,8 +19,7 @@ namespace soft_paddle {
 
 using systems::Context;
 using systems::kVectorValued;
-using systems::kContinuousSampling;
-using systems::SystemPortDescriptor;
+using systems::OutputPortDescriptor;
 using systems::System;
 using systems::SystemOutput;
 
@@ -29,21 +28,20 @@ PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(const T& phi0, const T& amplitud
     phi0_(phi0), amplitude_(amplitude) {
   // Input for the SoftPaddlePlant state.
   this->DeclareInputPort(kVectorValued,
-                         SoftPaddleStateVectorIndices::kNumCoordinates,
-                         kContinuousSampling);
+                         SoftPaddleStateVectorIndices::kNumCoordinates);
   // Output for the commanded paddle angle.
-  this->DeclareOutputPort(kVectorValued, 1, kContinuousSampling);
+  this->DeclareOutputPort(kVectorValued, 1);
 }
 
 template <typename T>
-const SystemPortDescriptor<T>&
+const OutputPortDescriptor<T>&
 PaddleMirrorLawSystem<T>::get_paddle_angle_port() const {
   return System<T>::get_output_port(0);
 }
 
 template <typename T>
-void PaddleMirrorLawSystem<T>::EvalOutput(const Context<T>& context,
-                                         SystemOutput<T>* output) const {
+void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
+                                            SystemOutput<T>* output) const {
   DRAKE_ASSERT_VOID(System<T>::CheckValidOutput(output));
   DRAKE_ASSERT_VOID(System<T>::CheckValidContext(context));
 
@@ -82,19 +80,19 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
 }
 
 template <typename T>
-const SystemPortDescriptor<T>&
+const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_paddle_state_port() const {
   return System<T>::get_output_port(0);
 }
 
 template <typename T>
-const SystemPortDescriptor<T>&
+const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_paddle_angle_port() const {
   return System<T>::get_output_port(1);
 }
 
 template <typename T>
-const SystemPortDescriptor<T>&
+const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_elements_port() const {
   return System<T>::get_output_port(2);
 }

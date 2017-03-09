@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <drake/systems/framework/diagram.h>
 
 #include "drake/common/eigen_types.h"
 #include "drake/examples/SoftPaddle/soft_paddle_plant.h"
@@ -27,12 +26,12 @@ class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
 
   bool has_any_direct_feedthrough() const override { return false; }
 
-  /// Outputs a signal with a fixed value as specified by the user.
-  void EvalOutput(const systems::Context<T>& context,
-                  systems::SystemOutput<T>* output) const override;
-
   /// Returns the output port to the constant source.
-  const systems::SystemPortDescriptor<T>& get_paddle_angle_port() const;
+  const systems::OutputPortDescriptor<T>& get_paddle_angle_port() const;
+
+ private:
+  void DoCalcOutput(const systems::Context<T>& context,
+                    systems::SystemOutput<T>* output) const override;
 
  private:
   T phi0_{0.0};
@@ -45,11 +44,11 @@ class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
   SoftPaddleWithMirrorControl(const T& phi0, const T& amplitude);
 
   /// Returns the output port for visualization with a BotVisualizer.
-  const systems::SystemPortDescriptor<T>& get_paddle_state_port() const;
+  const systems::OutputPortDescriptor<T>& get_paddle_state_port() const;
 
-  const systems::SystemPortDescriptor<T>& get_paddle_angle_port() const;
+  const systems::OutputPortDescriptor<T>& get_paddle_angle_port() const;
 
-  const systems::SystemPortDescriptor<T>& get_elements_port() const;
+  const systems::OutputPortDescriptor<T>& get_elements_port() const;
 
   /// Returns a reference to a RigidBodyTree model that can be used for
   /// visualization of the paddle system with a BotVisualizer.
