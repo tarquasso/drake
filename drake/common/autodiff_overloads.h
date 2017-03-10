@@ -89,6 +89,27 @@ double copysign(double x, const Eigen::AutoDiffScalar<DerType>& y) {
     return x;
 }
 
+/// Overloads atan for an AutoDiffScalar base and exponent, implementing the
+/// chain rule.
+template <typename DerType>
+Eigen::AutoDiffScalar<typename DerType::PlainObject> atan(
+    const Eigen::AutoDiffScalar<DerType>& x) {
+
+  const auto& xval = x.value();
+  const auto& xgrad = x.derivatives();
+
+  using std::atan;
+  const auto atan_of_x = atan(xval);
+  return Eigen::MakeAutoDiffScalar(
+      // The value is atan(x).
+      atan_of_x,
+      // The multivariable chain rule states:
+      // df/dv_i = (∂f/∂x * dx/dv_i)
+      // ∂f/∂x = 1 / (1 + x^2)
+      xgrad / (1 + xval * xval));
+}
+
+
 #if EIGEN_VERSION_AT_LEAST(3, 2, 93)  // True when built via Drake superbuild.
 /// Overloads pow for an AutoDiffScalar base and exponent, implementing the
 /// chain rule.
