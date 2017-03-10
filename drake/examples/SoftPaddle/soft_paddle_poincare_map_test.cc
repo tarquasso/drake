@@ -132,6 +132,39 @@ int do_main(int argc, char* argv[]) {
 
   }
 
+  { /// Compute discrete LQR
+    using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector4d>;
+    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map;
+
+    // State variables
+    AutoDiffScalar x0(xn, Eigen::Vector4d::Unit(0));
+    AutoDiffScalar z0(zn, Eigen::Vector4d::Unit(1));
+
+    // Control variables
+    AutoDiffScalar paddle_aim0(paddle_aim, Eigen::Vector4d::Unit(2));
+    AutoDiffScalar stroke_strength0(stroke_strength, Eigen::Vector4d::Unit(3));
+
+    AutoDiffScalar xnext, znext;
+
+    poincare_map.ComputeNextSate(
+        paddle_aim0, stroke_strength0,
+        x0, z0, &xnext, &znext);
+
+    Eigen::Matrix<double, 2, 4> Jk;
+    Jk.row(0) = xnext.derivatives().transpose();
+    Jk.row(1) = znext.derivatives().transpose();
+
+    Matrix2<double> A = Jk.block<2, 2>(0, 0);
+    Matrix2<double> B = Jk.block<2, 2>(0, 2);
+
+    PRINT_VAR(xnext.value());
+    PRINT_VAR(znext.value());
+    PRINT_VAR(A);
+    PRINT_VAR(B);
+
+
+  }
+
   return 0;
 }
 

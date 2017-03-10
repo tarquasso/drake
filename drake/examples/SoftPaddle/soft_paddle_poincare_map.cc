@@ -132,6 +132,7 @@ template class SoftPaddlePoincareMap<double>;
 // Eigen's tan fails at runtime if using AutoDiffXd.
 // As a quick fix I am using a fixed size AutoDiffScalar.
 template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
 template class SoftPaddlePoincareMap<AutoDiffXd>;
 
 }  // namespace soft_paddle
