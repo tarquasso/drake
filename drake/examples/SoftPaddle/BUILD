@@ -99,6 +99,7 @@ drake_cc_binary(
     ],
     deps = [
         ":soft_paddle_poincare_map",
+        "//drake/math:discrete_algebraic_riccati_equation",
     ],
 )
 

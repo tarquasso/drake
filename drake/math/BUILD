@@ -26,6 +26,16 @@ drake_cc_library(
     ],
 )
 
+drake_cc_library(
+    name = "discrete_algebraic_riccati_equation",
+    srcs = ["discrete_algebraic_riccati_equation.cc"],
+    hdrs = ["discrete_algebraic_riccati_equation.h"],
+    deps = [
+        "//drake/common",
+        "//drake/common:is_approx_equal_abstol",
+    ],
+)
+
 # TODO(jwnimmer-tri) Improved name for this library, "pose_representations"?
 drake_cc_library(
     name = "geometric_transform",

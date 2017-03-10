@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include "drake/math/discrete_algebraic_riccati_equation.h"
+
 #define PRINT_VAR(x) std::cout <<  #x ": " << x << std::endl;
 
 namespace drake {
@@ -162,7 +164,20 @@ int do_main(int argc, char* argv[]) {
     PRINT_VAR(A);
     PRINT_VAR(B);
 
+    Matrix2<double> Q = Matrix2<double>::Identity();
+    Matrix2<double> R = Matrix2<double>::Identity();
 
+    PRINT_VAR(Q);
+    PRINT_VAR(R);
+
+    auto S = math::DiscreteAlgebraicRiccatiEquation(A, B, Q, R);
+
+    PRINT_VAR(S);
+
+    Eigen::LLT<Eigen::MatrixXd> R_cholesky(R);
+    Matrix2<double> K = R_cholesky.solve(B.transpose() * S);
+
+    PRINT_VAR(K);
   }
 
   return 0;
