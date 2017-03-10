@@ -23,6 +23,7 @@ drake_cc_library(
     hdrs = ["soft_paddle_plant.h"],
     deps = [
         ":soft_paddle_state_vector",
+        "//drake/common:autodiff",
         "//drake/multibody:rigid_body_tree",
         "//drake/systems/framework",
     ],
@@ -79,6 +80,25 @@ drake_cc_binary(
         "//drake/multibody/rigid_body_plant:drake_visualizer",
         "//drake/systems/analysis",
         "//drake/systems/primitives:constant_vector_source",
+    ],
+)
+
+drake_cc_library(
+    name = "soft_paddle_poincare_map",
+    srcs = ["soft_paddle_poincare_map.cc"],
+    hdrs = ["soft_paddle_poincare_map.h"],
+    deps = [
+        ":mirror_law_system",
+    ],
+)
+
+drake_cc_binary(
+    name = "soft_paddle_poincare_map_test",
+    srcs = [
+        "soft_paddle_poincare_map_test.cc",
+    ],
+    deps = [
+        ":soft_paddle_poincare_map",
     ],
 )
 

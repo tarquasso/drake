@@ -1,6 +1,7 @@
 #include "drake/examples/SoftPaddle/soft_paddle_poincare_map.h"
 
 #include "drake/common/autodiff_overloads.h"
+#include "drake/systems/framework/context.h"
 
 #include <iostream>
 #define PRINT_VAR(x) std::cout <<  #x ": " << x << std::endl;
@@ -11,11 +12,12 @@ namespace soft_paddle {
 
 using systems::Context;
 using systems::ContinuousState;
-using systems::DifferenceState;
+//using systems::DifferenceState;
 using systems::SystemOutput;
 
 template <typename T>
 SoftPaddlePoincareMap<T>::SoftPaddlePoincareMap() {
+#if 0
     const int kSize = 2;  // The state includes [xn, zn].
     this->DeclareUpdatePeriodSec(1.0);   // Arbitrary sampling rate.
 
@@ -28,11 +30,12 @@ SoftPaddlePoincareMap<T>::SoftPaddlePoincareMap() {
         systems::kVectorValued, kSize, systems::kDiscreteSampling);
 
     this->DeclareDifferenceState(kSize);
+#endif
 
   //paddle_plant_ = std::make_unique<SoftPaddleWithMirrorControl<T>>();
 }
 
-
+#if 0
 template <typename T>
 void SoftPaddlePoincareMap<T>::DoEvalDifferenceUpdates(
     const Context<T>& context,
@@ -49,6 +52,7 @@ void SoftPaddlePoincareMap<T>::DoEvalDifferenceUpdates(
   updates->get_mutable_difference_state(0)->SetAtIndex(0, xnext);
   updates->get_mutable_difference_state(0)->SetAtIndex(1, znext);
 }
+#endif
 
 template <typename T>
 void SoftPaddlePoincareMap<T>::ComputeNextSate(
@@ -82,7 +86,7 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
 
   // Advance the paddle system using a simple explicit Euler scheme.
   do {
-    paddle_plant->EvalTimeDerivatives(*paddle_context, derivs.get());
+    paddle_plant->CalcTimeDerivatives(*paddle_context, derivs.get());
 
     // Compute derivative and update configuration and velocity.
     // xc(t+h) = xc(t) + dt * xcdot(t, xc(t), u(t))
@@ -115,14 +119,19 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   *znext = xc->z();
 }
 
+#if 0
 template <typename T>
 void SoftPaddlePoincareMap<T>::EvalOutput(
     const Context<T>& context, SystemOutput<T>* output) const {
 output->GetMutableVectorData(0)->SetFromVector(
     context.get_difference_state(0)->CopyToVector());
 }
+#endif
 
 template class SoftPaddlePoincareMap<double>;
+// Eigen's tan fails at runtime if using AutoDiffXd.
+// As a quick fix I am using a fixed size AutoDiffScalar.
+template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
 template class SoftPaddlePoincareMap<AutoDiffXd>;
 
 }  // namespace soft_paddle

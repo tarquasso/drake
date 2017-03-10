@@ -122,10 +122,17 @@ SoftPaddleStateVector<T>*
 
 // Explicitly instantiates on the most common scalar types.
 template class PaddleMirrorLawSystem<double>;
-//template class PaddleMirrorLawSystem<AutoDiffXd>;
+// Eigen's tan fails at runtime if using AutoDiffXd.
+// As a quick fix I am using a fixed size AutoDiffScalar.
+template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class PaddleMirrorLawSystem<AutoDiffXd>;
 
 template class SoftPaddleWithMirrorControl<double>;
-//template class SoftPaddleWithMirrorControl<AutoDiffXd>;
+// Eigen's tan fails at runtime if using AutoDiffXd.
+// As a quick fix I am using a fixed size AutoDiffScalar.
+template class SoftPaddleWithMirrorControl<
+    Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class SoftPaddleWithMirrorControl<AutoDiffXd>;
 
 }  // namespace soft_paddle
 }  // namespace examples

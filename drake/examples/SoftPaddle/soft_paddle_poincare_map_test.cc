@@ -1,4 +1,3 @@
-#include "drake/common/drake_path.h"
 #include "drake/examples/SoftPaddle/soft_paddle_poincare_map.h"
 
 #include <iostream>
@@ -35,8 +34,8 @@ int do_main(int argc, char* argv[]) {
   //double paddle_aim = -0.2508743456482843;
   //double stroke_strength = 0.0266432387875092;
 
+#if 0
   double xnext, znext;
-
   {
     SoftPaddlePoincareMap<double> poincare_map;
 
@@ -47,11 +46,11 @@ int do_main(int argc, char* argv[]) {
     PRINT_VAR(xnext);
     PRINT_VAR(znext);
   }
-  // Test for AutoDiffXd
+  // Test for AutoDiffScalar
   {
-    SoftPaddlePoincareMap<AutoDiffXd> poincare_map;
-    AutoDiffXd paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
-    AutoDiffXd stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
+    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map;
+    AutoDiffScalar paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
+    AutoDiffScalar stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
 
     PRINT_VAR(paddle_aim_d.value());
     PRINT_VAR(paddle_aim_d.derivatives().transpose());
@@ -59,7 +58,7 @@ int do_main(int argc, char* argv[]) {
     PRINT_VAR(stroke_strength_d.value());
     PRINT_VAR(stroke_strength_d.derivatives().transpose());
 
-    AutoDiffXd xnext_d, znext_d;
+    AutoDiffScalar xnext_d, znext_d;
     poincare_map.ComputeNextSate(
         paddle_aim_d, stroke_strength_d,
         xn, zn, &xnext_d, &znext_d);
@@ -70,12 +69,14 @@ int do_main(int argc, char* argv[]) {
     PRINT_VAR(znext_d.value());
     PRINT_VAR(znext_d.derivatives().transpose());
   }
+#endif
 
   // Fixed point
   {
-    SoftPaddlePoincareMap<AutoDiffXd> poincare_map;
-    AutoDiffXd paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
-    AutoDiffXd stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
+    using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector2d>;
+    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map;
+    AutoDiffScalar paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
+    AutoDiffScalar stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
 
     // Target
     Vector2d x0(xn, zn);
@@ -95,7 +96,7 @@ int do_main(int argc, char* argv[]) {
       std::cout << "--------------------------------------------" << std::endl;
       ++n_iters;
 
-      AutoDiffXd xnext_d, znext_d;
+      AutoDiffScalar xnext_d, znext_d;
       poincare_map.ComputeNextSate(
           paddle_aim_d, stroke_strength_d,
           xn, zn, &xnext_d, &znext_d);
@@ -108,7 +109,7 @@ int do_main(int argc, char* argv[]) {
 
       // Compute error.
       error = (xk - x0).norm();
-      if (error < tolerance) break;
+      if (error < tolerance && n_iters > 1) break;
 
       ukp = uk - relaxation * Jk.colPivHouseholderQr().solve(xk - x0);
 

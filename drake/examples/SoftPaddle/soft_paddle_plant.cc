@@ -430,7 +430,10 @@ void SoftPaddlePlant<T>::set_initial_conditions(MyContext* context) const {
 }
 
 template class SoftPaddlePlant<double>;
-//template class SoftPaddlePlant<AutoDiffXd>;
+
+// Eigen's tan fails at runtime if using AutoDiffXd.
+// As a quick fix I am using a fixed size AutoDiffScalar.
+template class SoftPaddlePlant<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
 
 }  // namespace soft_paddle
 }  // namespace examples
