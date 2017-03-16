@@ -70,19 +70,25 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   std::unique_ptr<ContinuousState<T>> derivs =
       paddle_plant->AllocateTimeDerivatives();
 
-  SoftPaddleStateVector<T>* xc =
+  paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn);
+  SoftPaddleStateVector<T>* xc_paddle =
       paddle_plant->GetMutablePlantStateVector(paddle_context.get());
+  const systems::VectorBase<T>& paddle_xcdot =
+      paddle_plant->GetSubsystemDerivatives(*derivs, &paddle_plant->get_soft_paddle_plant())->get_vector();
+
+  // WARNING: this is the ENTIRE model derivatives (including filter).
   systems::VectorBase<T>* xcdot = derivs->get_mutable_vector();
 
   // Set initial conditions to be [xn, zn, 0.0, 0.0].
   paddle_context->set_time(0.0);
   paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn);
-  xc->SetFromVector(VectorX<T>::Zero(xc->size()));
-  xc->set_x(xn);
-  xc->set_z(zn);
+  //xc->SetFromVector(VectorX<T>::Zero(xc->size()));
+  //xc->set_x(xn);
+  //xc->set_z(zn);
+  auto xc = paddle_context->get_mutable_continuous_state()->get_mutable_vector();
 
   // Previous time step solution.
-  SoftPaddleStateVector<T> xc0; xc0.SetFromVector(xc->get_value());
+  SoftPaddleStateVector<T> xc_paddle0; xc_paddle0.SetFromVector(xc_paddle->get_value());
 
   // Advance the paddle system using a simple explicit Euler scheme.
   do {
@@ -93,15 +99,18 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
     xc->PlusEqScaled(dt, *xcdot);  // xc += dt * xcdot
 
     // When going back up zdot crossed zero. Discard solution.
-    if( xc0.zdot() > 0. && xc->zdot() < 0. ) break;
+    if( xc_paddle0.zdot() > 0. && xc_paddle->zdot() < 0. ) break;
 
     paddle_context->set_time(paddle_context->get_time() + dt);
-    xc0.SetFromVector(xc->get_value());
+    xc_paddle0.SetFromVector(xc_paddle->get_value());
   }while(true);
 
   // Zero crossing time.
+  //xcdot->zdot(); // WARNING!!: here xcdot is the ENTIRE model derivatives
+  // (including filter) while xc_paddle only contains the paddle state.
+  // QUESTION: is there a
   T t_zc = paddle_context->get_time() -
-      xc0.zdot() / xcdot->GetAtIndex(3); //xcdot->zdot();
+      xc_paddle0.zdot() / paddle_xcdot.GetAtIndex(3);
   // Computes time step that takes the solution to zdot = 0
   dt = t_zc - paddle_context->get_time();
 
@@ -115,8 +124,8 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   xc->PlusEqScaled(dt, *xcdot);  // xc += dt * xcdot
   paddle_context->set_time(paddle_context->get_time() + dt);
 
-  *xnext = xc->x();
-  *znext = xc->z();
+  *xnext = xc_paddle->x();
+  *znext = xc_paddle->z();
 }
 
 #if 0

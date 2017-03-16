@@ -388,7 +388,7 @@ void SoftPaddlePlant<T>::CreateRBTModel() {
       body->set_name(element_name);
       double dell = ell_ / (kNumPaddleElements - 1);
       double xe = i_element * dell;
-      PRINT_VAR(xe);
+      //PRINT_VAR(xe);
       //body->set_center_of_mass(Vector3d(xe, 0.0, 0.0));
       // Sets body to have a non-zero spatial inertia. Otherwise the body gets
       // welded by a fixed joint to the world by RigidBodyTree::compile().
@@ -435,6 +435,7 @@ template class SoftPaddlePlant<double>;
 // As a quick fix I am using a fixed size AutoDiffScalar.
 template class SoftPaddlePlant<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
 template class SoftPaddlePlant<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+template class SoftPaddlePlant<AutoDiffXd>;
 
 }  // namespace soft_paddle
 }  // namespace examples

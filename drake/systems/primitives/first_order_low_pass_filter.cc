@@ -70,6 +70,13 @@ void FirstOrderLowPassFilter<T>::DoCalcVectorOutput(
 }
 
 template <typename T>
+void FirstOrderLowPassFilter<T>::SetDefaultState(
+    const systems::Context<T>& context, systems::State<T>* state) const {
+  state->get_mutable_continuous_state()->SetFromVector(
+      VectorX<T>::Zero(time_constants_.size()));
+}
+
+template <typename T>
 FirstOrderLowPassFilter<symbolic::Expression>*
 FirstOrderLowPassFilter<T>::DoToSymbolic() const {
   return new FirstOrderLowPassFilter<symbolic::Expression>(
@@ -78,6 +85,8 @@ FirstOrderLowPassFilter<T>::DoToSymbolic() const {
 
 // Explicitly instantiates on the most common scalar types.
 template class FirstOrderLowPassFilter<double>;
+template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
 template class FirstOrderLowPassFilter<AutoDiffXd>;
 template class FirstOrderLowPassFilter<symbolic::Expression>;
 

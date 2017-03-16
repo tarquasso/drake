@@ -12,6 +12,7 @@
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/leaf_context.h"
+#include "drake/systems/primitives/first_order_low_pass_filter.h"
 
 namespace drake {
 namespace examples {
@@ -22,6 +23,7 @@ using systems::kVectorValued;
 using systems::OutputPortDescriptor;
 using systems::System;
 using systems::SystemOutput;
+using systems::FirstOrderLowPassFilter;
 
 template <typename T>
 PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(const T& phi0, const T& amplitude) :
@@ -68,12 +70,18 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
   paddle_ = builder.template AddSystem<SoftPaddlePlant>();
 
   // Feedback loop.
+  const double filter_time_constant = 0.15;  // In seconds.
+  auto filter =
+      builder.template AddSystem<FirstOrderLowPassFilter>(filter_time_constant);
+
   builder.Connect(paddle_->get_output_port(), mirror_system->get_input_port(0));
   builder.Connect(
-      mirror_system->get_paddle_angle_port(), paddle_->get_tau_port());
+      mirror_system->get_paddle_angle_port(), filter->get_input_port());
+  builder.Connect(
+      filter->get_output_port(), paddle_->get_tau_port());
 
   builder.ExportOutput(paddle_->get_output_port());
-  builder.ExportOutput(mirror_system->get_paddle_angle_port());
+  builder.ExportOutput(filter->get_output_port());
   builder.ExportOutput(paddle_->get_elements_port());
 
   builder.BuildInto(this);

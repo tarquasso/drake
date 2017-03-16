@@ -32,8 +32,12 @@ int do_main(int argc, char* argv[]) {
 
   double x0 = 0.25;
   double z0 = 0.4;
-  double paddle_aim = 0.0933383;
-  double stroke_strength = 0.0892304;
+  // This with no filter
+  //double paddle_aim = 0.0933383;
+  //double stroke_strength = 0.0892304;
+  // These with filter tau = 0.15 secs
+  double paddle_aim = 0.1519477242286417;
+  double stroke_strength = 0.1598050387931525;
 
   //double x0 = 0.1;
   //double z0 = 0.4;

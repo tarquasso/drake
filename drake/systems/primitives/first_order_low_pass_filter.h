@@ -89,6 +89,9 @@ class FirstOrderLowPassFilter : public SisoVectorSystem<T> {
       const Eigen::VectorBlock<const VectorX<T>>& state,
       Eigen::VectorBlock<VectorX<T>>* output) const override;
 
+  void SetDefaultState(const systems::Context<T>& context,
+                       systems::State<T>* state) const override;
+
   // System<T> override. Returns a FirstOrderLowPassFilter<symbolic::Expression>
   // with the same time constants and dimensions as this filter.
   FirstOrderLowPassFilter<symbolic::Expression>* DoToSymbolic() const override;
