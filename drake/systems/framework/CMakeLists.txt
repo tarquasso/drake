@@ -1,6 +1,6 @@
 # Source files used to build drakeSystemFramework.
 set(sources
-  abstract_state.cc
+        abstract_values.cc
   basic_vector.cc
   cache.cc
   context.cc
@@ -13,6 +13,7 @@ set(sources
   input_port_evaluator_interface.cc
   leaf_context.cc
   leaf_system.cc
+  model_values.cc
   output_port_listener_interface.cc
   parameters.cc
   single_output_vector_source.cc
@@ -39,7 +40,7 @@ set(sources
 # System2 framework template implementations have been moved into .cc files
 # using explicit instantiation, tighten this list.
 set(installed_headers
-  abstract_state.h
+        abstract_values.h
   basic_vector.h
   cache.h
   context.h
@@ -52,6 +53,7 @@ set(installed_headers
   input_port_evaluator_interface.h
   leaf_context.h
   leaf_system.h
+  model_values.h
   output_port_listener_interface.h
   parameters.h
   single_output_vector_source.h

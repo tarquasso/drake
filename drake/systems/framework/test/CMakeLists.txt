@@ -16,8 +16,8 @@ target_link_libraries(continuous_state_test drakeSystemFramework drakeSystemPrim
 drake_add_cc_test(discrete_state_test)
 target_link_libraries(discrete_state_test drakeSystemFramework drakeSystemPrimitives)
 
-drake_add_cc_test(abstract_state_test)
-target_link_libraries(abstract_state_test drakeSystemFramework drakeSystemPrimitives)
+drake_add_cc_test(abstract_values_test)
+target_link_libraries(abstract_values_test drakeSystemFramework drakeSystemPrimitives)
 
 drake_add_cc_test(system_test)
 target_link_libraries(system_test drakeSystemFramework drakeSystemPrimitives)
@@ -45,6 +45,9 @@ target_link_libraries(cache_test drakeSystemFramework drakeSystemPrimitives)
 
 drake_add_cc_test(leaf_system_test)
 target_link_libraries(leaf_system_test drakeSystemFramework drakeSystemPrimitives)
+
+drake_add_cc_test(model_values_test)
+target_link_libraries(model_values_test drakeSystemFramework)
 
 drake_add_cc_test(parameters_test)
 target_link_libraries(parameters_test drakeSystemFramework drakeSystemPrimitives)

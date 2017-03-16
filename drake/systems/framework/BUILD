@@ -84,9 +84,9 @@ drake_cc_library(
 )
 
 drake_cc_library(
-    name = "abstract_state",
-    srcs = ["abstract_state.cc"],
-    hdrs = ["abstract_state.h"],
+    name = "abstract_values",
+    srcs = ["abstract_values.cc"],
+    hdrs = ["abstract_values.h"],
     deps = [
         ":value",
         "//drake/common",
@@ -122,7 +122,7 @@ drake_cc_library(
     srcs = ["state.cc"],
     hdrs = ["state.h"],
     deps = [
-        ":abstract_state",
+        ":abstract_values",
         ":continuous_state",
         ":discrete_state",
         ":value",
@@ -137,7 +137,7 @@ drake_cc_library(
     srcs = ["parameters.cc"],
     hdrs = ["parameters.h"],
     deps = [
-        ":abstract_state",
+        ":abstract_values",
         ":discrete_state",
         "//drake/common",
     ],
@@ -202,6 +202,7 @@ drake_cc_library(
     hdrs = ["context.h"],
     deps = [
         ":input_port_evaluator_interface",
+        ":parameters",
         ":state",
         ":system_input",
         "//drake/common",
@@ -235,11 +236,24 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "model_values",
+    srcs = ["model_values.cc"],
+    hdrs = ["model_values.h"],
+    visibility = [":__subpackages__"],
+    deps = [
+        ":value",
+        ":vector",
+        "//drake/common",
+    ],
+)
+
+drake_cc_library(
     name = "leaf_system",
     srcs = ["leaf_system.cc"],
     hdrs = ["leaf_system.h"],
     deps = [
         ":leaf_context",
+        ":model_values",
         ":sparsity_matrix",
         ":system",
         ":value_checker",
@@ -421,9 +435,19 @@ drake_cc_googletest(
 )
 
 drake_cc_googletest(
-    name = "abstract_state_test",
+    name = "model_values_test",
     deps = [
-        ":abstract_state",
+        ":model_values",
+        "//drake/common:autodiff",
+        "//drake/common:symbolic",
+        "//drake/systems/framework/test_utilities",
+    ],
+)
+
+drake_cc_googletest(
+    name = "abstract_values_test",
+    deps = [
+        ":abstract_values",
         "//drake/common",
         "//drake/systems/framework/test_utilities",
     ],
@@ -477,6 +501,7 @@ drake_cc_googletest(
         ":leaf_context",
         ":system",
         "//drake/common",
+        "//drake/systems/framework/test_utilities",
     ],
 )
 
@@ -485,6 +510,7 @@ drake_cc_googletest(
     deps = [
         ":value",
         "//drake/common",
+        "//drake/systems/framework/test_utilities",
     ],
 )
 
