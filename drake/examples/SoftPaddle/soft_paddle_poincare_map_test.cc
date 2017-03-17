@@ -19,27 +19,27 @@ using Eigen::Vector2d;
 int do_main(int argc, char* argv[]) {
 
 
-  double xn = 0.35;
-  double zn = 0.4;
+  //double xn = 0.35;
+  //double zn = 0.4;
   // dt = 1e-4        (no filter)           (with filter, tau = 0.15)
   //paddle_aim        0.0002818761488578    0.0508380683037560
   //stroke_strength   0.0734681887024423    0.1229300499221768
   // dt = 1e-3        (no filter)           (with filter, tau = 0.15)
   //paddle_aim        0.0004573758964659    0.0495407071067140
   //stroke_strength   0.0708752914692881    0.1190239261815963
-  double paddle_aim = 0.0002818761488578;
-  double stroke_strength = 0.0734681887024423;
+  //double paddle_aim = 0.0002818761488578;
+  //double stroke_strength = 0.0734681887024423;
 
   //double xn = 0.5;
   //double zn = 0.4;
   //double paddle_aim = -0.188732159402915; //0.0; //- 2.0 * M_PI / 180.0;
   //double stroke_strength = 0.0348347361926187; //0.05;
 
-  //double xn = 0.525;
-  //double zn = 0.4;
+  double xn = 0.525;
+  double zn = 0.4;
   //              dt =    1e-3                1e-4
-  //double paddle_aim = -0.2518274153695856;//-0.2508743456482843;
-  //double stroke_strength = 0.0283811081944429;//0.0266432387875092;
+  double paddle_aim = -0.2518274153695856;//-0.2508743456482843;
+  double stroke_strength = 0.0283811081944429;//0.0266432387875092;
 
   // This one diverges even with the solution from x=0.525 above as guess.
   //double xn = 0.55;
@@ -91,7 +91,7 @@ int do_main(int argc, char* argv[]) {
 #endif
 
   double time_step = 1.0e-3;
-  bool filter_command_angle = false;
+  bool filter_command_angle = true;
 
   // Fixed point
   {
@@ -154,10 +154,11 @@ int do_main(int argc, char* argv[]) {
     std::cout << "Error: " << error << std::endl;
 
   }
-#if 0
+
   { /// Compute discrete LQR
     using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector4d>;
-    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map;
+    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map(
+        time_step, filter_command_angle);
 
     // State variables
     AutoDiffScalar x0(xn, Eigen::Vector4d::Unit(0));
@@ -185,8 +186,9 @@ int do_main(int argc, char* argv[]) {
     PRINT_VAR(A);
     PRINT_VAR(B);
 
-    Matrix2<double> Q = Matrix2<double>::Identity();
-    Matrix2<double> R = Matrix2<double>::Identity();
+    Matrix2<double> Q = 100*Matrix2<double>::Identity();
+    Matrix2<double> R = 1.0*Matrix2<double>::Identity();
+    R(1,1) = 10000.0;
 
     PRINT_VAR(Q);
     PRINT_VAR(R);
@@ -195,12 +197,12 @@ int do_main(int argc, char* argv[]) {
 
     PRINT_VAR(S);
 
-    Eigen::LLT<Eigen::MatrixXd> R_cholesky(R);
-    Matrix2<double> K = R_cholesky.solve(B.transpose() * S);
+    Eigen::LLT<Eigen::MatrixXd> R_cholesky(R + B.transpose() * S * B);
+    Matrix2<double> K = R_cholesky.solve(B.transpose() * S * A);
 
     PRINT_VAR(K);
   }
-#endif
+
   return 0;
 }
 

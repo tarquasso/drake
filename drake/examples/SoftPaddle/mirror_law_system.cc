@@ -13,6 +13,7 @@
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/leaf_context.h"
 #include "drake/systems/primitives/first_order_low_pass_filter.h"
+#include "drake/systems/primitives/constant_vector_source.h"
 
 namespace drake {
 namespace examples {
@@ -73,7 +74,7 @@ void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
           this->EvalVectorInput(context, paddle_state_input_));
 
   System<T>::GetMutableOutputVector(output, 0)(0) =
-      phi0_ + amplitude_ * paddle_state->zdot();
+      phi0 + amplitude * paddle_state->zdot();
 
   //auto input_vector = this->EvalEigenVectorInput(context, 0);
  // System<T>::GetMutableOutputVector(output, 0) =
@@ -90,6 +91,31 @@ ApexMonitor<T>::ApexMonitor() {
   // Output for the commanded mirror law parameters.
   mirror_law_parameters_output_port_ =
       this->DeclareOutputPort(kVectorValued, 2).get_index();
+
+
+  K_.resize(2, 2);
+#if 0
+  //x0 = 0.35, z0 = 0.4; Q = 1.0
+  K_ << -1.9631795011057536, -0.0874935891761593,
+         1.1414636533597844,  2.3218568669775732;
+
+  //x0 = 0.35, z0 = 0.4; Q = 10.0
+  K_ << -0.2327767144414060, -0.0378285950160658,
+         0.1677343396027288,  0.3463513773374228;
+#endif
+  //x0 = 0.525, z0 = 0.4; Q = 10.0
+  //K_ << 1.3676142316257427, -0.3461629657349821,
+  //    -0.0359882941802672,  0.2011382989147669;
+  K_ << 1.3547103155711704, -0.2743088149682193,
+      -0.0109592825187393,  0.0610306470571990;
+
+  x0.resize(2);
+  //x0 << 0.35, 0.4;
+  x0 << 0.525, 0.4;
+
+  u0.resize(2);
+  //u0 << 0.0495407071067140, 0.1190239261815963;
+  u0 << -0.1972129787698345,  0.0549855935747501;
 }
 
 template <typename T>
@@ -116,8 +142,29 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
 
   const T& w = paddle_state->zdot();
 
+  // Fake initialization, we need state.
+  if (w0_ == 0) {
+    auto u = System<T>::GetMutableOutputVector(
+        output, mirror_law_parameters_output_port_);
+    u = u0;
+  }
+
   if (w < 0 && w0_ >0) {
     std::cout << "Got to the Apex!" << std::endl;
+
+    const T& xn = paddle_state->x();
+    const T& zn = paddle_state->z();
+
+    VectorX<T> x(x0.size());
+    x << xn, zn;
+
+    auto u = System<T>::GetMutableOutputVector(
+        output, mirror_law_parameters_output_port_);
+
+    u = u0 - K_ * (x - x0);
+
+    std::cout << "u: " << u.transpose() << std::endl;
+    std::cout << "x: " << x.transpose() << std::endl;
   }
 
   w0_ = w;
@@ -131,7 +178,8 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
 
 template <typename T>
 SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
-    const T& phi0, const T& amplitude, bool filter_commanded_angle) {
+    const T& phi0, const T& amplitude, bool filter_commanded_angle,
+    bool with_lqr) {
   systems::DiagramBuilder<T> builder;
 
   auto mirror_system =
@@ -160,14 +208,21 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
   viz_elements_output_port_ =
       builder.ExportOutput(paddle_->get_elements_port());
 
-  auto apex_monitor =
-      builder.template AddSystem<ApexMonitor>();
-  builder.Connect(paddle_->get_output_port(),
-                  apex_monitor->get_paddle_state_input());
+  if (with_lqr) {
+    auto apex_monitor =
+        builder.template AddSystem<ApexMonitor>();
+    builder.Connect(paddle_->get_output_port(),
+                    apex_monitor->get_paddle_state_input());
 
-  builder.Connect(apex_monitor->get_mirror_law_parameters_output(),
-                  mirror_system->get_parameters_input());
-
+    builder.Connect(apex_monitor->get_mirror_law_parameters_output(),
+                    mirror_system->get_parameters_input());
+  } else {
+    auto constant_parameters_source =
+        builder.template AddSystem<systems::ConstantVectorSource>(
+            Vector2<T>(phi0, amplitude));
+    builder.Connect(constant_parameters_source->get_output_port(),
+                    mirror_system->get_parameters_input());
+  }
 
   builder.BuildInto(this);
 }

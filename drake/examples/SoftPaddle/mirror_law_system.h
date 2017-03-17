@@ -56,6 +56,8 @@ class ApexMonitor : public systems::LeafSystem<T> {
   int paddle_state_input_port_;
   int mirror_law_parameters_output_port_;
   mutable T w0_{0};  // TODO(amcastro-tr): Move this to the context.
+  MatrixX<T> K_;  // dLQR gain matrix.
+  VectorX<T> x0, u0;
 };
 
 
@@ -63,7 +65,8 @@ template <typename T>
 class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
  public:
   SoftPaddleWithMirrorControl(const T& phi0, const T& amplitude,
-                              bool filter_commanded_angle);
+                              bool filter_commanded_angle,
+                              bool with_lqr = false);
 
   /// Returns the output port for visualization with a BotVisualizer.
   const systems::OutputPortDescriptor<T>& get_paddle_state_port() const;

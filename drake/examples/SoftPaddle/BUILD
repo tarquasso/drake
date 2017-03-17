@@ -63,6 +63,7 @@ drake_cc_library(
     deps = [
         ":soft_paddle_plant",
         ":soft_paddle_state_to_bot_visualizer",
+        "//drake/systems/primitives:constant_vector_source",
         "//drake/systems/primitives:first_order_low_pass_filter",
     ],
 )
