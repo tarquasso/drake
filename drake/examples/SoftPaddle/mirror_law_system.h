@@ -18,15 +18,12 @@ namespace soft_paddle {
 template <typename T>
 class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
  public:
-  /// Constructs a system with a vector output that is constant and equals the
-  /// supplied @p source_value at all times.
-  /// @param source_value the constant value of the output so that
-  /// `y = source_value` at all times.
   PaddleMirrorLawSystem(const T& phi0, const T& amplitude);
 
   bool has_any_direct_feedthrough() const override { return false; }
 
-  /// Returns the output port to the constant source.
+  const systems::InputPortDescriptor<T>& get_parameters_input() const;
+
   const systems::OutputPortDescriptor<T>& get_paddle_angle_port() const;
 
  private:
@@ -36,7 +33,31 @@ class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
  private:
   T phi0_{0.0};
   T amplitude_{0.1};
+  int parameters_input_;
+  int paddle_state_input_;
 };
+
+template <typename T>
+class ApexMonitor : public systems::LeafSystem<T> {
+ public:
+  ApexMonitor();
+
+  bool has_any_direct_feedthrough() const override { return true; }
+
+  const systems::InputPortDescriptor<T>& get_paddle_state_input() const;
+
+  const systems::OutputPortDescriptor<T>& get_mirror_law_parameters_output() const;
+
+ private:
+  void DoCalcOutput(const systems::Context<T>& context,
+                    systems::SystemOutput<T>* output) const override;
+
+ private:
+  int paddle_state_input_port_;
+  int mirror_law_parameters_output_port_;
+  mutable T w0_{0};  // TODO(amcastro-tr): Move this to the context.
+};
+
 
 template <typename T>
 class SoftPaddleWithMirrorControl : public systems::Diagram<T> {

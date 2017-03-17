@@ -20,6 +20,7 @@ namespace soft_paddle {
 
 using systems::Context;
 using systems::kVectorValued;
+using systems::InputPortDescriptor;
 using systems::OutputPortDescriptor;
 using systems::System;
 using systems::SystemOutput;
@@ -29,10 +30,23 @@ template <typename T>
 PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(const T& phi0, const T& amplitude) :
     phi0_(phi0), amplitude_(amplitude) {
   // Input for the SoftPaddlePlant state.
-  this->DeclareInputPort(kVectorValued,
-                         SoftPaddleStateVectorIndices::kNumCoordinates);
+  paddle_state_input_ =
+      this->DeclareInputPort(
+          kVectorValued,
+          SoftPaddleStateVectorIndices::kNumCoordinates).get_index();
+
+  // Input for law parameters.
+  parameters_input_ =
+      this->DeclareInputPort(kVectorValued, 2).get_index();
+
   // Output for the commanded paddle angle.
   this->DeclareOutputPort(kVectorValued, 1);
+}
+
+template <typename T>
+const InputPortDescriptor<T>&
+PaddleMirrorLawSystem<T>::get_parameters_input() const {
+  return System<T>::get_input_port(parameters_input_);
 }
 
 template <typename T>
@@ -47,10 +61,16 @@ void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
   DRAKE_ASSERT_VOID(System<T>::CheckValidOutput(output));
   DRAKE_ASSERT_VOID(System<T>::CheckValidContext(context));
 
+  auto parameters = this->EvalEigenVectorInput(context, parameters_input_);
+  const T& phi0 = parameters(0);
+  const T& amplitude = parameters(1);
+  (void) phi0;
+  (void) amplitude;
   //
   //const auto paddle_state = this->EvalVectorInput(context, 0);
   auto paddle_state =
-      dynamic_cast<const SoftPaddleStateVector<T>*>(this->EvalVectorInput(context, 0));
+      dynamic_cast<const SoftPaddleStateVector<T>*>(
+          this->EvalVectorInput(context, paddle_state_input_));
 
   System<T>::GetMutableOutputVector(output, 0)(0) =
       phi0_ + amplitude_ * paddle_state->zdot();
@@ -58,6 +78,55 @@ void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
   //auto input_vector = this->EvalEigenVectorInput(context, 0);
  // System<T>::GetMutableOutputVector(output, 0) =
    //   k_.array() * input_vector.array();
+}
+
+template <typename T>
+ApexMonitor<T>::ApexMonitor() {
+  // Input for the SoftPaddlePlant state.
+  paddle_state_input_port_ =
+      this->DeclareInputPort(
+          kVectorValued,
+          SoftPaddleStateVectorIndices::kNumCoordinates).get_index();
+  // Output for the commanded mirror law parameters.
+  mirror_law_parameters_output_port_ =
+      this->DeclareOutputPort(kVectorValued, 2).get_index();
+}
+
+template <typename T>
+const InputPortDescriptor<T>&
+ApexMonitor<T>::get_paddle_state_input() const {
+  return System<T>::get_input_port(paddle_state_input_port_);
+}
+
+template <typename T>
+const OutputPortDescriptor<T>&
+ApexMonitor<T>::get_mirror_law_parameters_output() const {
+  return System<T>::get_output_port(mirror_law_parameters_output_port_);
+}
+
+template <typename T>
+void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
+                                  SystemOutput<T>* output) const {
+  DRAKE_ASSERT_VOID(System<T>::CheckValidOutput(output));
+  DRAKE_ASSERT_VOID(System<T>::CheckValidContext(context));
+
+  auto paddle_state =
+      dynamic_cast<const SoftPaddleStateVector<T>*>(
+          this->EvalVectorInput(context, paddle_state_input_port_));
+
+  const T& w = paddle_state->zdot();
+
+  if (w < 0 && w0_ >0) {
+    std::cout << "Got to the Apex!" << std::endl;
+  }
+
+  w0_ = w;
+
+  //System<T>::GetMutableOutputVector(output, 0)(0) =
+  //    phi0_ + amplitude_ * paddle_state->zdot();
+  //auto input_vector = this->EvalEigenVectorInput(context, 0);
+  // System<T>::GetMutableOutputVector(output, 0) =
+  //   k_.array() * input_vector.array();
 }
 
 template <typename T>
@@ -90,6 +159,15 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
   state_output_port_ = builder.ExportOutput(paddle_->get_output_port());
   viz_elements_output_port_ =
       builder.ExportOutput(paddle_->get_elements_port());
+
+  auto apex_monitor =
+      builder.template AddSystem<ApexMonitor>();
+  builder.Connect(paddle_->get_output_port(),
+                  apex_monitor->get_paddle_state_input());
+
+  builder.Connect(apex_monitor->get_mirror_law_parameters_output(),
+                  mirror_system->get_parameters_input());
+
 
   builder.BuildInto(this);
 }
