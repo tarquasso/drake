@@ -19,6 +19,17 @@ using Eigen::Vector2d;
 int do_main(int argc, char* argv[]) {
 
 
+  double xn = 0.35;
+  double zn = 0.4;
+  // dt = 1e-4        (no filter)           (with filter, tau = 0.15)
+  //paddle_aim        0.0002818761488578    0.0508380683037560
+  //stroke_strength   0.0734681887024423    0.1229300499221768
+  // dt = 1e-3        (no filter)           (with filter, tau = 0.15)
+  //paddle_aim        0.0004573758964659    0.0495407071067140
+  //stroke_strength   0.0708752914692881    0.1190239261815963
+  double paddle_aim = 0.0002818761488578;
+  double stroke_strength = 0.0734681887024423;
+
   //double xn = 0.5;
   //double zn = 0.4;
   //double paddle_aim = -0.188732159402915; //0.0; //- 2.0 * M_PI / 180.0;
@@ -36,11 +47,11 @@ int do_main(int argc, char* argv[]) {
   //double paddle_aim = -0.2508743456482843;
   //double stroke_strength = 0.0266432387875092;
 
-  double xn = 0.25;
-  double zn = 0.4;
-  //                    1e-4 (no filter)
-  double paddle_aim = 0.0933383;
-  double stroke_strength = 0.0892304;
+  //double xn = 0.25;
+  //double zn = 0.4;
+  // dt = 1e-4        (no filter)           (with filter)
+  //double paddle_aim = 0.0933383;         // 0.1519477242286417
+  //double stroke_strength = 0.0892304;    // 0.1598050387931525
 
 #if 0
   double xnext, znext;
@@ -79,10 +90,14 @@ int do_main(int argc, char* argv[]) {
   }
 #endif
 
+  double time_step = 1.0e-3;
+  bool filter_command_angle = false;
+
   // Fixed point
   {
     using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector2d>;
-    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map;
+    SoftPaddlePoincareMap<AutoDiffScalar> poincare_map(
+        time_step, filter_command_angle);
     AutoDiffScalar paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
     AutoDiffScalar stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
 

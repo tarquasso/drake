@@ -16,7 +16,9 @@ using systems::ContinuousState;
 using systems::SystemOutput;
 
 template <typename T>
-SoftPaddlePoincareMap<T>::SoftPaddlePoincareMap() {
+SoftPaddlePoincareMap<T>::SoftPaddlePoincareMap(
+    double time_step, bool filter_commanded_angle) :
+    time_step_(time_step), filter_commanded_angle_(filter_commanded_angle) {
 #if 0
     const int kSize = 2;  // The state includes [xn, zn].
     this->DeclareUpdatePeriodSec(1.0);   // Arbitrary sampling rate.
@@ -59,11 +61,11 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
     const T& paddle_aim, const T& stroke_strength,
     const T& xn, const T& zn, T* xnext, T* znext) const {
 
-  T dt = 1.0e-4;
+  T dt = time_step_;
 
   auto paddle_plant =
-      std::make_unique<SoftPaddleWithMirrorControl<T>>(paddle_aim,
-                                                       stroke_strength);
+      std::make_unique<SoftPaddleWithMirrorControl<T>>(
+          paddle_aim, stroke_strength, filter_commanded_angle_);
 
   // Allocate workspace.
   auto paddle_context = paddle_plant->CreateDefaultContext();

@@ -41,7 +41,8 @@ class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
 template <typename T>
 class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
  public:
-  SoftPaddleWithMirrorControl(const T& phi0, const T& amplitude);
+  SoftPaddleWithMirrorControl(const T& phi0, const T& amplitude,
+                              bool filter_commanded_angle);
 
   /// Returns the output port for visualization with a BotVisualizer.
   const systems::OutputPortDescriptor<T>& get_paddle_state_port() const;
@@ -68,6 +69,10 @@ class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
   T phi0_{0.0};
   T amplitude_{0.0};
   SoftPaddlePlant<T>* paddle_;
+  // Output port identifiers.
+  int command_angle_output_port_;
+  int state_output_port_;
+  int viz_elements_output_port_;
 };
 
 }  // namespace soft_paddle

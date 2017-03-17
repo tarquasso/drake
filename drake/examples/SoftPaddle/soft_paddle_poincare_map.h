@@ -14,7 +14,7 @@ namespace soft_paddle {
 template <typename T>
 class SoftPaddlePoincareMap  { //: public drake::systems::LeafSystem<T>
  public:
-  SoftPaddlePoincareMap();
+  SoftPaddlePoincareMap(double time_step, bool filter_commanded_angle);
 
 //  void DoEvalDifferenceUpdates(
 //      const drake::systems::Context<T>& context,
@@ -28,6 +28,8 @@ class SoftPaddlePoincareMap  { //: public drake::systems::LeafSystem<T>
                        const T& x0, const T& z0, T* xnext, T* znext) const;
 
  private:
+  double time_step_{1.0e-4};
+  bool filter_commanded_angle_;
   //std::unique_ptr<SoftPaddleWithMirrorControl<T>> paddle_plant_;
 };
 

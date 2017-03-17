@@ -62,7 +62,7 @@ void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
 
 template <typename T>
 SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
-    const T& phi0, const T& amplitude) {
+    const T& phi0, const T& amplitude, bool filter_commanded_angle) {
   systems::DiagramBuilder<T> builder;
 
   auto mirror_system =
@@ -70,19 +70,26 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
   paddle_ = builder.template AddSystem<SoftPaddlePlant>();
 
   // Feedback loop.
-  const double filter_time_constant = 0.15;  // In seconds.
-  auto filter =
-      builder.template AddSystem<FirstOrderLowPassFilter>(filter_time_constant);
-
   builder.Connect(paddle_->get_output_port(), mirror_system->get_input_port(0));
-  builder.Connect(
-      mirror_system->get_paddle_angle_port(), filter->get_input_port());
-  builder.Connect(
-      filter->get_output_port(), paddle_->get_tau_port());
+  if (filter_commanded_angle) {
+    const double filter_time_constant = 0.15;  // In seconds.
+    auto filter =
+        builder.template AddSystem<FirstOrderLowPassFilter>(filter_time_constant);
+    builder.Connect(
+        mirror_system->get_paddle_angle_port(), filter->get_input_port());
+    builder.Connect(
+        filter->get_output_port(), paddle_->get_tau_port());
+    command_angle_output_port_ =
+        builder.ExportOutput(filter->get_output_port());
+  } else {
+    builder.Connect(
+        mirror_system->get_paddle_angle_port(), paddle_->get_tau_port());
+    builder.ExportOutput(mirror_system->get_paddle_angle_port());
+  }
 
-  builder.ExportOutput(paddle_->get_output_port());
-  builder.ExportOutput(filter->get_output_port());
-  builder.ExportOutput(paddle_->get_elements_port());
+  state_output_port_ = builder.ExportOutput(paddle_->get_output_port());
+  viz_elements_output_port_ =
+      builder.ExportOutput(paddle_->get_elements_port());
 
   builder.BuildInto(this);
 }
@@ -90,19 +97,19 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
 template <typename T>
 const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_paddle_state_port() const {
-  return System<T>::get_output_port(0);
+  return System<T>::get_output_port(state_output_port_);
 }
 
 template <typename T>
 const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_paddle_angle_port() const {
-  return System<T>::get_output_port(1);
+  return System<T>::get_output_port(command_angle_output_port_);
 }
 
 template <typename T>
 const OutputPortDescriptor<T>&
 SoftPaddleWithMirrorControl<T>::get_elements_port() const {
-  return System<T>::get_output_port(2);
+  return System<T>::get_output_port(viz_elements_output_port_);
 }
 
 template <typename T>

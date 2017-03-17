@@ -24,20 +24,26 @@ using Eigen::Isometry3d;
 int do_main(int argc, char* argv[]) {
   lcm::DrakeLcm lcm;
 
+  bool filter_commanded_angle = true;
+
   systems::DiagramBuilder<double> builder;
-  //double x0 = 0.35;
-  //double z0 = 0.4;
+  double x0 = 0.35;
+  double z0 = 0.4;
+  // No filter
   //double paddle_aim = 0.00045739; //-3.0 * M_PI / 180.0;
   //double stroke_strength = 0.0708753;//0.05;
+  // With filter tau = 0.15 secs
+  double paddle_aim = 0.0495407071067140;
+  double stroke_strength = 0.1190239261815963;
 
-  double x0 = 0.25;
-  double z0 = 0.4;
+  //double x0 = 0.25;
+  //double z0 = 0.4;
   // This with no filter
   //double paddle_aim = 0.0933383;
   //double stroke_strength = 0.0892304;
   // These with filter tau = 0.15 secs
-  double paddle_aim = 0.1519477242286417;
-  double stroke_strength = 0.1598050387931525;
+  //double paddle_aim = 0.1519477242286417;
+  //double stroke_strength = 0.1598050387931525;
 
   //double x0 = 0.1;
   //double z0 = 0.4;
@@ -50,8 +56,8 @@ int do_main(int argc, char* argv[]) {
   //double paddle_aim = -0.2518274153695856;
   //double stroke_strength = 0.0283811081944429;
 
-  auto paddle = builder.AddSystem<SoftPaddleWithMirrorControl>(paddle_aim,
-                                                               stroke_strength);
+  auto paddle = builder.AddSystem<SoftPaddleWithMirrorControl>(
+      paddle_aim, stroke_strength, filter_commanded_angle);
   const RigidBodyTree<double>& tree = paddle->get_rigid_body_tree_model();
   auto paddle_to_viz =
       builder.AddSystem<SoftPaddleStateToBotVisualizer>(
