@@ -1,12 +1,18 @@
+/* clang-format off */
 #include "drake/solvers/rotation_constraint.h"
 #include "drake/solvers/rotation_constraint_internal.h"
+/* clang-format on */
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <limits>
-#include <vector>
 
+#include "drake/common/symbolic_expression.h"
 #include "drake/math/cross_product.h"
+
+using std::numeric_limits;
+using drake::symbolic::Expression;
 
 namespace drake {
 namespace solvers {
@@ -176,16 +182,15 @@ void AddOrthogonalConstraint(
   Eigen::Matrix<double, 5, 1> b;
 
   // |v1+v2|^2 <= 2
-  // Implemented as a rotated Lorenz cone using z = Ax+b = [ 1; 2; v1+v2 ].
-  A.topRows<2>() = Eigen::Matrix<double, 2, 6>::Zero();
-  A.bottomRows<3>() << Eigen::Matrix3d::Identity(), Eigen::Matrix3d::Identity();
-  b << 1, 2, 0, 0, 0;
-  prog->AddRotatedLorentzConeConstraint(A, b, {v1, v2});
+  // Implemented as a Lorenz cone using z = [ sqrt(2); v1+v2 ].
+  Vector4<symbolic::Expression> z;
+  z << std::sqrt(2), v1 + v2;
+  prog->AddLorentzConeConstraint(z);
 
   // |v1-v2|^2 <= 2
-  // Implemented as a rotated Lorenz cone using z = Ax+b = [ 1; 2; v1-v2 ].
-  A.block<3, 3>(2, 3) = -Eigen::Matrix3d::Identity();
-  prog->AddRotatedLorentzConeConstraint(A, b, {v1, v2});
+  // Implemented as a Lorenz cone using z = [ sqrt(2); v1-v2 ].
+  z.tail<3>() = v1 - v2;
+  prog->AddLorentzConeConstraint(z);
 }
 
 }  // namespace
@@ -397,7 +402,7 @@ void ComputeHalfSpaceRelaxationForBoxSphereIntersection(
   prog_normal.AddLinearCost(Vector1d(-1), d_var);
   for (const auto& pt : pts) {
     prog_normal.AddLinearConstraint(Eigen::Vector4d(pt(0), pt(1), pt(2), -1), 0,
-                                    std::numeric_limits<double>::infinity(),
+                                    numeric_limits<double>::infinity(),
                                     {n_var, d_var});
   }
   // A_lorentz * n + b_lorentz = [1; n]
@@ -435,22 +440,83 @@ void AddMcCormickVectorConstraints(
         box_min(2) = EnvelopeMinValue(zi, N);
         box_max(2) = EnvelopeMinValue(zi + 1, N);
 
-        // If min corner is inside the unit circle...
-        if (box_min.lpNorm<2>() < 1.0) {
-          VectorDecisionVariable<3> this_cpos, this_cneg;
-          this_cpos << cpos[xi](0), cpos[yi](1), cpos[zi](2);
-          this_cneg << cneg[xi](0), cneg[yi](1), cneg[zi](2);
+        VectorDecisionVariable<3> this_cpos, this_cneg;
+        this_cpos << cpos[xi](0), cpos[yi](1), cpos[zi](2);
+        this_cneg << cneg[xi](0), cneg[yi](1), cneg[zi](2);
 
-          if (box_max.lpNorm<2>() <= 1.0) {
-            // This box is not allowed, e.g. c[xi]+c[yi]+c[zi] <= 2
+        const double box_min_norm = box_min.lpNorm<2>();
+        const double box_max_norm = box_max.lpNorm<2>();
+        if (box_min_norm <= 1.0 + 2 * numeric_limits<double>::epsilon() &&
+            box_max_norm >= 1.0 - 2 * numeric_limits<double>::epsilon()) {
+          // The box intersects with the surface of the unit sphere.
+          // Two possible cases
+          // 1. If the box bmin <= x <= bmax intersects with the surface of the
+          // unit sphere at a unique point (either bmin or bmax),
+          // 2. Otherwise, there is a region of intersection.
 
-            // Should never happen on the outer boxes.
-            DRAKE_DEMAND((xi < (N - 1)) && (yi < (N - 1)) && (zi < (N - 1)));
-
+          // We choose the error as 2 * eps here. The reason is that
+          // if x.norm() == 1, then another vector y which is different from
+          // x by eps (y(i) = x(i) + eps), the norm of y is at most 1 + 2 * eps.
+          if (std::abs(box_min_norm - 1.0) <
+                  2 * numeric_limits<double>::epsilon() ||
+              std::abs(box_max_norm - 1.0) <
+                  2 * numeric_limits<double>::epsilon()) {
+            // If box_min or box_max is on the sphere, then denote the point on
+            // the sphere as u, we have the following condition
+            // if c[xi](0) = 1 and c[yi](1) == 1 and c[zi](2) == 1, then
+            //     v = u
+            //     vᵀ * v1 = 0
+            //     vᵀ * v2 = 0
+            //     v.cross(v1) = v2
+            // Translate this to constraint, we have
+            //   2 * (c[xi](0) + c[yi](1) + c[zi](2)) - 6
+            //       <= v - u <= -2 * (c[xi](0) + c[yi](1) + c[zi](2)) + 6
+            //
+            //   c[xi](0) + c[yi](1) + c[zi](2) - 3
+            //       <= vᵀ * v1 <= 3 - (c[xi](0) + c[yi](1) + c[zi](2))
+            //
+            //   c[xi](0) + c[yi](1) + c[zi](2) - 3
+            //       <= vᵀ * v2 <= 3 - (c[xi](0) + c[yi](1) + c[zi](2))
+            //
+            //   2 * c[xi](0) + c[yi](1) + c[zi](2) - 6
+            //       <= v.cross(v1) - v2 <= 6 - 2 * (c[xi](0) + c[yi](1) +
+            //       c[zi](2))
+            Eigen::Vector3d unique_intersection;  // `u` in the documentation
+                                                  // above
+            if (std::abs(box_min_norm - 1.0) <
+                2 * numeric_limits<double>::epsilon()) {
+              unique_intersection = box_min / box_min_norm;
+            } else {
+              unique_intersection = box_max / box_max_norm;
+            }
+            Eigen::Vector3d orthant_u;
+            VectorDecisionVariable<3> orthant_c;
             for (int o = 0; o < 8; o++) {  // iterate over orthants
-              prog->AddLinearConstraint(
-                  Eigen::RowVector3d(1, 1, 1), 0.0, 2.0,
-                  PickPermutation(this_cpos, this_cneg, o));
+              orthant_u = FlipVector(unique_intersection, o);
+              orthant_c = PickPermutation(this_cpos, this_cneg, o);
+
+              // TODO(hongkai.dai): remove this for loop when we can handle
+              // Eigen::Array of symbolic formulae.
+              Expression orthant_c_sum = orthant_c.cast<Expression>().sum();
+              for (int i = 0; i < 3; ++i) {
+                prog->AddLinearConstraint(v(i) - orthant_u(i) <=
+                                          6 - 2 * orthant_c_sum);
+                prog->AddLinearConstraint(v(i) - orthant_u(i) >=
+                                          2 * orthant_c_sum - 6);
+              }
+              const Expression v_dot_v1 = orthant_u.dot(v1);
+              const Expression v_dot_v2 = orthant_u.dot(v2);
+              prog->AddLinearConstraint(v_dot_v1 <= 3 - orthant_c_sum);
+              prog->AddLinearConstraint(orthant_c_sum - 3 <= v_dot_v1);
+              prog->AddLinearConstraint(v_dot_v2 <= 3 - orthant_c_sum);
+              prog->AddLinearConstraint(orthant_c_sum - 3 <= v_dot_v2);
+              const Vector3<Expression> v_cross_v1 = orthant_u.cross(v1);
+              for (int i = 0; i < 3; ++i) {
+                prog->AddLinearConstraint(v_cross_v1(i) - v2(i) <=
+                                          6 - 2 * orthant_c_sum);
+                prog->AddLinearConstraint(v_cross_v1(i) - v2(i) >=
+                                          2 * orthant_c_sum - 6);
+              }
             }
           } else {
             // Find the intercepts of the unit sphere with the box, then find
@@ -577,15 +643,92 @@ void AddMcCormickVectorConstraints(
                   {v2, v1, orthant_c});
             }
           }
+        } else {
+          // This box does not intersect with the surface of the sphere.
+          for (int o = 0; o < 8; ++o) {  // iterate over orthants
+            prog->AddLinearConstraint(PickPermutation(this_cpos, this_cneg, o)
+                                          .cast<Expression>()
+                                          .sum(),
+                                      0.0, 2.0);
+          }
         }
       }
     }
   }
 }
 
+/**
+ * Add the constraint that vector R.col(i) and R.col(j) are not in the
+ * same or opposite orthants. This constraint should be satisfied since
+ * R.col(i) should be perpendicular to R.col(j). For example, if both
+ * R.col(i) and R.col(j) are in the first orthant (+++), their inner product
+ * has to be non-negative. If the inner product of two first orthant vectors
+ * is exactly zero, then both vectors has to be on the boundaries of the first
+ * orthant. But we can then assign the vector to a different orthant. The same
+ * proof applies to the opposite orthant case.
+ * To impose the constraint that R.col(0) and R.col(1) are not both in the first
+ * orthant, we consider the constraint
+ * Bpos0.col(0).sum() + Bpos0.col(1).sum() <= 5.
+ * Namely, not all 6 entries in Bpos0.col(0) and Bpos0.col(1) can be 1 at the
+ * same time, which is another way of saying R.col(0) and R.col(1) cannot be
+ * both in the first orthant.
+ * Similarly we can impose the constraint on the other orthant.
+ * @param prog Add the constraint to this mathematical program.
+ * @param Bpos0 Defined in AddRotationMatrixMcCormickEnvelopeMilpConstraints(),
+ * Bpos0(i,j) = 1 => R(i, j) >= 0.
+ * @param Bneg0 Defined in AddRotationMatrixMcCormickEnvelopeMilpConstraints(),
+ * Bneg0(i,j) = 1 => R(i, j) <= 0.
+ */
+void AddNotInSameOrOppositeOrthantConstraint(
+    MathematicalProgram* prog,
+    const Eigen::Ref<const MatrixDecisionVariable<3, 3>>& Bpos0,
+    const Eigen::Ref<const MatrixDecisionVariable<3, 3>>& Bneg0) {
+  const std::array<std::pair<int, int>, 3> column_idx = {
+      {{0, 1}, {0, 2}, {1, 2}}};
+  for (const auto& column_pair : column_idx) {
+    const int col_idx0 = column_pair.first;
+    const int col_idx1 = column_pair.second;
+    for (int o = 0; o < 8; ++o) {
+      // To enforce that R.col(i) and R.col(j) are not simultaneously in the
+      // o'th orthant, we will impose the constraint
+      // vars_same_orthant.sum() < = 5. The variables in vars_same_orthant
+      // depend on the orthant number o.
+      // To enforce that R.col(i) and R.col(j) are not in the opposite
+      // orthants, we will impose the constraint
+      // vars_oppo_orthant.sum() <= 5. The variables in vars_oppo_orthant
+      // depnd on the orthant number o.
+      Eigen::Matrix<symbolic::Variable, 6, 1> vars_same_orthant;
+      Eigen::Matrix<symbolic::Variable, 6, 1> vars_oppo_orthant;
+      for (int axis = 0; axis < 3; ++axis) {
+        // axis chooses x, y, or z axis.
+        if (o & (1 << axis)) {
+          // If the orthant has positive value along the `axis`, then
+          // `vars_same_orthant` choose the positive component Bpos0.
+          vars_same_orthant(2 * axis)     = Bpos0(axis, col_idx0);
+          vars_same_orthant(2 * axis + 1) = Bpos0(axis, col_idx1);
+          vars_oppo_orthant(2 * axis)     = Bpos0(axis, col_idx0);
+          vars_oppo_orthant(2 * axis + 1) = Bneg0(axis, col_idx1);
+        } else {
+          // If the orthant has negative value along the `axis`, then
+          // `vars_same_orthant` choose the negative component Bneg0.
+          vars_same_orthant(2 * axis)     = Bneg0(axis, col_idx0);
+          vars_same_orthant(2 * axis + 1) = Bneg0(axis, col_idx1);
+          vars_oppo_orthant(2 * axis)     = Bneg0(axis, col_idx0);
+          vars_oppo_orthant(2 * axis + 1) = Bpos0(axis, col_idx1);
+        }
+      }
+      prog->AddLinearConstraint(Eigen::Matrix<double, 1, 6>::Ones(), 0, 5,
+                                vars_same_orthant);
+      prog->AddLinearConstraint(Eigen::Matrix<double, 1, 6>::Ones(), 0, 5,
+                                vars_oppo_orthant);
+    }
+  }
+}
 }  // namespace
 
-void AddRotationMatrixMcCormickEnvelopeMilpConstraints(
+std::pair<std::vector<MatrixDecisionVariable<3, 3>>,
+          std::vector<MatrixDecisionVariable<3, 3>>>
+AddRotationMatrixMcCormickEnvelopeMilpConstraints(
     MathematicalProgram* prog,
     const Eigen::Ref<const MatrixDecisionVariable<3, 3>>& R,
     int num_binary_vars_per_half_axis, RollPitchYawLimits limits) {
@@ -628,62 +771,57 @@ void AddRotationMatrixMcCormickEnvelopeMilpConstraints(
         // R(i,j) > phi(k) => Bpos[k](i,j) = 1
         // R(i,j) < phi(k) => Bpos[k](i,j) = 0
         // R(i,j) = phi(k) => Bpos[k](i,j) = 0 or 1
-        // -2 + 2*Bpos[k](i,j) <= R(i,j)-phi(k) <= Bpos[k](i,j)
+        // Since -s1 <= R(i, j) - phi(k) <= s2,
+        // where s1 = 1 + phi(k), s2 = 1 - phi(k). The point
+        // [R(i,j) - phi(k), Bpos[k](i,j)] has to lie within the convex hull,
+        // whose vertices are (-s1, 0), (0, 0), (s2, 1), (0, 1). By computing
+        // the edges of this convex hull, we get
+        // -s1 + s1*Bpos[k](i,j) <= R(i,j)-phi(k) <= s2 * Bpos[k](i,j)
+        double s1 = 1 + phi(k);
+        double s2 = 1 - phi(k);
+        prog->AddLinearConstraint(R(i, j) - phi(k) >= -s1 + s1 * Bpos[k](i, j));
+        prog->AddLinearConstraint(R(i, j) - phi(k) <= s2 * Bpos[k](i, j));
 
-        // Tight on the lower bound:
-        prog->AddLinearConstraint(
-            Eigen::RowVector2d(1, -2), -2 + phi(k), phi(k),
-            VectorDecisionVariable<2>{R(i, j), Bpos[k](i, j)});
-        // Tight on the upper bound:
-        prog->AddLinearConstraint(
-            Eigen::RowVector2d(1, -1), -2 + phi(k), phi(k),
-            VectorDecisionVariable<2>{R(i, j), Bpos[k](i, j)});
-
-        // -R(i,j) >= phi(k) => Bneg[k](i,j) = 1
-        // -R(i,j) <= phi(k) => Bneg[k](i,j) = 0
+        // -R(i,j) > phi(k) => Bneg[k](i,j) = 1
+        // -R(i,j) < phi(k) => Bneg[k](i,j) = 0
         // -R(i,j) = phi(k) => Bneg[k](i,j) = 0 or 1
-        // -Bneg[k](i,j) <= R(i,j)+phi(k) <= 2-2*Bneg[k](i,j)
-
-        // Tight on the lower bound:
-        prog->AddLinearConstraint(
-            Eigen::RowVector2d(1, 1), -phi(k), 2 - phi(k),
-            VectorDecisionVariable<2>{R(i, j), Bneg[k](i, j)});
-        // Tight on the lower bound:
-        prog->AddLinearConstraint(
-            Eigen::RowVector2d(1, 2), -phi(k), 2 - phi(k),
-            VectorDecisionVariable<2>{R(i, j), Bneg[k](i, j)});
+        // Since -s2 <= R(i, j) + phi(k) <= s1,
+        // where s1 = 1 + phi(k), s2 = 1 - phi(k). The point
+        // [R(i,j) + phi(k), Bneg[k](i,j)] has to lie within the convex hull
+        // whose vertices are (-s2, 1), (0, 0), (s1, 0), (0, 1). By computing
+        // the edges of the convex hull, we get
+        // -s2 * Bneg[k](i,j) <= R(i,j)+phi(k) <= s1-s1*Bneg[k](i,j)
+        prog->AddLinearConstraint(R(i, j) + phi(k) <= s1 - s1 * Bneg[k](i, j));
+        prog->AddLinearConstraint(R(i, j) + phi(k) >= -s2 * Bneg[k](i, j));
 
         if (k == num_binary_vars_per_half_axis - 1) {
           //   Cpos[k](i,j) = Bpos[k](i,j)
-          prog->AddLinearEqualityConstraint(
-              Eigen::RowVector2d(1, -1), 0,
-              {Cpos[k].block<1, 1>(i, j), Bpos[k].block<1, 1>(i, j)});
+          prog->AddLinearConstraint(Cpos[k](i, j) == Bpos[k](i, j));
+
           //   Cneg[k](i,j) = Bneg[k](i,j)
-          prog->AddLinearEqualityConstraint(
-              Eigen::RowVector2d(1, -1), 0,
-              {Cneg[k].block<1, 1>(i, j), Bneg[k].block<1, 1>(i, j)});
+          prog->AddLinearConstraint(Cneg[k](i, j) == Bneg[k](i, j));
         } else {
           //   Cpos[k](i,j) = Bpos[k](i,j) - Bpos[k+1](i,j)
-          prog->AddLinearEqualityConstraint(
-              Eigen::RowVector3d(1, -1, 1), 0,
-              {Cpos[k].block<1, 1>(i, j), Bpos[k].block<1, 1>(i, j),
-               Bpos[k + 1].block<1, 1>(i, j)});
+          prog->AddLinearConstraint(Cpos[k](i, j) ==
+                                    Bpos[k](i, j) - Bpos[k + 1](i, j));
           //   Cneg[k](i,j) = Bneg[k](i,j) - Bneg[k+1](i,j)
-          prog->AddLinearEqualityConstraint(
-              Eigen::RowVector3d(1, -1, 1), 0,
-              {Cneg[k].block<1, 1>(i, j), Bneg[k].block<1, 1>(i, j),
-               Bneg[k + 1].block<1, 1>(i, j)});
+          prog->AddLinearConstraint(Cneg[k](i, j) ==
+                                    Bneg[k](i, j) - Bneg[k + 1](i, j));
         }
       }
-      // Bpos[0](i,j) + Bneg[0](i,j) = 1.  (have to pick a side).
-      prog->AddLinearEqualityConstraint(
-          Eigen::RowVector2d(1, 1), 1,
-          {Bpos[0].block<1, 1>(i, j), Bneg[0].block<1, 1>(i, j)});
+      // R(i,j) has to pick a side, either non-positive or non-negative.
+      prog->AddLinearConstraint(Bpos[0](i, j) + Bneg[0](i, j) == 1);
 
       // for debugging: constrain to positive orthant.
       //      prog->AddBoundingBoxConstraint(1,1,{Bpos[0].block<1,1>(i,j)});
     }
   }
+
+  // Add constraint that no two rows (or two columns) can lie in the same
+  // orthant (or opposite orthant).
+  AddNotInSameOrOppositeOrthantConstraint(prog, Bpos[0], Bneg[0]);
+  AddNotInSameOrOppositeOrthantConstraint(prog, Bpos[0].transpose(),
+                                          Bneg[0].transpose());
 
   // Add angle limit constraints.
   // Bounding box will turn on/off an orthant.  It's sufficient to add the
@@ -714,6 +852,7 @@ void AddRotationMatrixMcCormickEnvelopeMilpConstraints(
                                   R.row((i + 1) % 3).transpose(),
                                   R.row((i + 2) % 3).transpose());
   }
+  return make_pair(Cpos, Cneg);
 }
 
 }  // namespace solvers

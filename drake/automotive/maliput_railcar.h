@@ -83,10 +83,7 @@ class MaliputRailcar : public systems::LeafSystem<T> {
   ///
   /// @param initial_lane_direction The initial lane and direction of travel.
   ///
-  /// @param start_time The time at which this vehicle starts moving.
-  ///
-  explicit MaliputRailcar(const LaneDirection& initial_lane_direction,
-                          double start_time = 0);
+  explicit MaliputRailcar(const LaneDirection& initial_lane_direction);
 
   // System<T> overrides.
   void DoCalcOutput(const systems::Context<T>& context,
@@ -130,6 +127,10 @@ class MaliputRailcar : public systems::LeafSystem<T> {
   std::unique_ptr<systems::Parameters<T>> AllocateParameters() const override;
   bool DoHasDirectFeedthrough(const systems::SparsityMatrix* sparsity,
                               int input_port, int output_port) const override;
+  void DoCalcNextUpdateTime(const systems::Context<T>& context,
+                            systems::UpdateActions<T>* actions) const override;
+  void DoCalcUnrestrictedUpdate(const systems::Context<T>& context,
+                                systems::State<T>* state) const override;
 
  private:
   void ImplCalcOutput(
@@ -158,7 +159,6 @@ class MaliputRailcar : public systems::LeafSystem<T> {
     const MaliputRailcarState<double>& state,
     MaliputRailcarState<double>* rates) const;
 
-  const double start_time_{};
   const LaneDirection initial_lane_direction_{};
   int command_input_port_index_{};
   int state_output_port_index_{};

@@ -2,7 +2,12 @@
 # This file contains rules for Bazel; see drake/doc/bazel.rst.
 
 load("//tools:cpplint.bzl", "cpplint")
-load("//tools:drake.bzl", "drake_cc_googletest", "drake_cc_library")
+load(
+    "//tools:drake.bzl",
+    "drake_cc_binary",
+    "drake_cc_googletest",
+    "drake_cc_library",
+)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -128,6 +133,21 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "rotation_constraint_visualization",
+    testonly = 1,
+    srcs = [
+        "test/rotation_constraint_visualization.cc",
+    ],
+    hdrs = [
+        "test/rotation_constraint_visualization.h",
+    ],
+    deps = [
+        ":rotation_constraint",
+        "//drake/lcm:lcm_call_matlab",
+    ],
+)
+
+drake_cc_library(
     name = "add_solver_util",
     testonly = 1,
     srcs = ["test/add_solver_util.cc"],
@@ -143,8 +163,8 @@ drake_cc_library(
     srcs = ["test/mathematical_program_test_util.cc"],
     hdrs = ["test/mathematical_program_test_util.h"],
     deps = [
-        ":mathematical_program",
         "@gtest//:main",
+        ":mathematical_program",
     ],
 )
 
@@ -154,10 +174,10 @@ drake_cc_library(
     srcs = ["test/optimization_examples.cc"],
     hdrs = ["test/optimization_examples.h"],
     deps = [
+        "@gtest//:main",
         ":mathematical_program",
         ":mathematical_program_test_util",
         "//drake/common:eigen_matrix_compare",
-        "@gtest//:main",
     ],
 )
 
@@ -298,9 +318,9 @@ drake_cc_library(
     srcs = ["nlopt_solver.cc"],
     hdrs = ["nlopt_solver.h"],
     deps = [
+        "@nlopt//:lib",
         ":mathematical_program_api",
         "//drake/math:autodiff",
-        "@nlopt//:lib",
     ],
 )
 
@@ -495,6 +515,51 @@ drake_cc_googletest(
 )
 
 drake_cc_googletest(
+    name = "rotation_constraint_test",
+    size = "medium",
+    tags = [
+        "exclusive",
+        "gurobi",
+        "local",
+        "mosek",
+    ],
+    deps = [
+        ":gurobi_solver",
+        ":mathematical_program",
+        ":rotation_constraint",
+        "//drake/common:eigen_matrix_compare",
+        "//drake/math:geometric_transform",
+    ],
+)
+
+drake_cc_binary(
+    name = "plot_feasible_rotation_matrices",
+    testonly = 1,
+    srcs = ["test/plot_feasible_rotation_matrices.cc"],
+    deps = [
+        ":mathematical_program",
+        ":rotation_constraint",
+        "//drake/lcm:lcm_call_matlab",
+    ],
+)
+
+drake_cc_googletest(
+    name = "rotation_constraint_limit_test",
+    size = "large",
+    tags = [
+        "exclusive",
+        "gurobi",
+        "local",
+    ],
+    deps = [
+        ":gurobi_solver",
+        ":mathematical_program",
+        ":rotation_constraint",
+        "//drake/common:eigen_matrix_compare",
+    ],
+)
+
+drake_cc_googletest(
     name = "snopt_solver_test",
     srcs = [
         "test/snopt_solver_test.cc",
@@ -518,6 +583,15 @@ drake_cc_googletest(
     deps = [
         ":system_identification",
         "//drake/common:eigen_matrix_compare",
+    ],
+)
+
+drake_cc_binary(
+    name = "plot_rotation_mccormick_envelope",
+    testonly = 1,
+    srcs = ["test/plot_rotation_mccormick_envelope.cc"],
+    deps = [
+        ":rotation_constraint_visualization",
     ],
 )
 

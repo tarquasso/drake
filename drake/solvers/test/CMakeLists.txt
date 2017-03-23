@@ -36,6 +36,14 @@ target_link_libraries(drakeOptimizationTest
         GTest::GTest
         drakeOptimization)
 
+if (lcm_FOUND)
+add_library_with_exports(LIB_NAME drakeRotationConstraintVisualization SOURCE_FILES rotation_constraint_visualization.cc)
+target_link_libraries(drakeRotationConstraintVisualization
+        drakeRotationConstraint
+        drakeLcm
+        drakeLCMTypes)
+endif(lcm_FOUND)
+
 drake_add_cc_test(convex_optimization_test)
 target_link_libraries(convex_optimization_test drakeCommon drakeOptimizationTest)
 
@@ -66,15 +74,19 @@ target_link_libraries(ipopt_solver_test drakeOptimizationTest)
 drake_add_cc_test(snopt_solver_test)
 target_link_libraries(snopt_solver_test drakeOptimizationTest)
 
-if(dreal_FOUND)
-  drake_add_cc_test(dreal_solver_test)
-  target_link_libraries(dreal_solver_test drakeOptimization)
-endif()
-
 if (mosek_FOUND)
   drake_add_cc_test(rotation_constraint_test rotation_constraint_test.cc)
+  set_tests_properties(rotation_constraint_test PROPERTIES TIMEOUT 900)
   target_link_libraries(rotation_constraint_test drakeRotationConstraint)
 endif(mosek_FOUND)
+
+if (gurobi_FOUND)
+  if(NOT APPLE)
+	  drake_add_cc_test(rotation_constraint_limit_test)
+	  set_tests_properties(rotation_constraint_limit_test PROPERTIES TIMEOUT 900)
+	  target_link_libraries(rotation_constraint_limit_test drakeRotationConstraint)
+  endif()
+endif(gurobi_FOUND)
 
 if (lcm_FOUND)
   add_executable(plot_feasible_rotation_matrices plot_feasible_rotation_matrices.cc)
@@ -83,4 +95,10 @@ if (lcm_FOUND)
     drakeRotationConstraint
     drakeLCMTypes
     drakeLcm)
+
+  add_executable(plot_rotation_mccormick_envelope plot_rotation_mccormick_envelope.cc)
+  target_link_libraries(plot_rotation_mccormick_envelope
+          drakeOptimization
+          drakeRotationConstraint
+          drakeRotationConstraintVisualization)
 endif(lcm_FOUND)

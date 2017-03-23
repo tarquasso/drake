@@ -16,6 +16,7 @@ drake_cc_library(
     ],
 )
 
+# TODO(jwnimmer-tri) This should be riccati not ricatti.
 drake_cc_library(
     name = "continuous_algebraic_ricatti_equation",
     srcs = ["continuous_algebraic_ricatti_equation.cc"],
@@ -31,6 +32,7 @@ drake_cc_library(
     srcs = ["discrete_algebraic_riccati_equation.cc"],
     hdrs = ["discrete_algebraic_riccati_equation.h"],
     deps = [
+        ":autodiff",
         "//drake/common",
         "//drake/common:is_approx_equal_abstol",
     ],
@@ -150,6 +152,14 @@ drake_cc_googletest(
     name = "cross_product_test",
     deps = [
         ":gradient",
+        "//drake/common:eigen_matrix_compare",
+    ],
+)
+
+drake_cc_googletest(
+    name = "discrete_algebraic_riccati_equation_test",
+    deps = [
+        ":discrete_algebraic_riccati_equation",
         "//drake/common:eigen_matrix_compare",
     ],
 )

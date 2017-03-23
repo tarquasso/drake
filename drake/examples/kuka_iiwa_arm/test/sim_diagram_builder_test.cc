@@ -1,12 +1,12 @@
-#include "drake/examples/kuka_iiwa_arm/iiwa_world/world_sim_tree_builder.h"
+#include "drake/examples/kuka_iiwa_arm/sim_diagram_builder.h"
 
 #include <gtest/gtest.h>
-#include "drake/lcm/drake_lcm.h"
 
 #include "drake/common/drake_path.h"
 #include "drake/common/eigen_matrix_compare.h"
 #include "drake/examples/kuka_iiwa_arm/iiwa_common.h"
-#include "drake/examples/kuka_iiwa_arm/sim_diagram_builder.h"
+#include "drake/examples/kuka_iiwa_arm/iiwa_world/world_sim_tree_builder.h"
+#include "drake/lcm/drake_lcm.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/controllers/inverse_dynamics_controller.h"
 #include "drake/systems/controllers/pid_controller.h"
@@ -116,7 +116,7 @@ GTEST_TEST(SimDiagramBuilderTest, TestSimulation) {
   plant->set_state_vector(plant_context, state0);
 
   simulator.Initialize();
-  simulator.StepTo(0.1);
+  simulator.StepTo(0.02);
 
   auto state_output = diagram->AllocateOutput(simulator.get_context());
   diagram->CalcOutput(simulator.get_context(), state_output.get());

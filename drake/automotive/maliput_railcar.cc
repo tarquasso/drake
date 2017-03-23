@@ -47,10 +47,8 @@ template <typename T> constexpr T MaliputRailcar<T>::kDefaultMaxSpeed;
 template <typename T> constexpr T MaliputRailcar<T>::kDefaultVelocityLimitKp;
 
 template <typename T>
-MaliputRailcar<T>::MaliputRailcar(const LaneDirection& initial_lane_direction,
-    double start_time)
-    : start_time_(start_time),
-      initial_lane_direction_(initial_lane_direction) {
+MaliputRailcar<T>::MaliputRailcar(const LaneDirection& initial_lane_direction)
+    : initial_lane_direction_(initial_lane_direction) {
   command_input_port_index_ =
       this->DeclareInputPort(systems::kVectorValued, 1).get_index();
   state_output_port_index_ =
@@ -145,10 +143,22 @@ void MaliputRailcar<T>::ImplCalcPose(const MaliputRailcarConfig<T>& config,
   const Rotation rotation =
       lane_direction.lane->GetOrientation(lane_position);
 
+  using std::atan2;
+  using std::sin;
+  using std::cos;
+
+  // Adjust the rotation based on whether the vehicle is traveling with s or
+  // against s.
+  const Rotation adjusted_rotation =
+      (lane_direction.with_s ? rotation :
+          Rotation(-rotation.roll,
+                   -rotation.pitch,
+                   atan2(-sin(rotation.yaw), -cos(rotation.yaw))));
   pose->set_translation(
       Eigen::Translation<T, 3>(geo_position.x, geo_position.y, geo_position.z));
   pose->set_rotation(math::RollPitchYawToQuaternion(
-      Vector3<T>(rotation.roll, rotation.pitch, rotation.yaw)));
+      Vector3<T>(adjusted_rotation.roll, adjusted_rotation.pitch,
+                 adjusted_rotation.yaw)));
 }
 
 template <typename T>
@@ -189,12 +199,7 @@ void MaliputRailcar<T>::DoCalcTimeDerivatives(
       dynamic_cast<MaliputRailcarState<T>*>(vector_derivatives);
   DRAKE_ASSERT(rates != nullptr);
 
-  if (context.get_time() < T(start_time_)) {
-    rates->set_s(T(0));
-    rates->set_speed(T(0));
-  } else {
-    ImplCalcTimeDerivatives(config, *state, lane_direction, *input, rates);
-  }
+  ImplCalcTimeDerivatives(config, *state, lane_direction, *input, rates);
 }
 
 template<typename T>
@@ -291,6 +296,64 @@ void MaliputRailcar<T>::SetDefaultState(
     MaliputRailcarState<T>* railcar_state) {
   railcar_state->set_s(kDefaultInitialS);
   railcar_state->set_speed(kDefaultInitialSpeed);
+}
+
+// TODO(liang.fok): Switch to guard functions once they are available. The
+// following computes an estimate of when the vehicle will reach the end of
+// its lane. This estimate will be off when r != 0 and the lane is very
+// curvy because the scale factors used in Lane::EvalMotionDerivatives() will
+// not be constant.
+//
+// Another reason why the estimate will be off is the acceleration of the
+// vehicle is not considered (see #5532).
+template <typename T>
+void MaliputRailcar<T>::DoCalcNextUpdateTime(const systems::Context<T>& context,
+    systems::UpdateActions<T>* actions) const {
+  // Obtains the relevant parameters.
+  const MaliputRailcarConfig<T>& config =
+      this->template GetNumericParameter<MaliputRailcarConfig>(context, 0);
+
+  const VectorBase<T>& context_state = context.get_continuous_state_vector();
+  const MaliputRailcarState<T>* const state =
+      dynamic_cast<const MaliputRailcarState<T>*>(&context_state);
+  DRAKE_ASSERT(state != nullptr);
+
+  const LaneDirection& lane_direction =
+      context.template get_abstract_state<LaneDirection>(0);
+
+  const T& s = state->s();
+  const T& speed = state->speed();
+  const maliput::api::Lane* lane = lane_direction.lane;
+  const bool with_s = lane_direction.with_s;
+
+  DRAKE_ASSERT(lane != nullptr);
+
+  // Computes `s_dot`, the time derivative of `s`.
+  const T sigma_v = cond(with_s, speed, -speed);
+  const LanePosition motion_derivatives =
+      lane_direction.lane->EvalMotionDerivatives(
+          LanePosition(s, config.r(), config.h()),
+          IsoLaneVelocity(sigma_v, 0 /* rho_v */, 0 /* eta_v */));
+  const T s_dot = motion_derivatives.s;
+
+  const T distance = cond(with_s, T(lane->length()) - s, -s);
+
+  actions->time = context.get_time() + distance / s_dot;
+  actions->events.push_back(systems::DiscreteEvent<T>());
+  actions->events.back().action =
+      systems::DiscreteEvent<T>::kUnrestrictedUpdateAction;
+}
+
+template <typename T>
+void MaliputRailcar<T>::DoCalcUnrestrictedUpdate(
+    const systems::Context<T>& context,
+    systems::State<T>* next_state) const {
+
+  // Copy the present state to the new one.
+  next_state->CopyFrom(context.get_state());
+
+  // TODO(liang.fok): Update state to allow MaliputRailcar to proceed onto an
+  // ongoing branch from the current Maliput lane.
 }
 
 // This section must match the API documentation in maliput_railcar.h.
