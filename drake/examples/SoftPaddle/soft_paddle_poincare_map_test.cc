@@ -19,8 +19,8 @@ using Eigen::Vector2d;
 int do_main(int argc, char* argv[]) {
 
 
-  //double xn = 0.35;
-  //double zn = 0.4;
+  //double xn = 0.35; //meters
+  //double zn = 0.4; //meters
   // dt = 1e-4        (no filter)           (with filter, tau = 0.15)
   //paddle_aim        0.0002818761488578    0.0508380683037560
   //stroke_strength   0.0734681887024423    0.1229300499221768
@@ -35,8 +35,8 @@ int do_main(int argc, char* argv[]) {
   //double paddle_aim = -0.188732159402915; //0.0; //- 2.0 * M_PI / 180.0;
   //double stroke_strength = 0.0348347361926187; //0.05;
 
-  double xn = 0.525;
-  double zn = 0.4;
+  double xn = 0.525; // fixed point in meters on x axis
+  double zn = 0.4;   // fixed poinedmeters
   //              dt =    1e-3                1e-4
   double paddle_aim = -0.2518274153695856;//-0.2508743456482843;
   double stroke_strength = 0.0283811081944429;//0.0266432387875092;
@@ -153,6 +153,8 @@ int do_main(int argc, char* argv[]) {
     std::cout << "Iterations: " << n_iters << std::endl;
     std::cout << "Error: " << error << std::endl;
 
+    paddle_aim = ukp[0];
+    stroke_strength = ukp[1];
   }
 
   { /// Compute discrete LQR
@@ -197,6 +199,7 @@ int do_main(int argc, char* argv[]) {
 
     PRINT_VAR(S);
 
+    // (R + B^T * S * B)^{-1} * (B^T * S * A)
     Eigen::LLT<Eigen::MatrixXd> R_cholesky(R + B.transpose() * S * B);
     Matrix2<double> K = R_cholesky.solve(B.transpose() * S * A);
 
