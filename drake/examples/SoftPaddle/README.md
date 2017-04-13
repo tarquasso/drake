@@ -14,7 +14,7 @@ It is straightforward to extend this model to include variations in the tension 
 
 ### Mirror Law Control
 
-A very simple mirror law control is implemented in the class **PaddleMirrorLawSystem**. This system has parameters `paddle_aim` and `stroke_strenght`. The input to this system is the output of a **SoftPaddlePlant** and it outputs a paddle angle that can be fed to the input of a **SoftPaddlePlant**.
+A very simple mirror law control is implemented in the class **PaddleMirrorLawSystem**. This system has parameters `paddle_aim` and `stroke_strength`. The input to this system is the state output of a **SoftPaddlePlant** and the output of this system is a paddle angle that can be fed to the input of a **SoftPaddlePlant**.
 The mirror law is very simple: `phi = paddle_aim + stroke_strength * zdot`, where `zdot` is the vertical velocity of the disk.
 This system is implemented in the files `mirror_law_system.h (.cc)`.
 
