@@ -249,7 +249,7 @@ SoftPaddleWithMirrorControl<T>::get_elements_port() const {
 
 template <typename T>
 void SoftPaddleWithMirrorControl<T>::set_initial_conditions(
-    Context<T>* context, const T& x0, const T& z0) const {
+    Context<T>* context, const T& x0, const T& z0, const T& xdot0, const T& zdot0) const {
   Context<T>* paddle_context = this->GetMutableSubsystemContext(context,
                                                                paddle_);
   auto state =
@@ -258,6 +258,8 @@ void SoftPaddleWithMirrorControl<T>::set_initial_conditions(
   state->SetFromVector(VectorX<T>::Zero(state->size()));
   state->set_x(x0);
   state->set_z(z0);
+  state->set_xdot(xdot0);
+  state->set_zdot(zdot0);
 }
 
 template <typename T>

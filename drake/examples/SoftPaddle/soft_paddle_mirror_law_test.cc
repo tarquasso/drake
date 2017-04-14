@@ -54,6 +54,8 @@ int do_main(int argc, char* argv[]) {
   // Very unstable
   double x0 = 0.525;
   double z0 = 0.4;
+  double xdot0 = 0.0;
+  double zdot0 = 0.0;
   // No filter
   //double paddle_aim = -0.2518274153695856;
   //double stroke_strength = 0.0283811081944429;
@@ -90,7 +92,7 @@ int do_main(int argc, char* argv[]) {
   systems::Context<double>* paddle_context =
       diagram->GetMutableSubsystemContext(
           simulator.get_mutable_context(), paddle);
-  paddle->set_initial_conditions(paddle_context, x0, z0);
+  paddle->set_initial_conditions(paddle_context, x0, z0, xdot0, zdot0);
 
   simulator.Initialize();
   simulator.StepTo(15);

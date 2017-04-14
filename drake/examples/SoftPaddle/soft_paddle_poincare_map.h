@@ -24,8 +24,8 @@ class SoftPaddlePoincareMap  { //: public drake::systems::LeafSystem<T>
 //  void EvalOutput(const drake::systems::Context<T>& context,
 //                  drake::systems::SystemOutput<T>* output) const override;
 
-  void ComputeNextSate(const T& paddle_aim, const T& stroke_strength,
-                       const T& x0, const T& z0, T* xnext, T* znext) const;
+  void ComputeNextState(const T &paddle_aim, const T &stroke_strength,
+                        const T &xn, const T &zn, const T &xdotn, T *xnext, T *znext, T *xdotnext) const;
 
  private:
   double time_step_{1.0e-4};

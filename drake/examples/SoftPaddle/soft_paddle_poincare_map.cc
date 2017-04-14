@@ -4,6 +4,7 @@
 #include "drake/systems/framework/context.h"
 
 #include <iostream>
+#include <iomanip> //allowing to set precision of the PRINT_VAR outputs to terminal
 #define PRINT_VAR(x) std::cout <<  #x ": " << x << std::endl;
 
 namespace drake {
@@ -57,11 +58,12 @@ void SoftPaddlePoincareMap<T>::DoEvalDifferenceUpdates(
 #endif
 
 template <typename T>
-void SoftPaddlePoincareMap<T>::ComputeNextSate(
-    const T& paddle_aim, const T& stroke_strength,
-    const T& xn, const T& zn, T* xnext, T* znext) const {
+void SoftPaddlePoincareMap<T>::ComputeNextState(
+    const T &paddle_aim, const T &stroke_strength,
+    const T &xn, const T &zn, const T &xdotn, T *xnext, T *znext, T *xdotnext) const {
 
   T dt = time_step_;
+  const T zdotn = 0.0; //assume to slice at the peak
 
   auto paddle_plant =
       std::make_unique<SoftPaddleWithMirrorControl<T>>(
@@ -72,7 +74,7 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   std::unique_ptr<ContinuousState<T>> derivs =
       paddle_plant->AllocateTimeDerivatives();
 
-  paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn);
+  paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn, xdotn, zdotn);
   SoftPaddleStateVector<T>* xc_paddle =
       paddle_plant->GetMutablePlantStateVector(paddle_context.get());
   const systems::VectorBase<T>& paddle_xcdot =
@@ -81,9 +83,9 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   // WARNING: this is the ENTIRE model derivatives (including filter).
   systems::VectorBase<T>* xcdot = derivs->get_mutable_vector();
 
-  // Set initial conditions to be [xn, zn, 0.0, 0.0].
+  // Set initial conditions to be [xn, zn, xdotn, 0.0]. zdotn = 0.0, because we assume to be at the peak
   paddle_context->set_time(0.0);
-  paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn);
+  paddle_plant->set_initial_conditions(paddle_context.get(), xn, zn, xdotn, zdotn);
   //xc->SetFromVector(VectorX<T>::Zero(xc->size()));
   //xc->set_x(xn);
   //xc->set_z(zn);
@@ -93,12 +95,19 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   SoftPaddleStateVector<T> xc_paddle0; xc_paddle0.SetFromVector(xc_paddle->get_value());
 
   // Advance the paddle system using a simple explicit Euler scheme.
+  int iteration = 0;
   do {
+    iteration++;
     paddle_plant->CalcTimeDerivatives(*paddle_context, derivs.get());
 
     // Compute derivative and update configuration and velocity.
     // xc(t+h) = xc(t) + dt * xcdot(t, xc(t), u(t))
     xc->PlusEqScaled(dt, *xcdot);  // xc += dt * xcdot
+
+    //PRINT_VAR(iteration);
+    ///PRINT_VAR(xc_paddle0.zdot());
+    //PRINT_VAR(xc_paddle->zdot());
+    //PRINT_VAR(xc_paddle->x());
 
     // When going back up zdot crossed zero. Discard solution.
     if( xc_paddle0.zdot() > 0. && xc_paddle->zdot() < 0. ) break;
@@ -111,23 +120,31 @@ void SoftPaddlePoincareMap<T>::ComputeNextSate(
   //xcdot->zdot(); // WARNING!!: here xcdot is the ENTIRE model derivatives
   // (including filter) while xc_paddle only contains the paddle state.
   // QUESTION: is there a
+  // After breaking from the loop above Context::get_time() has the time for
+  // zdot > 0
   T t_zc = paddle_context->get_time() -
       xc_paddle0.zdot() / paddle_xcdot.GetAtIndex(3);
   // Computes time step that takes the solution to zdot = 0
   dt = t_zc - paddle_context->get_time();
 
   //PRINT_VAR(paddle_context->get_time());
-  //PRINT_VAR(t_zc);
-  //PRINT_VAR(dt);
+  PRINT_VAR(t_zc);
+  PRINT_VAR(dt);
 
   DRAKE_ASSERT(dt > 0.0);
 
   // Advances the solution to t_zc.
   xc->PlusEqScaled(dt, *xcdot);  // xc += dt * xcdot
+
+  std::cout << std::setprecision(9);
+  PRINT_VAR(xc_paddle->x());
+
   paddle_context->set_time(paddle_context->get_time() + dt);
 
   *xnext = xc_paddle->x();
   *znext = xc_paddle->z();
+  *xdotnext = xc_paddle->xdot();
+  //*xdotnext = 0.0;
 }
 
 #if 0
