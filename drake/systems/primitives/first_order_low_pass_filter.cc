@@ -85,9 +85,9 @@ FirstOrderLowPassFilter<T>::DoToSymbolic() const {
 
 // Explicitly instantiates on the most common scalar types.
 template class FirstOrderLowPassFilter<double>;
-template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
-template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
-template class FirstOrderLowPassFilter<AutoDiffXd>;
+//template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class FirstOrderLowPassFilter<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+//template class FirstOrderLowPassFilter<AutoDiffXd>;
 template class FirstOrderLowPassFilter<symbolic::Expression>;
 
 }  // namespace systems

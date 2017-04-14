@@ -18,10 +18,11 @@ using Eigen::Vector2d;
 
 int do_main(int argc, char* argv[]) {
 
+  std::cout << std::setprecision(9);
 
-  double xn = 0.35; //meters
-  double zn = 0.4; //meters
-  double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
+//  double xn = 0.35; //meters
+ // double zn = 0.4; //meters
+  //double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
 
   // dt = 1e-4        (no filter)           (with filter, tau = 0.15)
   //paddle_aim        0.0002818761488578    0.0508380683037560
@@ -29,21 +30,21 @@ int do_main(int argc, char* argv[]) {
   // dt = 1e-3        (no filter)           (with filter, tau = 0.15)
   //paddle_aim        0.0004573758964659    0.0495407071067140
   //stroke_strength   0.0708752914692881    0.1190239261815963
-  double paddle_aim = 0.0495407071067140;
-  double stroke_strength = 0.1190239261815963;
+  //double paddle_aim = 0.0495407071067140;
+  //double stroke_strength = 0.1190239261815963;
 
   //double xn = 0.5;
   //double zn = 0.4;
   //double paddle_aim = -0.188732159402915; //0.0; //- 2.0 * M_PI / 180.0;
   //double stroke_strength = 0.0348347361926187; //0.05;
 
-//  double xn = 0.525; // fixed point in meters on x axis
-//  double zn = 0.4;   // fixed point in meters on z axis
-//  double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
+  double xn = 0.525; // fixed point in meters on x axis
+  double zn = 0.4;   // fixed point in meters on z axis
+  double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
 //
 //  //              dt =    1e-3                1e-4
-//  double paddle_aim = -0.2518274153695856;//-0.2508743456482843;
-//  double stroke_strength = 0.0283811081944429;//0.0266432387875092;
+  double paddle_aim = -0.0;//-0.2508743456482843;
+  double stroke_strength = 0.1;//0.0266432387875092;
 
   // This one diverges even with the solution from x=0.525 above as guess.
   //double xn = 0.55;
@@ -94,16 +95,18 @@ int do_main(int argc, char* argv[]) {
   }
 #endif
 
-  double time_step = 1.0e-3;
+  double time_step = 1.0e-4;
   bool filter_command_angle = true; //is that filter needed?
 
   // Fixed point
   {
-    using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector2d>; //that works for uk but not x
+    using AutoDiffScalar = Eigen::AutoDiffScalar<Eigen::Vector3d>; //that works for uk but not x
     SoftPaddlePoincareMap<AutoDiffScalar> poincare_map(
         time_step, filter_command_angle);
-    AutoDiffScalar paddle_aim_d(paddle_aim, Eigen::Vector2d::UnitX());
-    AutoDiffScalar stroke_strength_d(stroke_strength, Eigen::Vector2d::UnitY());
+
+    AutoDiffScalar paddle_aim_d(paddle_aim, Eigen::Vector3d::UnitX());
+    AutoDiffScalar stroke_strength_d(stroke_strength, Eigen::Vector3d::UnitY());
+    AutoDiffScalar xdot_d(xdotn, Eigen::Vector3d::UnitZ());
 
     // Target
     Vector3<double> x0(xn, zn, xdotn);
@@ -118,69 +121,71 @@ int do_main(int argc, char* argv[]) {
     double relaxation = 0.9; // 0.05
     double tolerance = 1.0e-6;
     Vector3<double> xk;
-    Vector2<double> uk, ukp;
+    Vector3<double> pk(paddle_aim, stroke_strength, xdotn), pkp;
     double error;
+
+    //std::ofstream log("iterations.log");
     
     do {
       std::cout << "--------------------------------------------" << std::endl;
       ++n_iters;
 
-      PRINT_VAR(xn);
-      PRINT_VAR(zn);
-      PRINT_VAR(xdotn);
       PRINT_VAR(paddle_aim_d.value());
       PRINT_VAR(stroke_strength_d.value());
+      PRINT_VAR(xdot_d.value());
 
-      AutoDiffScalar xnext_d, znext_d, xdotnext_d; //compare this to line
+      AutoDiffScalar xnext_d, znext_d, xdotnext_d;
       poincare_map.ComputeNextState(
           paddle_aim_d, stroke_strength_d,
-          xn, zn, xdotn, &xnext_d, &znext_d, &xdotnext_d);
+          xn, zn, xdot_d, &xnext_d, &znext_d, &xdotnext_d);
+      Vector3<AutoDiffScalar> xk(xn, zn, xdot_d);
+      Vector3<AutoDiffScalar> R = xk - Vector3<AutoDiffScalar>(xnext_d, znext_d, xdotnext_d);
+
+      Vector3<double> Rvalue(R[0].value(), R[1].value(), R[2].value());
+      Eigen::Matrix<double, 3, 3> Jk;
+      Jk.row(0) = R[0].derivatives().transpose();
+      Jk.row(1) = R[1].derivatives().transpose();
+      Jk.row(2) = R[2].derivatives().transpose();
 
       PRINT_VAR(xnext_d.value());
       PRINT_VAR(znext_d.value());
       PRINT_VAR(xdotnext_d.value());
 
-      uk << paddle_aim_d.value(), stroke_strength_d.value();
-      xk << xnext_d.value(), znext_d.value(), xdotnext_d.value();
+      PRINT_VAR(Rvalue.transpose());
 
-      PRINT_VAR(xk.transpose());
-
-      Eigen::Matrix<double, 3, 2> Jk;
-      Jk.row(0) = xnext_d.derivatives().transpose();
-      Jk.row(1) = znext_d.derivatives().transpose();
-      Jk.row(2) = xdotnext_d.derivatives().transpose();
       // Compute error.
-      error = (xk - x0).norm();
+      error = Rvalue.norm();
 
       if (error < tolerance && n_iters > 1) break;
 
-      Vector3<double> residual = xk - x0;
-      ukp = uk - (relaxation * Jk.colPivHouseholderQr().solve(xk - x0) );
+      // [u0, u1, xdot]
+      pkp = pk - (relaxation * Jk.colPivHouseholderQr().solve(Rvalue) );
 
       //residual[2] = 0.00;
       //ukp = uk - (relaxation * Jk.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(residual) );
       //ukp = uk - (relaxation * Jk.fullPivHouseholderQr().solve(residual) );
       //ukp = uk - (relaxation * Jk.transpose() * residual );
 
-      PRINT_VAR(residual.transpose());
       PRINT_VAR(error);
       PRINT_VAR(Jk);
-      PRINT_VAR(ukp.transpose());
+      PRINT_VAR(pkp.transpose());
 
-      paddle_aim_d.value() = ukp[0];
-      stroke_strength_d.value() = std::max(ukp[1], 0.0); //why the max operation here?
-
+      paddle_aim_d.value() = pkp[0];
+      stroke_strength_d.value() = std::max(pkp[1], 0.0); //why the max operation here?
+      xdot_d.value() = pkp[2];
+      pk = pkp;
     } while(n_iters < 50);
 
     std::cout << std::fixed << std::setprecision(16);
     std::cout << "--------------------------------------------" << std::endl;
     std::cout << "Final solution:" << std::endl;
-    PRINT_VAR(ukp.transpose());
+    PRINT_VAR(pkp.transpose());
     std::cout << "Iterations: " << n_iters << std::endl;
     //std::cout << "Error: " << error << std::endl;
 
-    paddle_aim = ukp[0]; // assign solution for paddle aim gain
-    stroke_strength = ukp[1]; //assign solution for stroke strength
+    paddle_aim = pkp[0]; // assign solution for paddle aim gain
+    stroke_strength = pkp[1]; //assign solution for stroke strength
+    xdotn = pkp[2];
   }
 
   { /// Compute discrete LQR

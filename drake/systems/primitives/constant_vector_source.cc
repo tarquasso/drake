@@ -31,9 +31,9 @@ void ConstantVectorSource<T>::DoCalcVectorOutput(
 template class ConstantVectorSource<double>;
 template class ConstantVectorSource<AutoDiffXd>;
 template class ConstantVectorSource<
-    Eigen::AutoDiffScalar<Eigen::Vector2d>>;
-template class ConstantVectorSource<
-    Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+    Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+//template class ConstantVectorSource<
+//    Eigen::AutoDiffScalar<Eigen::Vector4d>>;
 template class ConstantVectorSource<symbolic::Expression>;
 
 }  // namespace systems

@@ -276,18 +276,18 @@ SoftPaddleStateVector<T>*
 template class PaddleMirrorLawSystem<double>;
 // Eigen's tan fails at runtime if using AutoDiffXd.
 // As a quick fix I am using a fixed size AutoDiffScalar.
-template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
-template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
-template class PaddleMirrorLawSystem<AutoDiffXd>;
+template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+//template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+//template class PaddleMirrorLawSystem<AutoDiffXd>;
 
 template class SoftPaddleWithMirrorControl<double>;
 // Eigen's tan fails at runtime if using AutoDiffXd.
 // As a quick fix I am using a fixed size AutoDiffScalar.
 template class SoftPaddleWithMirrorControl<
-    Eigen::AutoDiffScalar<Eigen::Vector2d>>;
-template class SoftPaddleWithMirrorControl<
-    Eigen::AutoDiffScalar<Eigen::Vector4d>>;
-template class SoftPaddleWithMirrorControl<AutoDiffXd>;
+    Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+//template class SoftPaddleWithMirrorControl<
+//    Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+//template class SoftPaddleWithMirrorControl<AutoDiffXd>;
 
 }  // namespace soft_paddle
 }  // namespace examples

@@ -25,7 +25,7 @@ int do_main(int argc, char* argv[]) {
   lcm::DrakeLcm lcm;
 
   bool filter_commanded_angle = true;
-  bool with_lqr = true;
+  bool with_lqr = false;
 
   systems::DiagramBuilder<double> builder;
   //double x0 = 0.35;
@@ -54,14 +54,21 @@ int do_main(int argc, char* argv[]) {
   // Very unstable
   double x0 = 0.525;
   double z0 = 0.4;
-  double xdot0 = 0.0;
+  double xdot0 = ;
   double zdot0 = 0.0;
   // No filter
-  //double paddle_aim = -0.2518274153695856;
-  //double stroke_strength = 0.0283811081944429;
+  double paddle_aim = ;
+  double stroke_strength = ;
   // With filter
-  double paddle_aim = -0.1972129787698345;
-  double stroke_strength = 0.0549855935747501;
+  //double paddle_aim = -0.1972129787698345;
+  //double stroke_strength = 0.0549855935747501;
+
+  ///double x0 = 0.35;
+  //double z0 = 0.4;
+  //double xdot0 = -0.0037288386394518;
+  //double zdot0 = 0.0;
+  //double paddle_aim = 0.0508348193881901;
+  //double stroke_strength = 0.1241287574570927;
 
   auto paddle = builder.AddSystem<SoftPaddleWithMirrorControl>(
       paddle_aim, stroke_strength, filter_commanded_angle, with_lqr);
@@ -95,7 +102,9 @@ int do_main(int argc, char* argv[]) {
   paddle->set_initial_conditions(paddle_context, x0, z0, xdot0, zdot0);
 
   simulator.Initialize();
-  simulator.StepTo(15);
+  simulator.set_target_realtime_rate(0.5);
+  //simulator.get_mutable_integrator()->set_maximum_step_size(1E-4);
+  simulator.StepTo(40);
 
   PRINT_VAR(simulator.get_num_steps_taken());
 

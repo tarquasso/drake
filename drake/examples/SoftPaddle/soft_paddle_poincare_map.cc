@@ -128,16 +128,16 @@ void SoftPaddlePoincareMap<T>::ComputeNextState(
   dt = t_zc - paddle_context->get_time();
 
   //PRINT_VAR(paddle_context->get_time());
-  PRINT_VAR(t_zc);
-  PRINT_VAR(dt);
+  //PRINT_VAR(t_zc);
+  //PRINT_VAR(dt);
 
   DRAKE_ASSERT(dt > 0.0);
 
   // Advances the solution to t_zc.
   xc->PlusEqScaled(dt, *xcdot);  // xc += dt * xcdot
 
-  std::cout << std::setprecision(9);
-  PRINT_VAR(xc_paddle->x());
+  //std::cout << std::setprecision(9);
+  //PRINT_VAR(xc_paddle->x());
 
   paddle_context->set_time(paddle_context->get_time() + dt);
 
@@ -159,9 +159,10 @@ output->GetMutableVectorData(0)->SetFromVector(
 template class SoftPaddlePoincareMap<double>;
 // Eigen's tan fails at runtime if using AutoDiffXd.
 // As a quick fix I am using a fixed size AutoDiffScalar.
-template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
-template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
-template class SoftPaddlePoincareMap<AutoDiffXd>;
+//template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
+template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+//template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+//template class SoftPaddlePoincareMap<AutoDiffXd>;
 
 }  // namespace soft_paddle
 }  // namespace examples
