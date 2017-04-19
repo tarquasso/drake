@@ -38,6 +38,8 @@ int do_main(int argc, char* argv[]) {
   //double paddle_aim = -0.188732159402915; //0.0; //- 2.0 * M_PI / 180.0;
   //double stroke_strength = 0.0348347361926187; //0.05;
 
+  //double xn = 0.35;
+  //double zn = 0.4;
   double xn = 0.525; // fixed point in meters on x axis
   double zn = 0.4;   // fixed point in meters on z axis
   double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
@@ -189,10 +191,18 @@ int do_main(int argc, char* argv[]) {
   }
 
   { /// Compute discrete LQR
-  #if 0 
     using AutoDiffScalar = Eigen::AutoDiffScalar<Vector5<double>>;
     SoftPaddlePoincareMap<AutoDiffScalar> poincare_map(
         time_step, filter_command_angle);
+
+    std::cout << " -----------------------------------------------------" << std::endl;
+    std::cout << " Computing LQR gain matrix:" << std::endl;
+
+    PRINT_VAR(xn);
+    PRINT_VAR(zn);
+    PRINT_VAR(xdotn);
+    PRINT_VAR(paddle_aim);
+    PRINT_VAR(stroke_strength);
 
     // State variables
     AutoDiffScalar x0(xn, Vector5<double>::Unit(0));
@@ -218,10 +228,12 @@ int do_main(int argc, char* argv[]) {
     Eigen::Matrix<double, 3, 3> A = Jk.block<3, 3>(0, 0); //not sure why it is expecting 4 arguments? still compiles...
     Eigen::Matrix<double, 3, 2> B = Jk.block<3, 2>(0, 3); //not sure why it is expecting 4 arguments? It is a static size matrix and it actually still compiles...
 
+    Eigen::EigenSolver<Matrix3<double>> eigen_solver(A);
 
     PRINT_VAR(xnext.value());
     PRINT_VAR(znext.value());
     PRINT_VAR(A);
+    PRINT_VAR(eigen_solver.eigenvalues().cwiseAbs().transpose());
     PRINT_VAR(B);
 
     Matrix3<double> Q = 100*Matrix3<double>::Identity();
@@ -241,8 +253,11 @@ int do_main(int argc, char* argv[]) {
     Eigen::LLT<Eigen::MatrixXd> R_cholesky(R + B.transpose() * S * B);
     Eigen::Matrix<double, 2, 3> K = R_cholesky.solve(B.transpose() * S * A);
 
+    Matrix3<double> Atilde = A - B * K;
+    Eigen::EigenSolver<Matrix3<double>> eigen_solver_tilde(Atilde);
+    PRINT_VAR(eigen_solver_tilde.eigenvalues().cwiseAbs().transpose());
+
     PRINT_VAR(K);
-    #endif
     }
 
   return 0;

@@ -25,7 +25,7 @@ int do_main(int argc, char* argv[]) {
   lcm::DrakeLcm lcm;
 
   bool filter_commanded_angle = true;
-  bool with_lqr = false;
+  bool with_lqr = true;
 
   systems::DiagramBuilder<double> builder;
   //double x0 = 0.35;
@@ -54,11 +54,11 @@ int do_main(int argc, char* argv[]) {
   // Very unstable
   double x0 = 0.525;
   double z0 = 0.4;
-  double xdot0 = ;
+  double xdot0 = -0.0053956002987402;
   double zdot0 = 0.0;
   // No filter
-  double paddle_aim = ;
-  double stroke_strength = ;
+  double paddle_aim = -0.1876532442029124;
+  double stroke_strength = 0.0602543449669872;
   // With filter
   //double paddle_aim = -0.1972129787698345;
   //double stroke_strength = 0.0549855935747501;

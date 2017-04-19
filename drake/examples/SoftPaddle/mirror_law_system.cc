@@ -93,7 +93,7 @@ ApexMonitor<T>::ApexMonitor() {
       this->DeclareOutputPort(kVectorValued, 2).get_index();
 
 
-  K_.resize(2, 2);
+  K_.resize(2, 3);
 #if 0
   //x0 = 0.35, z0 = 0.4; Q = 1.0
   K_ << -1.9631795011057536, -0.0874935891761593,
@@ -108,16 +108,17 @@ ApexMonitor<T>::ApexMonitor() {
   //    -0.0359882941802672,  0.2011382989147669;
   //K_ << 1.3547103155711704, -0.2743088149682193,
   //    -0.0109592825187393,  0.0610306470571990;
-  K_ << 1.4458228565432283, -0.5627041232564882,
-  0.0251986384170643,  0.0858705755918761;
 
-  x0.resize(2);
+  K_ <<  1.5978424681410852, -0.4352511098984794,  1.3128058984581368,
+ 0.0293590952686276,  0.0881668563883520,  0.0301347731600636;
+
+  x0.resize(3);
   //x0 << 0.35, 0.4;
-  x0 << 0.525, 0.4;
+  x0 << 0.525, 0.4, -0.0053956002987402;
 
   u0.resize(2);
   //u0 << 0.0495407071067140, 0.1190239261815963;
-  u0 << -0.1972129787698345,  0.0549855935747501;
+  u0 << -0.1876532442029124, 0.0602543449669872;
 }
 
 template <typename T>
@@ -156,9 +157,10 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
 
     const T& xn = paddle_state->x();
     const T& zn = paddle_state->z();
+    const T& xdotn = paddle_state->xdot();
 
     VectorX<T> x(x0.size());
-    x << xn, zn;
+    x << xn, zn, xdotn;
 
     auto u = System<T>::GetMutableOutputVector(
         output, mirror_law_parameters_output_port_);
@@ -277,7 +279,7 @@ template class PaddleMirrorLawSystem<double>;
 // Eigen's tan fails at runtime if using AutoDiffXd.
 // As a quick fix I am using a fixed size AutoDiffScalar.
 template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
-//template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+template class PaddleMirrorLawSystem<Eigen::AutoDiffScalar<Vector5<double>>>;
 //template class PaddleMirrorLawSystem<AutoDiffXd>;
 
 template class SoftPaddleWithMirrorControl<double>;
@@ -285,8 +287,8 @@ template class SoftPaddleWithMirrorControl<double>;
 // As a quick fix I am using a fixed size AutoDiffScalar.
 template class SoftPaddleWithMirrorControl<
     Eigen::AutoDiffScalar<Eigen::Vector3d>>;
-//template class SoftPaddleWithMirrorControl<
-//    Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+template class SoftPaddleWithMirrorControl<
+    Eigen::AutoDiffScalar<Vector5<double>>>;
 //template class SoftPaddleWithMirrorControl<AutoDiffXd>;
 
 }  // namespace soft_paddle
