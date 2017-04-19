@@ -54,11 +54,11 @@ int do_main(int argc, char* argv[]) {
   // Very unstable
   double x0 = 0.525;
   double z0 = 0.4;
-  double xdot0 = ;
+  double xdot0 = -0.0053956002987402;
   double zdot0 = 0.0;
   // No filter
-  double paddle_aim = ;
-  double stroke_strength = ;
+  double paddle_aim = -0.187653244;
+  double stroke_strength = 0.060254345;
   // With filter
   //double paddle_aim = -0.1972129787698345;
   //double stroke_strength = 0.0549855935747501;
@@ -102,7 +102,7 @@ int do_main(int argc, char* argv[]) {
   paddle->set_initial_conditions(paddle_context, x0, z0, xdot0, zdot0);
 
   simulator.Initialize();
-  simulator.set_target_realtime_rate(0.5);
+  //simulator.set_target_realtime_rate(0.5);
   //simulator.get_mutable_integrator()->set_maximum_step_size(1E-4);
   simulator.StepTo(40);
 
