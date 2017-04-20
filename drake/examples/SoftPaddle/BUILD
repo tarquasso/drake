@@ -20,7 +20,10 @@ drake_cc_library(
 drake_cc_library(
     name = "soft_paddle_plant",
     srcs = ["soft_paddle_plant.cc"],
-    hdrs = ["soft_paddle_plant.h"],
+    hdrs = [
+        "soft_paddle_plant.h",
+        "soft_paddle_plant-inl.h",
+    ],
     deps = [
         ":soft_paddle_state_vector",
         "//drake/common:autodiff",

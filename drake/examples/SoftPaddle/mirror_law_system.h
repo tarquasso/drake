@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "drake/common/eigen_types.h"
-#include "drake/examples/SoftPaddle/soft_paddle_plant.h"
+#include "drake/examples/SoftPaddle/soft_paddle_plant-inl.h"
 #include "drake/multibody/rigid_body_tree.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/diagram.h"

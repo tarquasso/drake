@@ -6,7 +6,10 @@ if(lcm_FOUND)
     #soft_paddle_poincare_map.cc)
   target_link_libraries(drakeSoftPaddlePlant drakeSystemFramework drakeRBM)
   drake_install_libraries(drakeSoftPaddlePlant)
-  drake_install_headers(soft_paddle_plant.h soft_paddle_state_vector.h
+  drake_install_headers(
+    soft_paddle_plant.h
+    soft_paddle_plant-inl.h
+    soft_paddle_state_vector.h
 #    mirror_law_system.h
     soft_paddle_state_to_bot_visualizer.h
     soft_paddle_poincare_map.h)

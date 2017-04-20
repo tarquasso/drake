@@ -13,14 +13,20 @@ namespace soft_paddle {
 
 const int kNumPaddleElements{150};
 
-/// A model of a simple pendulum
+/// A model of a soft planar paddle
+/// ToDo: fix the following equation:
 /// @f[ ml^2 \ddot\theta + b\dot\theta + mgl\sin\theta = u @f]
 ///
-/// @tparam T The vector element type, which must be a valid Eigen scalar.
+/// @tparam T The vector element type, which must be a valid Eigen scalar or AutoDiffXd.
+///
+/// This class uses Drake's `-inl.h` pattern.  When seeing linker errors from
+/// this class, please refer to http://drake.mit.edu/cxx_inl.html.
 ///
 /// Instantiated templates for the following kinds of T's are provided:
 /// - double
 /// - AutoDiffXd
+///
+/// They are already available to link against in the containing library.
 template <typename T>
 class SoftPaddlePlant : public systems::LeafSystem<T> {
  public:
