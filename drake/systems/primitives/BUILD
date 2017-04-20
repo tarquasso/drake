@@ -89,6 +89,7 @@ drake_cc_library(
     srcs = ["first_order_low_pass_filter.cc"],
     hdrs = [
         "first_order_low_pass_filter.h",
+        "first_order_low_pass_filter-inl.h",
     ],
     deps = [
         "//drake/systems/framework",

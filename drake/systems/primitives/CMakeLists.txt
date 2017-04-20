@@ -27,6 +27,7 @@ drake_install_headers(
   constant_vector_source-inl.h
   demultiplexer.h
   first_order_low_pass_filter.h
+  first_order_low_pass_filter-inl.h
   gain.h
   gain-inl.h
   integrator.h

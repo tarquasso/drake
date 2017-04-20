@@ -29,7 +29,10 @@ namespace systems {
 /// The Bode plot in phase exhibits a -90 degrees shift (lag) for frequencies
 /// much larger than the cutoff frequency and a zero shift for low frequencies.
 ///
-/// @tparam T The vector element type, which must be a valid Eigen scalar.
+/// @tparam T The vector element type, which must be a valid Eigen scalar, AutoDiffXd or symbolic::Expression.
+///
+/// This class uses Drake's `-inl.h` pattern.  When seeing linker errors from
+/// this class, please refer to http://drake.mit.edu/cxx_inl.html.
 ///
 /// Instantiated templates for the following scalar types @p T are provided:
 /// - double
@@ -37,7 +40,6 @@ namespace systems {
 /// - symbolic::Expression
 ///
 /// They are already available to link against in the containing library.
-/// No other values for T are currently supported.
 ///
 /// @ingroup primitive_systems
 template <typename T>

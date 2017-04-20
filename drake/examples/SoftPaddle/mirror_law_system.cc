@@ -12,7 +12,7 @@
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/leaf_context.h"
-#include "drake/systems/primitives/first_order_low_pass_filter.h"
+#include "drake/systems/primitives/first_order_low_pass_filter-inl.h"
 #include "drake/systems/primitives/constant_vector_source-inl.h"
 
 namespace drake {
