@@ -435,6 +435,7 @@ template class SoftPaddlePlant<double>;
 // As a quick fix I am using a fixed size AutoDiffScalar.
 //template class SoftPaddlePlant<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
 template class SoftPaddlePlant<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
+template class SoftPaddlePlant<Eigen::AutoDiffScalar<Vector5<double>>>;
 template class SoftPaddlePlant<AutoDiffXd>;
 
 }  // namespace soft_paddle

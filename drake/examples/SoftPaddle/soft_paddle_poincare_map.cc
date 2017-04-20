@@ -161,7 +161,7 @@ template class SoftPaddlePoincareMap<double>;
 // As a quick fix I am using a fixed size AutoDiffScalar.
 //template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector2d>>;
 template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector3d>>;
-//template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Eigen::Vector4d>>;
+template class SoftPaddlePoincareMap<Eigen::AutoDiffScalar<Vector5<double>>>;
 //template class SoftPaddlePoincareMap<AutoDiffXd>;
 
 }  // namespace soft_paddle
