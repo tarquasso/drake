@@ -65,7 +65,10 @@ drake_cc_library(
 drake_cc_library(
     name = "constant_vector_source",
     srcs = ["constant_vector_source.cc"],
-    hdrs = ["constant_vector_source.h"],
+    hdrs = [
+        "constant_vector_source.h",
+        "constant_vector_source-inl.h",
+    ],
     deps = [
         "//drake/common:symbolic",
         "//drake/systems/framework",

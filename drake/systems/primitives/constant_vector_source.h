@@ -9,8 +9,11 @@ namespace drake {
 namespace systems {
 
 /// A source block with a constant output port at all times.
-/// @tparam T The vector element type, which must be a valid Eigen scalar.
+/// @tparam T The vector element type, which must be a valid Eigen scalar, AutoDiffXd or symbolic::Expression.
 /// @ingroup primitive_systems
+///
+/// This class uses Drake's `-inl.h` pattern.  When seeing linker errors from
+/// this class, please refer to http://drake.mit.edu/cxx_inl.html.
 ///
 /// Instantiated templates for the following kinds of T's are provided:
 /// - double
@@ -18,7 +21,6 @@ namespace systems {
 /// - symbolic::Expression
 ///
 /// They are already available to link against in the containing library.
-/// No other values for T are currently supported.
 template <typename T>
 class ConstantVectorSource : public SingleOutputVectorSource<T> {
  public:
