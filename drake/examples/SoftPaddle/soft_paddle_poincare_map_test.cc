@@ -40,8 +40,8 @@ int do_main(int argc, char* argv[]) {
 
   //double xn = 0.35;
   //double zn = 0.4;
-  double xn = 0.525; // fixed point in meters on x axis
-  double zn = 0.4;   // fixed point in meters on z axis
+  double xn = 0.418; // fixed point in meters on x axis
+  double zn = 0.3;   // fixed point in meters on z axis
   double xdotn = 0.0; // -0.005;   // fixed point in meters on z axis
 //
 //  //              dt =    1e-3                1e-4

@@ -338,12 +338,12 @@ void SoftPaddlePlant<T>::CreateRBTModel() {
     body->set_name("body");
     // Sets body to have a non-zero spatial inertia. Otherwise the body gets
     // welded by a fixed joint to the world by RigidBodyTree::compile().
-    body->set_mass(1.0);
+    body->set_mass(mp_);
     body->set_spatial_inertia(Matrix6<double>::Identity());
 
     // Paddle visual.
     Isometry3d pose = Isometry3d::Identity();
-    pose.translation() = Vector3d(0.35, 0.1/2, 0.0);
+    pose.translation() = Vector3d(0.5 * ell_, 0.1/2, 0.0);
     DrakeShapes::VisualElement visual_element(
         Box(Vector3d(ell_, 0.015, 0.05)), pose, red);
     body->AddVisualElement(visual_element);
@@ -369,7 +369,8 @@ void SoftPaddlePlant<T>::CreateRBTModel() {
     body->set_name("disk");
     // Sets body to have a non-zero spatial inertia. Otherwise the body gets
     // welded by a fixed joint to the world by RigidBodyTree::compile().
-    body->set_mass(1.0);
+    body->set_mass(md_);
+    //ToDo(rkk): correct this spatial inertia matrix
     body->set_spatial_inertia(Matrix6<double>::Identity());
 
     Isometry3d pose = Isometry3d::Identity();

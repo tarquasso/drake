@@ -136,22 +136,24 @@ class SoftPaddlePlant : public systems::LeafSystem<T> {
   // Creates a RigidBodyTree model of the paddle. This RigidBodyTree is used
   // with a BotVisualizer system to visualize the paddle system.
   void CreateRBTModel();
-
-  double g_{9.81};  // Acceleration of gravity.
+  double theta_table_{35.8*M_PI/180.0};
+  double g_{9.81 * sin(theta_table_)};  // Acceleration of gravity.
 
   // Paddle parameters.
   double Ip_{0.0};  // Paddle moment of inertia. [kg * m^2]
-  double ell_{0.7}; // Paddle/rubber band length. [m]
-  double mp_{0.0};  // Paddle mass. [Kg]
-  double T0_{10.0};  // Rubber band tension. [N]
+  double ell_{0.542}; // Paddle/rubber band length. [m]
+  double mp_{0.3};  // Paddle mass. [Kg] ToDo: just a guess for now
+  double T0_{12.6};  // Rubber band tension. [N]
+  double x_offset_{0.029}; // x offset from paddle rotation axis to start of rubber band, ignored for now
+  double y_offset_{0.02075}; // y offset from paddle rotation axis to start of rubber band, ignored for now
 
   // Disk parameters.
-  double Rd_{0.04};  // Disk's radius. [m]
-  double md_{0.1};  // Disk's mass. [Kg]
+  double Rd_{0.0877 * 0.5};  // Disk's radius. [m]
+  double md_{0.1103};  // Disk's mass. [Kg]
   double Id_{0.5 * md_ * Rd_ * Rd_};  // Disk's moment of inertia. [Kg * m^2]
 
   // Initial conditions.
-  double x0_{0.35}, z0_{0.4}, phi0_{5.0*M_PI/180.0};
+  double x0_{0.542 * 0.5}, z0_{0.3}, phi0_{5.0*M_PI/180.0};
 
   double damping_coefficient_{1.5};  // Rubber band damping.
 

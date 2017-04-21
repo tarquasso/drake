@@ -31,7 +31,7 @@ constexpr int kStateSize = SoftPaddleStateVectorIndices::kNumCoordinates;
 // 1 quaternion joint for the disk = 13 (= 7 + 6) states.
 //
 constexpr int kVisualizerStateSize =
-    15 + kNumPaddleElements * 13;
+    15 + kNumPaddleElements * 13; //each paddle element has 13 states
 }
 
 template <typename T>
@@ -39,7 +39,8 @@ SoftPaddleStateToBotVisualizer<T>::SoftPaddleStateToBotVisualizer(
     const SoftPaddlePlant<T>& plant) :
     rbt_model_(plant.get_rigid_body_tree_model()),
     x0_(plant.get_default_x0()),
-    z0_(plant.get_default_z0()){
+    z0_(plant.get_default_z0()),
+    ell_(plant.get_default_paddle_length()){
   // Input for the SoftPaddlePlant state.
   this->DeclareInputPort(systems::kVectorValued, kStateSize);
 
@@ -111,7 +112,7 @@ void SoftPaddleStateToBotVisualizer<T>::DoCalcOutput(const Context<T>& context,
   auto xe = this->EvalVectorInput(context, 2);
   auto xv = output->GetMutableVectorData(0);
   for (int i = 0; i < kNumPaddleElements; ++i) {
-    double xe0 = i * (0.7 / (kNumPaddleElements - 1));
+    double xe0 = i * (ell_ / (kNumPaddleElements - 1));
     //PRINT_VAR(xe->GetAtIndex(3 * i + 0));
     //PRINT_VAR(xe->GetAtIndex(3 * i + 1));
     //PRINT_VAR(xe->GetAtIndex(3 * i + 2));

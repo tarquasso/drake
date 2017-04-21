@@ -50,7 +50,7 @@ class SoftPaddleStateToBotVisualizer : public systems::LeafSystem<T> {
  private:
   // A RigidBodyTree model of the plant for visualization.
   const RigidBodyTree<double>& rbt_model_;
-  const T x0_, z0_;
+  const T x0_, z0_, ell_;
 };
 
 }  // namespace soft_paddle
