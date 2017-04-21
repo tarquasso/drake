@@ -12,7 +12,9 @@ if(lcm_FOUND)
     soft_paddle_state_vector.h
 #    mirror_law_system.h
     soft_paddle_state_to_bot_visualizer.h
-    soft_paddle_poincare_map.h)
+    soft_paddle_poincare_map.h
+    soft_paddle_poincare_map-inl.h
+  )
   drake_install_pkg_config_file(drake-soft-paddle-plant
     TARGET drakeSoftPaddlePlant
     LIBS -ldrakeSoftPaddlePlant

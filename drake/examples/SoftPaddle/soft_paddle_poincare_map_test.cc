@@ -1,4 +1,4 @@
-#include "drake/examples/SoftPaddle/soft_paddle_poincare_map.h"
+#include "drake/examples/SoftPaddle/soft_paddle_poincare_map-inl.h"
 
 #include <iostream>
 #include <iomanip>

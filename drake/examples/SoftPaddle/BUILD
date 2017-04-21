@@ -91,7 +91,10 @@ drake_cc_binary(
 drake_cc_library(
     name = "soft_paddle_poincare_map",
     srcs = ["soft_paddle_poincare_map.cc"],
-    hdrs = ["soft_paddle_poincare_map.h"],
+    hdrs = [
+        "soft_paddle_poincare_map.h",
+        "soft_paddle_poincare_map-inl.h",
+    ],
     deps = [
         ":mirror_law_system",
     ],
