@@ -71,6 +71,18 @@ drake_cc_library(
     ],
 )
 
+drake_cc_library(
+    name = "mirror_law_system_two_parameter",
+    srcs = ["mirror_law_system_two_parameter.cc"],
+    hdrs = ["mirror_law_system_two_parameter.h"],
+    deps = [
+        ":soft_paddle_plant",
+        ":soft_paddle_state_to_bot_visualizer",
+        "//drake/systems/primitives:constant_vector_source",
+        "//drake/systems/primitives:first_order_low_pass_filter",
+    ],
+)
+
 drake_cc_binary(
     name = "soft_paddle_mirror_law_test",
     srcs = [
@@ -96,7 +108,7 @@ drake_cc_library(
         "soft_paddle_poincare_map-inl.h",
     ],
     deps = [
-        ":mirror_law_system",
+        ":mirror_law_system_with_energy_and_horizontal_control",
     ],
 )
 
