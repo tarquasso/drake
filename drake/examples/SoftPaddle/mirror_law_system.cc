@@ -28,8 +28,14 @@ using systems::SystemOutput;
 using systems::FirstOrderLowPassFilter;
 
 template <typename T>
-PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(const T& phi0, const T& amplitude) :
-    phi0_(phi0), amplitude_(amplitude) {
+PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(
+    const T& kappa_mirror, const T& kappa_energy,
+    const T& kappa_rho,
+    const T& kappa_rhodot) :
+    kappa_mirror_(kappa_mirror),
+    kappa_energy_(kappa_energy),
+    kappa_rho_(kappa_rho),
+    kappa_rhodot_(kappa_rhodot){
   // Input for the SoftPaddlePlant state.
   paddle_state_input_ =
       this->DeclareInputPort(
@@ -63,18 +69,27 @@ void PaddleMirrorLawSystem<T>::DoCalcOutput(const Context<T>& context,
   DRAKE_ASSERT_VOID(System<T>::CheckValidContext(context));
 
   auto parameters = this->EvalEigenVectorInput(context, parameters_input_);
-  const T& phi0 = parameters(0);
-  const T& amplitude = parameters(1);
-  (void) phi0;
-  (void) amplitude;
-  //
+  const T& kappa_mirror = parameters(0);
+  const T& kappa_energy = parameters(1);
+  const T& kappa_rho = parameters(2);
+  const T& kappa_rhodot = parameters(3);
+
+  (void) kappa_mirror; //why?
+  (void) kappa_energy; //why?
+  (void) kappa_rho; //why?
+  (void) kappa_rhodot; //why this (void) operation?
+
   //const auto paddle_state = this->EvalVectorInput(context, 0);
   auto paddle_state =
       dynamic_cast<const SoftPaddleStateVector<T>*>(
           this->EvalVectorInput(context, paddle_state_input_));
 
+  auto energy_delta = calculateEnergyDelta(paddle_state);
+
+  // do inverse kinematics
+
   System<T>::GetMutableOutputVector(output, 0)(0) =
-      phi0 + amplitude * paddle_state->zdot();
+      - (kappa_mirror + kappa_energy * energy_delta) * paddle_state->zdot();
 
   //auto input_vector = this->EvalEigenVectorInput(context, 0);
  // System<T>::GetMutableOutputVector(output, 0) =
@@ -163,6 +178,8 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
         output, mirror_law_parameters_output_port_);
 
     u = u0 - K_ * (x - x0);
+    // In RSS version, no adjustment in apex monitor would be needed, just:
+    // u0 = - K_ * x0
 
     std::cout << "u: " << u.transpose() << std::endl;
     std::cout << "x: " << x.transpose() << std::endl;
@@ -171,7 +188,7 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
   w0_ = w;
 
   //System<T>::GetMutableOutputVector(output, 0)(0) =
-  //    phi0_ + amplitude_ * paddle_state->zdot();
+  //    kappa_mirror_ + kappa_energy_ * paddle_state->zdot();
   //auto input_vector = this->EvalEigenVectorInput(context, 0);
   // System<T>::GetMutableOutputVector(output, 0) =
   //   k_.array() * input_vector.array();
@@ -179,12 +196,18 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
 
 template <typename T>
 SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
-    const T& phi0, const T& amplitude, bool filter_commanded_angle,
+    const T& kappa_mirror,
+    const T& kappa_energy,
+    const T& kappa_rho,
+    const T& kappa_rhodot,
+    bool filter_commanded_angle,
     bool with_lqr) {
+
   systems::DiagramBuilder<T> builder;
 
   auto mirror_system =
-      builder.template AddSystem<PaddleMirrorLawSystem>(phi0, amplitude);
+      builder.template AddSystem<PaddleMirrorLawSystem>(kappa_mirror, kappa_energy,
+                                                        kappa_rho, kappa_rhodot);
   paddle_ = builder.template AddSystem<SoftPaddlePlant>();
 
   // Feedback loop.
@@ -220,7 +243,7 @@ SoftPaddleWithMirrorControl<T>::SoftPaddleWithMirrorControl(
   } else {
     auto constant_parameters_source =
         builder.template AddSystem<systems::ConstantVectorSource>(
-            Vector2<T>(phi0, amplitude));
+            Vector2<T>(kappa_mirror, kappa_energy));
     builder.Connect(constant_parameters_source->get_output_port(),
                     mirror_system->get_parameters_input());
   }

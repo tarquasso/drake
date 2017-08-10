@@ -29,7 +29,7 @@ using systems::FirstOrderLowPassFilter;
 
 template <typename T>
 PaddleMirrorLawSystem<T>::PaddleMirrorLawSystem(const T& phi0, const T& amplitude) :
-    phi0_(phi0), amplitude_(amplitude) {
+    kappa_mirror_(phi0), kappa_energy_(amplitude) {
   // Input for the SoftPaddlePlant state.
   paddle_state_input_ =
       this->DeclareInputPort(
@@ -171,7 +171,7 @@ void ApexMonitor<T>::DoCalcOutput(const Context<T>& context,
   w0_ = w;
 
   //System<T>::GetMutableOutputVector(output, 0)(0) =
-  //    phi0_ + amplitude_ * paddle_state->zdot();
+  //    kappa_mirror_ + kappa_energy_ * paddle_state->zdot();
   //auto input_vector = this->EvalEigenVectorInput(context, 0);
   // System<T>::GetMutableOutputVector(output, 0) =
   //   k_.array() * input_vector.array();

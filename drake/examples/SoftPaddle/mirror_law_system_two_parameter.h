@@ -18,7 +18,7 @@ namespace soft_paddle {
 template <typename T>
 class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
  public:
-  PaddleMirrorLawSystem(const T& phi0, const T& amplitude);
+  PaddleMirrorLawSystem(const T& kappaMirror, const T& kappaEnergy);
 
   bool has_any_direct_feedthrough() const override { return false; }
 
@@ -31,8 +31,8 @@ class PaddleMirrorLawSystem : public systems::LeafSystem<T> {
                     systems::SystemOutput<T>* output) const override;
 
  private:
-  T phi0_{0.0};
-  T amplitude_{0.1};
+  T kappa_mirror_{0.0};
+  T kappa_energy_{0.1};
   int parameters_input_;
   int paddle_state_input_;
 };
@@ -64,7 +64,7 @@ class ApexMonitor : public systems::LeafSystem<T> {
 template <typename T>
 class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
  public:
-  SoftPaddleWithMirrorControl(const T& phi0, const T& amplitude,
+  SoftPaddleWithMirrorControl(const T& kappaMirror, const T& kappaEnergy,
                               bool filter_commanded_angle,
                               bool with_lqr = false);
 
@@ -90,8 +90,8 @@ class SoftPaddleWithMirrorControl : public systems::Diagram<T> {
   const SoftPaddlePlant<T>& get_soft_paddle_plant() const { return *paddle_; }
 
  private:
-  T phi0_{0.0};
-  T amplitude_{0.0};
+  T kappa_mirror_{0.0};
+  T kappa_energy_{0.0};
   SoftPaddlePlant<T>* paddle_;
   // Output port identifiers.
   int command_angle_output_port_;
