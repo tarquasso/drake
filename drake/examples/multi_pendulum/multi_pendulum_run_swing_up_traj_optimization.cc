@@ -42,17 +42,25 @@ int do_main() {
 
   const int kNumTimeSamples = 21;
   const double kTrajectoryTimeLowerBound = 0.1;
-  const double kTrajectoryTimeUpperBound = 15.0;
+  const double kTrajectoryTimeUpperBound = 10.0;
 
   const Eigen::Vector4d x0(0, 0, 0, 0);
-  const Eigen::Vector4d xG(M_PI, 0, 0, 0);
+  //const Eigen::Vector4d xG(M_PI*4/9, M_PI*1/9, 0, 0);
+  const Eigen::Vector4d xG(M_PI*4/9, M_PI*1/9, 0, 0);
+
+  // Current limit for MIT's multi_pendulum is 7-9 Amps, according to Michael Posa.
+  const double kTorqueLimit = 3.0;
+
+  const Eigen::Vector2d umin(Eigen::Vector2d::Constant(-kTorqueLimit));
+  const Eigen::Vector2d umax(Eigen::Vector2d::Constant(kTorqueLimit));
 
   auto context = multi_pendulum->CreateDefaultContext();
 
   systems::DircolTrajectoryOptimization dircol_traj(
       multi_pendulum.get(), *context, kNumTimeSamples, kTrajectoryTimeLowerBound,
       kTrajectoryTimeUpperBound);
-  AddSwingUpTrajectoryParams(kNumTimeSamples, x0, xG, &dircol_traj);
+  AddSwingUpTrajectoryParams(kNumTimeSamples, x0, xG,
+      umin, umax, &dircol_traj);
 
   const double timespan_init = 4;
   auto traj_init_x =

@@ -21,6 +21,7 @@ namespace multi_pendulum {
 void AddSwingUpTrajectoryParams(
     int num_time_samples,
     const Eigen::Vector4d& x0, const Eigen::Vector4d& xG,
+    const Eigen::Vector2d& umin, const Eigen::Vector2d& umax,
     systems::DircolTrajectoryOptimization*);
 
 }  // namespace multi_pendulum

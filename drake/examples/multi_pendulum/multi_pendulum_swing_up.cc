@@ -75,12 +75,9 @@ class MultiPendulumFinalCost {
 void AddSwingUpTrajectoryParams(
     int num_time_samples,
     const Eigen::Vector4d& x0, const Eigen::Vector4d& xG,
+    const Eigen::Vector2d& umin, const Eigen::Vector2d& umax,
     systems::DircolTrajectoryOptimization* dircol_traj) {
 
-  // Current limit for MIT's multi_pendulum is 7-9 Amps, accroding to Michael Posa.
-  const double kTorqueLimit = 8;
-  const drake::Vector2<double> umin(Eigen::Vector2d::Constant(-kTorqueLimit));
-  const drake::Vector2<double> umax(Eigen::Vector2d::Constant(kTorqueLimit));
   dircol_traj->AddInputBounds(umin, umax);
 
   dircol_traj->AddStateConstraint(
