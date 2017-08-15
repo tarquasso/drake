@@ -43,6 +43,7 @@ install(
     name = "install_data",
     visibility = ["//visibility:public"],
     deps = [
+        "//drake/examples/DoublePendulum:install_data",
         "//drake/examples/acrobot:install_data",
         "//drake/examples/atlas:install_data",
         "//drake/examples/contact_model:install_data",

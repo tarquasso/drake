@@ -7,6 +7,7 @@
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/primitives/affine_system.h"
+#include "drake/common/symbolic.h"
 
 namespace drake {
 namespace examples {
@@ -64,6 +65,10 @@ class DoublePendulumPlant : public systems::LeafSystem<T> {
                double b2 = 0.1,
                double g = 9.81);
 
+  /// Scalar-converting copy constructor.
+  template <typename U>
+  explicit DoublePendulumPlant(const DoublePendulumPlant<U>&);
+
   /// Creates an instance of DoublePendulumPlant using parameters of MIT lab's double_pendulum.
   static std::unique_ptr<DoublePendulumPlant<T>> CreateDoublePendulumMIT();
 
@@ -77,40 +82,37 @@ class DoublePendulumPlant : public systems::LeafSystem<T> {
   ///@}
 
   // getters for robot parameters
-  T m1() const { return m1_; }
-  T m2() const { return m2_; }
-  T l1() const { return l1_; }
-  T l2() const { return l2_; }
-  T lc1() const { return lc1_; }
-  T lc2() const { return lc2_; }
-  T Ic1() const { return Ic1_; }
-  T Ic2() const { return Ic2_; }
-  T b1() const { return b1_; }
-  T b2() const { return b2_; }
-  T g() const { return g_; }
+  double m1() const { return m1_; }
+  double m2() const { return m2_; }
+  double l1() const { return l1_; }
+  double l2() const { return l2_; }
+  double lc1() const { return lc1_; }
+  double lc2() const { return lc2_; }
+  double Ic1() const { return Ic1_; }
+  double Ic2() const { return Ic2_; }
+  double b1() const { return b1_; }
+  double b2() const { return b2_; }
+  double g() const { return g_; }
 
  protected:
   T DoCalcKineticEnergy(const systems::Context<T>& context) const override;
   T DoCalcPotentialEnergy(const systems::Context<T>& context) const override;
 
  private:
-  void DoCalcOutput(const systems::Context<T>& context,
-                    systems::SystemOutput<T>* output) const override;
+  void OutputState(const systems::Context<T>& context,
+                   DoublePendulumStateVector<T>* output) const;
 
   void DoCalcTimeDerivatives(
       const systems::Context<T>& context,
       systems::ContinuousState<T>* derivatives) const override;
 
-  // System<T> override.
-  DoublePendulumPlant<AutoDiffXd>* DoToAutoDiffXd() const override;
-  DoublePendulumPlant<symbolic::Expression>* DoToSymbolic() const override;
-
   // TODO(russt): Declare these as parameters in the context.
-
   const double m1_, m2_, l1_, l2_, lc1_, lc2_, Ic1_, Ic2_, b1_, b2_, g_;
+
+  // Quantities that occur often.
   const double I1_ = Ic1_ + m1_ * lc1_ * lc1_;
   const double I2_ = Ic2_ + m2_ * lc2_ * lc2_;
-  const double m2l1lc2_ = m2_ * l1_ * lc2_;  // Quantities that occur often.
+  const double m2l1lc2_ = m2_ * l1_ * lc2_;
 };
 
 /// Constructs the DoublePendulum with (only) encoder outputs.

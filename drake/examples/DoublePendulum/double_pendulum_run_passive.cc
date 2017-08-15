@@ -2,7 +2,7 @@
 
 #include <gflags/gflags.h>
 
-#include "drake/common/drake_path.h"
+#include "drake/common/find_resource.h"
 #include "drake/examples/DoublePendulum/double_pendulum_plant.h"
 #include "drake/examples/DoublePendulum/gen/double_pendulum_state_vector.h"
 #include "drake/lcm/drake_lcm.h"
@@ -23,8 +23,8 @@ namespace {
 // to see the animated result.
 
 DEFINE_double(realtime_factor, 1.0,
-              "Playback speed.  See documentation for "
-              "Simulator::set_target_realtime_rate() for details.");
+"Playback speed.  See documentation for "
+"Simulator::set_target_realtime_rate() for details.");
 
 int do_main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -32,7 +32,7 @@ int do_main(int argc, char* argv[]) {
   lcm::DrakeLcm lcm;
   auto tree = std::make_unique<RigidBodyTree<double>>();
   parsers::urdf::AddModelInstanceFromUrdfFileToWorld(
-      GetDrakePath() + "/examples/DoublePendulum/DoublePendulum.urdf",
+      FindResourceOrThrow("drake/examples/DoublePendulum/DoublePendulum.urdf"),
       multibody::joints::kFixed, tree.get());
 
   systems::DiagramBuilder<double> builder;
@@ -43,17 +43,17 @@ int do_main(int argc, char* argv[]) {
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
-  systems::Context<double>* double_pendulum_context =
-      diagram->GetMutableSubsystemContext(simulator.get_mutable_context(),
-                                          double_pendulum);
+  systems::Context<double>& double_pendulum_context =
+      diagram->GetMutableSubsystemContext(*double_pendulum,
+                                          simulator.get_mutable_context());
 
   double tau = 0;
-  double_pendulum_context->FixInputPort(0, Eigen::Matrix<double, 1, 1>::Constant(tau));
+  double_pendulum_context.FixInputPort(0, Eigen::Matrix<double, 2, 1>::Constant(tau));
 
   // Set an initial condition that is sufficiently far from the downright fixed
   // point.
   DoublePendulumStateVector<double>* x0 = dynamic_cast<DoublePendulumStateVector<double>*>(
-      double_pendulum_context->get_mutable_continuous_state_vector());
+      double_pendulum_context.get_mutable_continuous_state_vector());
   DRAKE_DEMAND(x0 != nullptr);
   x0->set_theta1(1.0);
   x0->set_theta2(1.0);

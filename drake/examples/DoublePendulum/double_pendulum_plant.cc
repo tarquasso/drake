@@ -25,7 +25,9 @@ template <typename T>
 DoublePendulumPlant<T>::DoublePendulumPlant(double m1, double m2, double l1, double l2,
                               double lc1, double lc2, double Ic1, double Ic2,
                               double b1, double b2, double g)
-    : m1_(m1),
+    : systems::LeafSystem<T>(
+    systems::SystemTypeTag<double_pendulum::DoublePendulumPlant>{}),
+      m1_(m1),
       m2_(m2),
       l1_(l1),
       l2_(l2),
@@ -37,7 +39,7 @@ DoublePendulumPlant<T>::DoublePendulumPlant(double m1, double m2, double l1, dou
       b2_(b2),
       g_(g) {
   this->DeclareInputPort(systems::kVectorValued, 2);
-  this->DeclareVectorOutputPort(DoublePendulumStateVector<T>());
+  this->DeclareVectorOutputPort(&DoublePendulumPlant::OutputState);
   static_assert(DoublePendulumStateVectorIndices::kNumCoordinates == kNumDOF * 2, "");
   this->DeclareContinuousState(
       DoublePendulumStateVector<T>(),
@@ -45,6 +47,22 @@ DoublePendulumPlant<T>::DoublePendulumPlant(double m1, double m2, double l1, dou
       kNumDOF /* num_v */,
       0 /* num_z */);
 }
+
+template <typename T>
+template <typename U>
+DoublePendulumPlant<T>::DoublePendulumPlant(const DoublePendulumPlant<U>& other)
+    : DoublePendulumPlant<T>(
+    other.m1(),
+    other.m2(),
+    other.l1(),
+    other.l2(),
+    other.lc1(),
+    other.lc2(),
+    other.Ic1(),
+    other.Ic2(),
+    other.b1(),
+    other.b2(),
+    other.g()) {}
 
 template <typename T>
 std::unique_ptr<DoublePendulumPlant<T>> DoublePendulumPlant<T>::CreateDoublePendulumMIT() {
@@ -64,9 +82,9 @@ std::unique_ptr<DoublePendulumPlant<T>> DoublePendulumPlant<T>::CreateDoublePend
 }
 
 template <typename T>
-void DoublePendulumPlant<T>::DoCalcOutput(const systems::Context<T>& context,
-                                   systems::SystemOutput<T>* output) const {
-  output->GetMutableVectorData(0)->set_value(
+void DoublePendulumPlant<T>::OutputState(const systems::Context<T>& context,
+                                  DoublePendulumStateVector<T>* output) const {
+  output->set_value(
       dynamic_cast<const DoublePendulumStateVector<T>&>(
           context.get_continuous_state_vector())
           .get_value());
@@ -89,7 +107,7 @@ Vector2<T> DoublePendulumPlant<T>::VectorC(const DoublePendulumStateVector<T>& x
 
   Vector2<T> C;
   C << -2 * m2l1lc2_ * s2 * x.theta2dot() * x.theta1dot() +
-           -m2l1lc2_ * s2 * x.theta2dot() * x.theta2dot(),
+      -m2l1lc2_ * s2 * x.theta2dot() * x.theta2dot(),
       m2l1lc2_ * s2 * x.theta1dot() * x.theta1dot();
 
   // Add in G terms.
@@ -149,17 +167,6 @@ T DoublePendulumPlant<T>::DoCalcPotentialEnergy(
   return -m1_ * g_ * lc1_ * c1 - m2_ * g_ * (l1_ * c1 + lc2_ * c12);
 }
 
-// DoublePendulumPlant has no constructor arguments, so there's no work to do here.
-template <typename T>
-DoublePendulumPlant<AutoDiffXd>* DoublePendulumPlant<T>::DoToAutoDiffXd() const {
-  return new DoublePendulumPlant<AutoDiffXd>();
-}
-
-template <typename T>
-DoublePendulumPlant<symbolic::Expression>* DoublePendulumPlant<T>::DoToSymbolic() const {
-  return new DoublePendulumPlant<symbolic::Expression>();
-}
-
 template class DoublePendulumPlant<double>;
 template class DoublePendulumPlant<AutoDiffXd>;
 
@@ -186,8 +193,8 @@ template <typename T>
 DoublePendulumStateVector<T>* DoublePendulumWEncoder<T>::get_mutable_double_pendulum_state(
     systems::Context<T>* context) const {
   DoublePendulumStateVector<T>* x = dynamic_cast<DoublePendulumStateVector<T>*>(
-      this->GetMutableSubsystemContext(context, double_pendulum_plant_)
-          ->get_mutable_continuous_state_vector());
+      this->GetMutableSubsystemContext(*double_pendulum_plant_, context)
+          .get_mutable_continuous_state_vector());
   DRAKE_DEMAND(x != nullptr);
   return x;
 }
@@ -219,7 +226,8 @@ std::unique_ptr<systems::AffineSystem<double>> BalancingLQRController(
   Q(1, 1) = 10;
   Eigen::Matrix2d R = Eigen::Matrix2d::Identity();
 
-  return systems::LinearQuadraticRegulator(double_pendulum, *context, Q, R);
+  return systems::controllers::LinearQuadraticRegulator(
+      double_pendulum, *context, Q, R);
 }
 
 }  // namespace double_pendulum
