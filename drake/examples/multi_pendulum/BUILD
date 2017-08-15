@@ -31,15 +31,15 @@ drake_cc_library(
 #    ],
 #)
 
-#drake_cc_library(
-#    name = "multi_pendulum_swing_up",
-#    srcs = ["multi_pendulum_swing_up.cc"],
-#    hdrs = ["multi_pendulum_swing_up.h"],
-#    deps = [
-#        ":multi_pendulum_plant",
-#        "//drake/systems/trajectory_optimization:direct_collocation",
-#    ],
-#)
+drake_cc_library(
+    name = "multi_pendulum_swing_up",
+    srcs = ["multi_pendulum_swing_up.cc"],
+    hdrs = ["multi_pendulum_swing_up.h"],
+    deps = [
+        ":multi_pendulum_plant",
+        "//drake/systems/trajectory_optimization:direct_collocation",
+    ],
+)
 
 drake_cc_library(
     name = "multi_pendulum_plant",
@@ -152,25 +152,25 @@ drake_cc_binary(
 #    ],
 #)
 
-#drake_cc_binary(
-#    name = "multi_pendulum_run_swing_up_traj_optimization",
-#    srcs = ["multi_pendulum_run_swing_up_traj_optimization.cc"],
-#    data = [":models"],
-#    deps = [
-#        ":multi_pendulum_plant",
-#        ":multi_pendulum_swing_up",
-#        "//drake/common:find_resource",
-#        "//drake/lcm",
-#        "//drake/multibody:rigid_body_tree",
-#        "//drake/multibody/joints",
-#        "//drake/multibody/parsers",
-#        "//drake/multibody/rigid_body_plant:drake_visualizer",
-#        "//drake/systems/analysis",
-#        "//drake/systems/controllers:linear_quadratic_regulator",
-#        "//drake/systems/primitives:trajectory_source",
-#        "@com_github_gflags_gflags//:gflags",
-#    ],
-#)
+drake_cc_binary(
+    name = "multi_pendulum_run_swing_up_traj_optimization",
+    srcs = ["multi_pendulum_run_swing_up_traj_optimization.cc"],
+    data = [":models"],
+    deps = [
+        ":multi_pendulum_plant",
+        ":multi_pendulum_swing_up",
+        "//drake/common:find_resource",
+        "//drake/lcm",
+        "//drake/multibody:rigid_body_tree",
+        "//drake/multibody/joints",
+        "//drake/multibody/parsers",
+        "//drake/multibody/rigid_body_plant:drake_visualizer",
+        "//drake/systems/analysis",
+        "//drake/systems/controllers:linear_quadratic_regulator",
+        "//drake/systems/primitives:trajectory_source",
+        "@com_github_gflags_gflags//:gflags",
+    ],
+)
 
 #drake_cc_binary(
 #    name = "multi_pendulum_spong_controller_w_lcm",
