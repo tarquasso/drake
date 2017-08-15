@@ -15,10 +15,10 @@
 
 namespace drake {
 namespace examples {
-namespace double_pendulum {
+namespace multi_pendulum {
 
-/// Describes the row indices of a DoublePendulumStateVector.
-struct DoublePendulumStateVectorIndices {
+/// Describes the row indices of a MultiPendulumStateVector.
+struct MultiPendulumStateVectorIndices {
   /// The total number of rows (coordinates).
   static const int kNumCoordinates = 4;
 
@@ -30,26 +30,25 @@ struct DoublePendulumStateVectorIndices {
 
   /// Returns a vector containing the names of each coordinate within this
   /// class. The indices within the returned vector matches that of this class.
-  /// In other words,
-  /// `DoublePendulumStateVectorIndices::GetCoordinateNames()[i]`
+  /// In other words, `MultiPendulumStateVectorIndices::GetCoordinateNames()[i]`
   /// is the name for `BasicVector::GetAtIndex(i)`.
   static const std::vector<std::string>& GetCoordinateNames();
 };
 
 /// Specializes BasicVector with specific getters and setters.
 template <typename T>
-class DoublePendulumStateVector : public systems::BasicVector<T> {
+class MultiPendulumStateVector : public systems::BasicVector<T> {
  public:
   /// An abbreviation for our row index constants.
-  typedef DoublePendulumStateVectorIndices K;
+  typedef MultiPendulumStateVectorIndices K;
 
   /// Default constructor.  Sets all rows to zero.
-  DoublePendulumStateVector() : systems::BasicVector<T>(K::kNumCoordinates) {
+  MultiPendulumStateVector() : systems::BasicVector<T>(K::kNumCoordinates) {
     this->SetFromVector(VectorX<T>::Zero(K::kNumCoordinates));
   }
 
-  DoublePendulumStateVector<T>* DoClone() const override {
-    return new DoublePendulumStateVector;
+  MultiPendulumStateVector<T>* DoClone() const override {
+    return new MultiPendulumStateVector;
   }
 
   /// @name Getters and Setters
@@ -72,9 +71,9 @@ class DoublePendulumStateVector : public systems::BasicVector<T> {
   }
   //@}
 
-  /// See DoublePendulumStateVectorIndices::GetCoordinateNames().
+  /// See MultiPendulumStateVectorIndices::GetCoordinateNames().
   static const std::vector<std::string>& GetCoordinateNames() {
-    return DoublePendulumStateVectorIndices::GetCoordinateNames();
+    return MultiPendulumStateVectorIndices::GetCoordinateNames();
   }
 
   /// Returns whether the current values of this vector are well-formed.
@@ -89,6 +88,6 @@ class DoublePendulumStateVector : public systems::BasicVector<T> {
   }
 };
 
-}  // namespace double_pendulum
+}  // namespace multi_pendulum
 }  // namespace examples
 }  // namespace drake

@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "drake/examples/DoublePendulum/gen/double_pendulum_state_vector.h"
+#include "drake/examples/multi_pendulum/gen/multi_pendulum_state_vector.h"
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/leaf_system.h"
@@ -11,10 +11,10 @@
 
 namespace drake {
 namespace examples {
-namespace double_pendulum {
+namespace multi_pendulum {
 
 
-/// The DoublePendulum - a fully actuated double pendulum.
+/// The MultiPendulum - a fully actuated double pendulum with contact.
 ///
 /// @tparam T The vector element type, which must be a valid Eigen scalar.
 /// @param m1 Mass of link 1 (kg).
@@ -34,9 +34,9 @@ namespace double_pendulum {
 /// @param g Gravitational constant (m/s^2).
 ///
 /// The parameters are defaulted to values in Spong's paper (see
-/// double_pendulum_spong_controller.cc for more details). Alternatively, an instance
-/// of DoublePendulumPlant using parameters of MIT lab's double_pendulum can be created by
-/// calling the static method CreateDoublePendulumMIT();
+/// multi_pendulum_spong_controller.cc for more details). Alternatively, an instance
+/// of DoublePendulumPlant using parameters of MIT lab's multi_pendulum can be created by
+/// calling the static method CreateMultiPendulumMIT();
 ///
 /// Note that the Spong controller behaves differently on these two sets of
 /// parameters. The controller works well on the first set of parameters,
@@ -49,11 +49,11 @@ namespace double_pendulum {
 /// - double
 /// - AutoDiffXd
 template <typename T>
-class DoublePendulumPlant : public systems::LeafSystem<T> {
+class MultiPendulumPlant : public systems::LeafSystem<T> {
  public:
-  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(DoublePendulumPlant)
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(MultiPendulumPlant)
 
-  DoublePendulumPlant(double m1 = 1.0,
+  MultiPendulumPlant(double m1 = 1.0,
                double m2 = 1.0,
                double l1 = 1.0,
                double l2 = 2.0,
@@ -67,18 +67,18 @@ class DoublePendulumPlant : public systems::LeafSystem<T> {
 
   /// Scalar-converting copy constructor.
   template <typename U>
-  explicit DoublePendulumPlant(const DoublePendulumPlant<U>&);
+  explicit MultiPendulumPlant(const MultiPendulumPlant<U>&);
 
-  /// Creates an instance of DoublePendulumPlant using parameters of MIT lab's double_pendulum.
-  static std::unique_ptr<DoublePendulumPlant<T>> CreateDoublePendulumMIT();
+  /// Creates an instance of DoublePendulumPlant using parameters of MIT lab's multi_pendulum.
+  static std::unique_ptr<MultiPendulumPlant<T>> CreateMultiPendulumMIT();
 
   ///@{
   /// Manipulator equation of DoublePendulum: H * qdotdot + C = B*u.
   /// H[2x2] is the mass matrix.
   /// C[2x1] includes the Coriolis term, gravity term and the damping term, i.e.
   /// C[2x1] = Coriolis(q,v)*v + g(q) + [b1*theta1;b2*theta2]
-  Vector2<T> VectorC(const DoublePendulumStateVector<T>& x) const;
-  Matrix2<T> MatrixH(const DoublePendulumStateVector<T>& x) const;
+  Vector2<T> VectorC(const MultiPendulumStateVector<T>& x) const;
+  Matrix2<T> MatrixH(const MultiPendulumStateVector<T>& x) const;
   ///@}
 
   // getters for robot parameters
@@ -100,7 +100,7 @@ class DoublePendulumPlant : public systems::LeafSystem<T> {
 
  private:
   void OutputState(const systems::Context<T>& context,
-                   DoublePendulumStateVector<T>* output) const;
+                   MultiPendulumStateVector<T>* output) const;
 
   void DoCalcTimeDerivatives(
       const systems::Context<T>& context,
@@ -117,24 +117,24 @@ class DoublePendulumPlant : public systems::LeafSystem<T> {
 
 /// Constructs the DoublePendulum with (only) encoder outputs.
 template <typename T>
-class DoublePendulumWEncoder : public systems::Diagram<T> {
+class MultiPendulumWEncoder : public systems::Diagram<T> {
  public:
-  explicit DoublePendulumWEncoder(bool double_pendulum_state_as_second_output = false);
+  explicit MultiPendulumWEncoder(bool multi_pendulum_state_as_second_output = false);
 
-  const DoublePendulumPlant<T>* double_pendulum_plant() const { return double_pendulum_plant_; }
+  const MultiPendulumPlant<T>* multi_pendulum_plant() const { return multi_pendulum_plant_; }
 
-  DoublePendulumStateVector<T>* get_mutable_double_pendulum_state(
-      systems::Context<T>* context) const;
+  MultiPendulumStateVector<T>* get_mutable_multi_pendulum_state(
+      systems::Context<T> *context) const;
 
  private:
-  DoublePendulumPlant<T>* double_pendulum_plant_{nullptr};
+  MultiPendulumPlant<T>* multi_pendulum_plant_{nullptr};
 };
 
 /// Constructs the LQR controller for stabilizing the upright fixed point using
 /// default LQR cost matrices which have been tested for this system.
 std::unique_ptr<systems::AffineSystem<double>> BalancingLQRController(
-    const DoublePendulumPlant<double>& double_pendulum);
+    const MultiPendulumPlant<double>& multi_pendulum);
 
-}  // namespace double_pendulum
+}  // namespace multi_pendulum
 }  // namespace examples
 }  // namespace drake

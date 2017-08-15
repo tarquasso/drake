@@ -15,66 +15,66 @@
 
 namespace drake {
 namespace examples {
-namespace double_pendulum {
+namespace multi_pendulum {
 
-/// Describes the row indices of a DoublePendulumInputVector.
-struct DoublePendulumInputVectorIndices {
+/// Describes the row indices of a MultiPendulumOutputVector.
+struct MultiPendulumOutputVectorIndices {
   /// The total number of rows (coordinates).
   static const int kNumCoordinates = 2;
 
   // The index of each individual coordinate.
-  static const int kTau1 = 0;
-  static const int kTau2 = 1;
+  static const int kTheta1 = 0;
+  static const int kTheta2 = 1;
 
   /// Returns a vector containing the names of each coordinate within this
   /// class. The indices within the returned vector matches that of this class.
   /// In other words,
-  /// `DoublePendulumInputVectorIndices::GetCoordinateNames()[i]`
+  /// `MultiPendulumOutputVectorIndices::GetCoordinateNames()[i]`
   /// is the name for `BasicVector::GetAtIndex(i)`.
   static const std::vector<std::string>& GetCoordinateNames();
 };
 
 /// Specializes BasicVector with specific getters and setters.
 template <typename T>
-class DoublePendulumInputVector : public systems::BasicVector<T> {
+class MultiPendulumOutputVector : public systems::BasicVector<T> {
  public:
   /// An abbreviation for our row index constants.
-  typedef DoublePendulumInputVectorIndices K;
+  typedef MultiPendulumOutputVectorIndices K;
 
   /// Default constructor.  Sets all rows to zero.
-  DoublePendulumInputVector() : systems::BasicVector<T>(K::kNumCoordinates) {
+  MultiPendulumOutputVector() : systems::BasicVector<T>(K::kNumCoordinates) {
     this->SetFromVector(VectorX<T>::Zero(K::kNumCoordinates));
   }
 
-  DoublePendulumInputVector<T>* DoClone() const override {
-    return new DoublePendulumInputVector;
+  MultiPendulumOutputVector<T>* DoClone() const override {
+    return new MultiPendulumOutputVector;
   }
 
   /// @name Getters and Setters
   //@{
-  /// tau1
-  const T& tau1() const { return this->GetAtIndex(K::kTau1); }
-  void set_tau1(const T& tau1) { this->SetAtIndex(K::kTau1, tau1); }
-  /// tau2
-  const T& tau2() const { return this->GetAtIndex(K::kTau2); }
-  void set_tau2(const T& tau2) { this->SetAtIndex(K::kTau2, tau2); }
+  /// theta1
+  const T& theta1() const { return this->GetAtIndex(K::kTheta1); }
+  void set_theta1(const T& theta1) { this->SetAtIndex(K::kTheta1, theta1); }
+  /// theta2
+  const T& theta2() const { return this->GetAtIndex(K::kTheta2); }
+  void set_theta2(const T& theta2) { this->SetAtIndex(K::kTheta2, theta2); }
   //@}
 
-  /// See DoublePendulumInputVectorIndices::GetCoordinateNames().
+  /// See MultiPendulumOutputVectorIndices::GetCoordinateNames().
   static const std::vector<std::string>& GetCoordinateNames() {
-    return DoublePendulumInputVectorIndices::GetCoordinateNames();
+    return MultiPendulumOutputVectorIndices::GetCoordinateNames();
   }
 
   /// Returns whether the current values of this vector are well-formed.
   decltype(T() < T()) IsValid() const {
     using std::isnan;
     auto result = (T(0) == T(0));
-    result = result && !isnan(tau1());
-    result = result && !isnan(tau2());
+    result = result && !isnan(theta1());
+    result = result && !isnan(theta2());
     return result;
   }
 };
 
-}  // namespace double_pendulum
+}  // namespace multi_pendulum
 }  // namespace examples
 }  // namespace drake

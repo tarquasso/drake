@@ -11,42 +11,42 @@ load("//tools:install_data.bzl", "install_data")
 load("//tools:lint.bzl", "add_lint_tests")
 
 drake_cc_library(
-    name = "double_pendulum_state_vector",
-    srcs = ["gen/double_pendulum_state_vector.cc"],
-    hdrs = ["gen/double_pendulum_state_vector.h"],
+    name = "multi_pendulum_state_vector",
+    srcs = ["gen/multi_pendulum_state_vector.cc"],
+    hdrs = ["gen/multi_pendulum_state_vector.h"],
     deps = [
         "//drake/systems/framework:vector",
     ],
 )
 
 #drake_cc_library(
-#    name = "double_pendulum_lcm",
-#    srcs = ["double_pendulum_lcm.cc"],
-#    hdrs = ["double_pendulum_lcm.h"],
+#    name = "multi_pendulum_lcm",
+#    srcs = ["multi_pendulum_lcm.cc"],
+#    hdrs = ["multi_pendulum_lcm.h"],
 #    deps = [
-#        ":double_pendulum_state_vector",
-#        "//drake/lcmtypes:double_pendulum",
+#        ":multi_pendulum_state_vector",
+#        "//drake/lcmtypes:multi_pendulum",
 #        "//drake/systems/framework:leaf_system",
 #        "//drake/systems/framework:vector",
 #    ],
 #)
 
 #drake_cc_library(
-#    name = "double_pendulum_swing_up",
-#    srcs = ["double_pendulum_swing_up.cc"],
-#    hdrs = ["double_pendulum_swing_up.h"],
+#    name = "multi_pendulum_swing_up",
+#    srcs = ["multi_pendulum_swing_up.cc"],
+#    hdrs = ["multi_pendulum_swing_up.h"],
 #    deps = [
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_plant",
 #        "//drake/systems/trajectory_optimization:direct_collocation",
 #    ],
 #)
 
 drake_cc_library(
-    name = "double_pendulum_plant",
-    srcs = ["double_pendulum_plant.cc"],
-    hdrs = ["double_pendulum_plant.h"],
+    name = "multi_pendulum_plant",
+    srcs = ["multi_pendulum_plant.cc"],
+    hdrs = ["multi_pendulum_plant.h"],
     deps = [
-        ":double_pendulum_state_vector",
+        ":multi_pendulum_state_vector",
         "//drake/systems/controllers:linear_quadratic_regulator",
         "//drake/systems/framework",
         "//drake/systems/sensors:rotary_encoders",
@@ -57,24 +57,24 @@ drake_cc_library(
 # but does not actually provide test coverage as a stand-alone
 # executable.
 #drake_cc_binary(
-#    name = "double_pendulum_lcm_msg_generator",
+#    name = "multi_pendulum_lcm_msg_generator",
 #    testonly = 1,
-#    srcs = ["test/double_pendulum_lcm_msg_generator.cc"],
+#    srcs = ["test/multi_pendulum_lcm_msg_generator.cc"],
 #    deps = [
 #        "//drake/lcm",
-#        "//drake/lcmtypes:double_pendulum",
+#        "//drake/lcmtypes:multi_pendulum",
 #        "//drake/systems/analysis:simulator",
 #    ],
 #)
 
 #drake_cc_binary(
-#    name = "double_pendulum_run_lqr",
-#    srcs = ["double_pendulum_run_lqr.cc"],
+#    name = "multi_pendulum_run_lqr",
+#    srcs = ["multi_pendulum_run_lqr.cc"],
 #    add_test_rule = 1,
 #    data = [":models"],
 #    test_rule_args = ["-realtime_factor=0.0"],
 #    deps = [
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_plant",
 #        "//drake/common:find_resource",
 #        "//drake/lcm",
 #        "//drake/multibody:rigid_body_tree",
@@ -86,14 +86,14 @@ drake_cc_library(
 #)
 
 #drake_cc_binary(
-#    name = "double_pendulum_run_lqr_w_estimator",
+#    name = "multi_pendulum_run_lqr_w_estimator",
 #    testonly = 1,
-#    srcs = ["double_pendulum_run_lqr_w_estimator.cc"],
+#    srcs = ["multi_pendulum_run_lqr_w_estimator.cc"],
 #    add_test_rule = 1,
 #    data = [":models"],
 #    test_rule_args = ["-realtime_factor=0.0"],
 #    deps = [
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_plant",
 #        "//drake/common:find_resource",
 #        "//drake/common/proto:call_matlab",
 #        "//drake/lcm",
@@ -112,13 +112,13 @@ drake_cc_library(
 #)
 
 drake_cc_binary(
-    name = "double_pendulum_run_passive",
-    srcs = ["double_pendulum_run_passive.cc"],
+    name = "multi_pendulum_run_passive",
+    srcs = ["multi_pendulum_run_passive.cc"],
     add_test_rule = 1,
     data = [":models"],
     test_rule_args = ["-realtime_factor=0.0"],
     deps = [
-        ":double_pendulum_plant",
+        ":multi_pendulum_plant",
         "//drake/common:find_resource",
         "//drake/lcm",
         "//drake/multibody:rigid_body_tree",
@@ -132,14 +132,14 @@ drake_cc_binary(
 )
 
 #drake_cc_binary(
-#    name = "double_pendulum_run_swing_up",
+#    name = "multi_pendulum_run_swing_up",
 #    srcs = [
-#        "double_pendulum_run_swing_up.cc",
-#        "double_pendulum_spong_controller.h",
+#        "multi_pendulum_run_swing_up.cc",
+#        "multi_pendulum_spong_controller.h",
 #    ],
 #    data = [":models"],
 #    deps = [
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_plant",
 #        "//drake/common:find_resource",
 #        "//drake/lcm",
 #        "//drake/multibody:rigid_body_tree",
@@ -153,12 +153,12 @@ drake_cc_binary(
 #)
 
 #drake_cc_binary(
-#    name = "double_pendulum_run_swing_up_traj_optimization",
-#    srcs = ["double_pendulum_run_swing_up_traj_optimization.cc"],
+#    name = "multi_pendulum_run_swing_up_traj_optimization",
+#    srcs = ["multi_pendulum_run_swing_up_traj_optimization.cc"],
 #    data = [":models"],
 #    deps = [
-#        ":double_pendulum_plant",
-#        ":double_pendulum_swing_up",
+#        ":multi_pendulum_plant",
+#        ":multi_pendulum_swing_up",
 #        "//drake/common:find_resource",
 #        "//drake/lcm",
 #        "//drake/multibody:rigid_body_tree",
@@ -173,14 +173,14 @@ drake_cc_binary(
 #)
 
 #drake_cc_binary(
-#    name = "double_pendulum_spong_controller_w_lcm",
+#    name = "multi_pendulum_spong_controller_w_lcm",
 #    srcs = [
-#        "double_pendulum_spong_controller.h",
-#        "double_pendulum_spong_controller_w_lcm.cc",
+#        "multi_pendulum_spong_controller.h",
+#        "multi_pendulum_spong_controller_w_lcm.cc",
 #    ],
 #    deps = [
-#        ":double_pendulum_lcm",
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_lcm",
+#        ":multi_pendulum_plant",
 #        "//drake/lcm",
 #        "//drake/multibody:rigid_body_tree",
 #        "//drake/multibody/rigid_body_plant:drake_visualizer",
@@ -190,12 +190,12 @@ drake_cc_binary(
 #)
 
 #drake_cc_binary(
-#    name = "double_pendulum_plant_w_lcm",
-#    srcs = ["double_pendulum_plant_w_lcm.cc"],
+#    name = "multi_pendulum_plant_w_lcm",
+#    srcs = ["multi_pendulum_plant_w_lcm.cc"],
 #    data = [":models"],
 #    deps = [
-#        ":double_pendulum_lcm",
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_lcm",
+#        ":multi_pendulum_plant",
 #        "//drake/common:find_resource",
 #        "//drake/lcm",
 #        "//drake/multibody/parsers",
@@ -208,10 +208,10 @@ drake_cc_binary(
 #)
 
 #drake_cc_googletest(
-#    name = "double_pendulum_urdf_dynamics_test",
+#    name = "multi_pendulum_urdf_dynamics_test",
 #    data = [":models"],
 #    deps = [
-#        ":double_pendulum_plant",
+#        ":multi_pendulum_plant",
 #        "//drake/common:eigen_matrix_compare",
 #        "//drake/common:find_resource",
 #        "//drake/multibody/joints",
