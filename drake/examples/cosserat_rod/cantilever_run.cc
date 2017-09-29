@@ -117,14 +117,14 @@ int do_main(int argc, char* argv[]) {
   auto energy_logger = builder.AddSystem<systems::SignalLogger<double>>(2);
   energy_logger->set_name("Energy Logger");
   builder.Connect(rod_plant->get_energy_output_port(),
-                  energy_logger->get_input_port(0));
+                  energy_logger->get_input_port());
 
   auto state_logger =
       builder.AddSystem<systems::SignalLogger<double>>(
           rod_plant->get_num_states());
   state_logger->set_name("State Logger");
   builder.Connect(rod_plant->get_state_output_port(),
-                  state_logger->get_input_port(0));
+                  state_logger->get_input_port());
 
   // Setup visualization.
   drake::lcmt_viewer_load_robot message;
