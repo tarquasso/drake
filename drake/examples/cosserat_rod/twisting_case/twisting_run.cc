@@ -77,9 +77,9 @@ int do_main(int argc, char* argv[]) {
   publisher->set_publish_period(0.01);
 
   // Geometric parameters:
-  const double length = 0.7;  // [m]
-  const double radius1 = 0.05;
-  const double radius2 = 0.02;
+  const double length = 0.2;  // [m]
+  const double radius1 = 0.015;
+  const double radius2 = 0.015;
 
 //  const double length = 2.0;  // [m]
 //  const double radius1 = 0.005;

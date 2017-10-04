@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <vector>
+#include <iomanip>      // std::setprecision
 
 #include "drake/common/drake_throw.h"
 #include "drake/common/eigen_autodiff_types.h"
@@ -130,9 +131,32 @@ void CosseratRodPlant<T>::DoPublish(
   std::ofstream fs;
   fs.open("poses.dat", std::fstream::out | std::fstream::app);
 
+#if 0
+  for (BodyNodeIndex node_index(0);
+       node_index < model_.get_num_mobilizers(); ++node_index) {
+    const Vector3<T> p_WLcm = poses[node_index + 1].translation();
+    MobilizerIndex mob_index(static_cast<int>(node_index));
+    const Mobilizer<T>& mobilizer = model_.get_mobilizer(mob_index);
+    DRAKE_DEMAND(mobilizer.get_index() == mob_index);
+    const auto& rpy_mob =
+        dynamic_cast<const RollPitchYawMobilizer<T>&>(mobilizer);
+    Vector3<T> rpy = rpy_mob.get_rpy(context);
+    fs << context.get_time() << " " << p_WLcm.transpose() << " " << rpy.transpose() << std::endl;
+  }
+#endif
+
   for (auto& pose : poses) {
+
+    const Matrix3<T> R_WB = pose.linear();
+
+    AngleAxis<T> aa(R_WB);
+    fs << std::fixed << std::setprecision(16);
+
     fs << context.get_time() << " "
-       << pose.translation().transpose() << std::endl;
+       << pose.translation().transpose() << " "
+       << aa.angle() << " "
+       << aa.axis().transpose()
+       << std::endl;
   }
 
   fs.close();
@@ -407,8 +431,9 @@ void CosseratRodPlant<T>::SetBentState(
 
     //const T roll = sin(M_PI * s / length_) * 10.0 / 180.0 * M_PI;
 
-    const T roll =
+    T roll =
         2 * cos(2.0 * M_PI * s / length_) * 10.0 / 180.0 * M_PI / num_elements_;
+    roll = 0;
 
     if (dimension_ == 3) {
       const multibody::RollPitchYawMobilizer<T>* mobilizer =
@@ -456,7 +481,8 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   model_.CalcVelocityKinematicsCache(context, pc, &vc);
 
   // Add a constant moment at the end link.
-  std::vector<SpatialForce<T>> Fapplied_Bo_W_array(model_.get_num_bodies());
+  const int nb = model_.get_num_bodies();
+  std::vector<SpatialForce<T>> Fapplied_Bo_W_array((unsigned long) nb);
   for (auto& F : Fapplied_Bo_W_array) F.SetZero();
 
   PRINT_VAR(last_element_->get_node_index());
@@ -474,14 +500,13 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   model_.CalcForceElementsContribution(
       context, pc, vc,
       &Fapplied_Bo_W_array, &tau);
-#if 0
 
   // Add a constant moment at the end link.
-  const T M0 = 0.005;  // Torque in Nm
+  const T M0 = 0.02;  // Torque in Nm
   SpatialForce<T> M_B(Vector3<T>(0.0, 0.0, M0), Vector3<T>::Zero());
   const Matrix3<T> R_WB = pc.get_X_WB(last_element_->get_node_index()).linear();
   Fapplied_Bo_W_array[last_element_->get_node_index()] += R_WB * M_B;
-
+#if 0
   const Vector3<T> p_WB =
       pc.get_X_WB(last_element_->get_node_index()).translation();
   const Vector3<T> p0_WB = Vector3<T>(0.0, 0.0, length_);
@@ -493,76 +518,6 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   //const T f0 = 0.010;
   //SpatialForce<T> F_W(Vector3<T>::Zero(), Vector3<T>(0.0, 0.0, -f0));
   //Fapplied_Bo_W_array[last_element_->get_node_index()] += F_W;
-
-#endif
-
-#if 1
-  // Apply a poke in the middle
-  {
-    const double rad2deg = 180.0 / M_PI;
-
-    const T time = context.get_time();
-    //PRINT_VAR2(context.get_time());
-    //const T s_poke = 0.5 * length_;
-    const BodyNodeIndex mid_element(num_elements_ / 2);
-    const double f_poke = 300.0;  // [N]
-
-    const Vector3<T> x_WB =
-        pc.get_X_WB(mid_element).translation();
-    const Matrix3<T> R_WB =
-        pc.get_X_WB(mid_element).linear();
-
-    Vector3<T> x_poke = x_WB + R_WB.col(1) * 0.035;
-
-#if 0
-    bot_lcmgl_push_matrix(lcmgl);
-    {
-      bot_lcmgl_color3f(lcmgl, 1.0, 0.0, 0.0);
-      bot_lcmgl_rotated(lcmgl, rad2deg * M_PI, 1.0, 0.0, 0.0);
-      bot_lcmgl_sphere(lcmgl, x_poke.data(), 0.007 /*radius*/,
-                       20 /*slices*/, 20 /* stacks*/);
-    }
-    bot_lcmgl_pop_matrix(lcmgl);
-#endif
-
-    if ( time > 3.0 && time < 3.1) {
-      SpatialForce<T> F_poke(
-          Vector3<T>::Zero(),
-          -f_poke * Vector3<T>::UnitY());
-      Fapplied_Bo_W_array[mid_element] += F_poke;
-
-      bot_lcmgl_push_matrix(lcmgl);
-      {
-        const double arrow_length = f_poke / 3000.0;
-        const double head_length = arrow_length / 5.0;
-        const double head_width = head_length / 4.0;
-        const double body_width = head_width / 2.0;
-        // X_VW * X_WA
-        // Rotate to drake's visualizer view frame X_VW
-        bot_lcmgl_rotated(lcmgl, rad2deg * M_PI, 1.0, 0.0, 0.0);
-        // Translate a bit out, in the model's world frame.
-        bot_lcmgl_translated(lcmgl, 0.0, arrow_length/2.0, 0.0);
-        // Translate to the application point, in model's world frame.
-        bot_lcmgl_translated(lcmgl, x_poke[0], x_poke[1], x_poke[2]);
-        // Rotate arrow's direction (x-axis) to be model's minus y-axis
-        bot_lcmgl_rotated(lcmgl, -rad2deg * M_PI / 2, 0.0, 0.0, 1.0);
-        bot_lcmgl_color3f(lcmgl, 1.0, 0.0, 0.0);
-        bot_lcmgl_draw_arrow_3d(
-            lcmgl, arrow_length, head_width, head_length, body_width);
-      }
-      bot_lcmgl_pop_matrix(lcmgl);
-    }
-
-    if ( time > 6.0 && time < 6.1) {
-      const BodyNodeIndex last_element(num_elements_);
-      SpatialForce<T> F_poke(
-          Vector3<T>::Zero(),
-          -f_poke /2.0 * Vector3<T>::UnitY());
-      Fapplied_Bo_W_array[last_element] -= F_poke;
-    }
-
-    bot_lcmgl_switch_buffer(lcmgl); // This effectively publishes.
-  }
 #endif
 
   PRINT_VAR(tau.transpose());
@@ -734,7 +689,7 @@ void CosseratRodPlant<T>::MakeViewerLoadMessage(
   //DrakeShapes::Cylinder(0.007 /* radius */, 0.05 /* length */),
   DrakeShapes::VisualElement element_vis(
       DrakeShapes::Capsule(0.007 /* radius */, 0.05 /* length */),
-      Eigen::Isometry3d::Identity(), Eigen::Vector4d(1.0, 0.0, 0.0, 1));
+      Eigen::Isometry3d::Identity(), Eigen::Vector4d(1.0, 0.0, 0.0, 0));
   message->link[num_elements_].name = "CosseratRodElements::poke";
   message->link[num_elements_].robot_num = 0;
   message->link[num_elements_].num_geom = 1;
