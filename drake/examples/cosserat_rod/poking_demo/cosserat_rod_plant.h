@@ -27,6 +27,10 @@ class CosseratRodPlant : public systems::LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(CosseratRodPlant)
 
+  static double EstimateTimeConstant(double length, double averageRadius,
+                                     double rho, double young_modulus);
+  static double EstimateTau(double timeConstant, double zeta);
+
   /// Constructs a Cosserat model for a rod of circular cross section.
   CosseratRodPlant(double length, double radius1, double radius2,
                    double rho,

@@ -77,27 +77,32 @@ int do_main(int argc, char* argv[]) {
   publisher->set_publish_period(0.01);
 
   // Geometric parameters:
-  //const double length = 0.7;  // [m]
-  //const double radius1 = 0.05;
-  //const double radius2 = 0.02;
+  const double length = 0.7;  // [m]
+  const double radius1 = 0.05;
+  const double radius2 = 0.02;
 
-  const double length = 2.0;  // [m]
-  const double radius1 = 0.005;
-  const double radius2 = 0.005;
+//  const double length = 2.0;  // [m]
+//  const double radius1 = 0.005;
+//  const double radius2 = 0.005;
 
   // Material parameters (aluminum):
-  const double rho = 1200;  // [Kgr/m^3]
-  const double E = 1.0e6;  // [Pa]
+  const double rho = 1000;  // [Kgr/m^3]
+  const double E = 5.0e5;  // [Pa]
   const double nu = 0.5;  // Poission ratio [-]
   const double G = E / (2*(1+nu));  // Shear modulus. E = 2G(1+ν)
   //const double tau_d = 0.04469 / 10;  // [sec]
-  const double T1 = 12.38;  // First period of oscillation.
-  const double tau_d = T1 / 10;  // [sec]
+  double averageRadius = (radius1+radius2)/2;
+  const double T1 = CosseratRodPlant<double>::EstimateTimeConstant(length,averageRadius,rho,E); //12.38;  // First period of oscillation.
+  PRINT_VAR(T1);
+  double zeta = 0.1;
+  const double tau_d = CosseratRodPlant<double>::EstimateTau(T1,zeta); //T1 / 100;  // [sec]
+
+  PRINT_VAR(tau_d);
 
   // Numerical parameters:
-  const int num_elements = 50;
+  const int num_elements = 20;
   const double dt = T1/1000;  // [sec]
-  const double end_time = T1;
+  const double end_time = 5*T1;
 
   // Other derived numbers.
   const double volume = M_PI/3.0 *

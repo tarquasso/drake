@@ -1,4 +1,4 @@
-#include "drake/examples/cosserat_rod/cosserat_rod_plant.h"
+#include "drake/examples/cosserat_rod/poking_demo/cosserat_rod_plant.h"
 
 #include <cmath>
 #include <fstream>
@@ -474,6 +474,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   model_.CalcForceElementsContribution(
       context, pc, vc,
       &Fapplied_Bo_W_array, &tau);
+#if 0
 
   // Add a constant moment at the end link.
   const T M0 = 0.005;  // Torque in Nm
@@ -493,13 +494,15 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   //SpatialForce<T> F_W(Vector3<T>::Zero(), Vector3<T>(0.0, 0.0, -f0));
   //Fapplied_Bo_W_array[last_element_->get_node_index()] += F_W;
 
-#if 0
+#endif
+
+#if 1
   // Apply a poke in the middle
   {
     const double rad2deg = 180.0 / M_PI;
 
     const T time = context.get_time();
-    PRINT_VAR2(context.get_time());
+    //PRINT_VAR2(context.get_time());
     //const T s_poke = 0.5 * length_;
     const BodyNodeIndex mid_element(num_elements_ / 2);
     const double f_poke = 300.0;  // [N]
@@ -731,7 +734,7 @@ void CosseratRodPlant<T>::MakeViewerLoadMessage(
   //DrakeShapes::Cylinder(0.007 /* radius */, 0.05 /* length */),
   DrakeShapes::VisualElement element_vis(
       DrakeShapes::Capsule(0.007 /* radius */, 0.05 /* length */),
-      Eigen::Isometry3d::Identity(), Eigen::Vector4d(0.0, 0.0, 0.0, 0));
+      Eigen::Isometry3d::Identity(), Eigen::Vector4d(1.0, 0.0, 0.0, 1));
   message->link[num_elements_].name = "CosseratRodElements::poke";
   message->link[num_elements_].robot_num = 0;
   message->link[num_elements_].num_geom = 1;
@@ -739,6 +742,79 @@ void CosseratRodPlant<T>::MakeViewerLoadMessage(
   message->link[num_elements_].geom[0] =
       drake::systems::rendering::MakeGeometryData(element_vis);
 
+}
+
+template <typename T>
+double CosseratRodPlant<T>::EstimateTimeConstant(double length, double averageRadius,
+                                                    double rho, double young_modulus) {
+  // Some natural frequencies.
+  // Cantilever, supported at one end and free on the other one.
+
+  // Values of beta_n * L / pi:
+  double b1 = 0.59686 * M_PI;
+  //double b2 = 1.49418 * M_PI;
+  //double b3 = 2.50025 * M_PI;
+  //double b4 = 3.49999 * M_PI;
+
+  // Parameters:
+  double L = length; //[m] 1.0
+  double radius = averageRadius;//[m] 0.005;
+  //rho = 1200; // [Kgr/m^3]
+  double E = young_modulus; //[Pa]
+
+  // Geometric properties:
+  double A = M_PI * radius * radius;
+  double I1 = M_PI / 4 * pow(radius,4);
+  //double I2 = I1;
+  //double I3 = 2 * I1;
+
+  // Buckling force
+  // One end pinned, the other end is free.
+  //double Fc = pow(M_PI,2)*E*I1/4/(pow(L,2));
+
+
+  // From V.G.A. GOSS's thesis experiments:
+      // radius B[Nm2]       C[Nm2]
+      // 5.0mm 0.00007429 0.0000495
+      // 3.5mm 0.00001066 0.0000071
+
+  // B = 0.00007429;
+  // E = B / I1; //==> E = 1.5134e+05 [N/m^2]
+
+  // B = 0.00001066;
+  // E = B / I1 //==> E = 9.0447e+04 [N/m^2]
+
+  // For common materials:
+  // Steel:    180 GPa
+  // Aluminum: 6.9e10 = 69 GPa
+  // Rubber:   1-5 Mpa
+
+  // Natural frequencies.
+  //double mu = rho * A; // Mass per unit length. [Kgr/m]
+  double w0 = sqrt(E * I1/(A*rho)) / (pow(L,2));
+
+  double f1 = pow(b1,2) * w0 / (2*M_PI);
+  //double f2 = pow(b2,2) * w0 / (2*M_PI);
+  //double f3 = pow(b3,2) * w0 / (2*M_PI);
+
+  // We take the period for first frequency as a time scale:
+  double T1 = 1.0 / f1;
+
+  return T1;
+
+  // DOUBLE CHECK THIS:
+  // The damping ratio for spring mass system is zeta = w0 * tau_d / 2
+  // Then to overdamp the beam we take tau_d = 2 * zeta / w0 :
+  //double tau_d = 2 * zeta / (2 * M_PI * f1);
+}
+
+template <typename T>
+double CosseratRodPlant<T>::EstimateTau(double timeConstant, double zeta) {
+  // DOUBLE CHECK THIS:
+  // The damping ratio for spring mass system is zeta = w0 * tau_d / 2
+  // Then to overdamp the beam we take tau_d = 2 * zeta / w0 :
+  double tau_d = 2 * zeta * timeConstant / (2 * M_PI);
+  return tau_d;
 }
 
 template class CosseratRodPlant<double>;
