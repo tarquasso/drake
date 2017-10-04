@@ -4,7 +4,7 @@
 #include <gflags/gflags.h>
 
 //#include "drake/common/find_resource.h"
-#include "drake/examples/cosserat_rod/poking_demo/cosserat_rod_plant.h"
+#include "drake/examples/cosserat_rod/twisting_case/cosserat_rod_plant.h"
 //#include "drake/lcm/drake_lcm.h"
 //#include "drake/multibody/joints/floating_base_types.h"
 //#include "drake/multibody/parsers/urdf_parser.h"

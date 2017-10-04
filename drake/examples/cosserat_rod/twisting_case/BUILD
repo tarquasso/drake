@@ -31,9 +31,10 @@ drake_cc_library(
 )
 
 drake_cc_binary(
-    name = "cantilever_run",
-    srcs = ["cantilever_run.cc"],
+    name = "twisting_run",
+    srcs = ["twisting_run.cc"],
     add_test_rule = 1,
+    data = ["//drake/examples/acrobot:models"],
     test_rule_args = ["-realtime_factor=0.0"],
     deps = [
         ":cosserat_rod_plant",
