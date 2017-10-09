@@ -101,7 +101,7 @@ int do_main(int argc, char* argv[]) {
 
   // Numerical parameters:
   const int num_elements = 20;
-  const double dt = T1/1000;  // [sec]
+  const double dt = 0.01;//T1/1000;  // [sec]
   const double end_time = 5*T1;
 
   // Other derived numbers.
@@ -178,7 +178,7 @@ int do_main(int argc, char* argv[]) {
   integrator->set_maximum_step_size(dt);
   PRINT_VAR(integrator->get_fixed_step_mode());
   PRINT_VAR(integrator->supports_error_estimation());
-  integrator->set_target_accuracy(1.0e-3);
+  integrator->set_target_accuracy(0.1); //1.0e-3
   PRINT_VAR(integrator->get_target_accuracy());
   PRINT_VAR(integrator->get_num_jacobian_evaluations());
   PRINT_VAR(integrator->get_num_iteration_matrix_factorizations());

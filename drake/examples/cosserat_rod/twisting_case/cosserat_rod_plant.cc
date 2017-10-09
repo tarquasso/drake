@@ -4,6 +4,8 @@
 #include <fstream>
 #include <vector>
 #include <iomanip>      // std::setprecision
+//#include <limits>
+//typedef std::numeric_limits< double > dbl;
 
 #include "drake/common/drake_throw.h"
 #include "drake/common/eigen_autodiff_types.h"
@@ -150,7 +152,9 @@ void CosseratRodPlant<T>::DoPublish(
     const Matrix3<T> R_WB = pose.linear();
 
     AngleAxis<T> aa(R_WB);
-    fs << std::fixed << std::setprecision(16);
+    fs << std::fixed << std::setprecision(17);
+//    cout.precision(dbl::max_digits10);
+//    cout << "Pi: " << fixed << d << endl;
 
     fs << context.get_time() << " "
        << pose.translation().transpose() << " "
@@ -502,7 +506,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
       &Fapplied_Bo_W_array, &tau);
 
   // Add a constant moment at the end link.
-  const T M0 = 0.02;  // Torque in Nm
+  const T M0 = 0.03;  // Torque in Nm
   SpatialForce<T> M_B(Vector3<T>(0.0, 0.0, M0), Vector3<T>::Zero());
   const Matrix3<T> R_WB = pc.get_X_WB(last_element_->get_node_index()).linear();
   Fapplied_Bo_W_array[last_element_->get_node_index()] += R_WB * M_B;
