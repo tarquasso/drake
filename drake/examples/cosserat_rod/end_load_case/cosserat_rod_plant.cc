@@ -506,11 +506,25 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
       &Fapplied_Bo_W_array, &tau);
 
   // Add a constant moment at the end link.
+  //const T F0 = 0.5;  // Force in N
+  //SpatialForce<T> F_B(Vector3<T>::Zero(),Vector3<T>(0.0, F0, 0.0));
+  //const Matrix3<T> R_WB = pc.get_X_WB(last_element_->get_node_index()).linear();
+  //Fapplied_Bo_W_array[last_element_->get_node_index()] += R_WB * F_B;
+
+  const T F0 = 2;  // Force in N
+  SpatialForce<T> F_W(Vector3<T>::Zero(),Vector3<T>(F0, 0.0, 0.0));
+  //const Matrix3<T> R_WB = pc.get_X_WB(last_element_->get_node_index()).linear();
+  Fapplied_Bo_W_array[last_element_->get_node_index()] += F_W;
+
+
+#if 0
+  // Add a constant moment at the end link.
   const T M0 = 0.03;  // Torque in Nm
   SpatialForce<T> M_B(Vector3<T>(0.0, 0.0, M0), Vector3<T>::Zero());
   const Matrix3<T> R_WB = pc.get_X_WB(last_element_->get_node_index()).linear();
   Fapplied_Bo_W_array[last_element_->get_node_index()] += R_WB * M_B;
-#if 0
+  #endif
+  #if 0
   const Vector3<T> p_WB =
       pc.get_X_WB(last_element_->get_node_index()).translation();
   const Vector3<T> p0_WB = Vector3<T>(0.0, 0.0, length_);

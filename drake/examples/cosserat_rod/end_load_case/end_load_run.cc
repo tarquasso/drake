@@ -100,9 +100,9 @@ int do_main(int argc, char* argv[]) {
   PRINT_VAR(tau_d);
 
   // Numerical parameters:
-  const int num_elements = 20;
-  const double dt = 0.01;//T1/1000;  // [sec]
-  const double end_time = 5*T1;
+  const int num_elements = 40;
+  const double dt = T1/100;//0.01;//T1/1000;  // [sec]
+  const double end_time = 16*T1;
 
   // Other derived numbers.
   const double volume = M_PI/3.0 *
