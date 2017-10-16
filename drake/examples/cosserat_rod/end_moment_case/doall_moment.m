@@ -12,12 +12,12 @@ L = 0.2; % [m] length of beam
 % define number of link elements
 linkElements = [5,10,20,40,80,160];
 numTests = length(linkElements);
-filenames = {'data/poses_Fmax2_0_N05.dat',...
-    'data/poses_Fmax2_0_N10.dat',...
-    'data/poses_Fmax2_0_N20.dat',...
-    'data/poses_Fmax2_0_N40.dat',...
-    'data/poses_Fmax2_0_N80.dat',...
-    'data/poses_Fmax2_0_N160.dat'};
+filenames = {'data/poses_M0_2_N05.dat',...
+    'data/poses_M0_2_N10.dat',...
+    'data/poses_M0_2_N20.dat',...
+    'data/poses_M0_2_N40.dat',...
+    'data/poses_M0_2_N80.dat',...
+    'data/poses_M0_2_N160.dat'};
 assert(numTests == length(filenames))
 
 % initialize values
@@ -68,7 +68,7 @@ for i = 1:numTests
     beta0 = interp1(s,beta,s_num);
     beta_eps_sq = (beta_steady_num-beta0).^2;
     
-    beta_epssq = beta_eps_sq;
+    beta_epssq = beta_eps_sq; 
     beta_onesegment = beta_epssq*delta_s(i);
     beta_l2norm(i) = sqrt(1/L*sum(beta_onesegment));
     
@@ -82,7 +82,7 @@ for i = 1:numTests
     
     tFinal = t_num(end);
     
-    T = 0.4719-0.1608;
+    T = 0.48-0.2468;
     relevantIndices = find(t_num>(tFinal-T));
     
     betas_num = drakedata(N:N:end,5);
@@ -163,20 +163,20 @@ ylabel('Steady State Error on $x$ [m]', 'FontSize', 16,'Interpreter','latex')
 %title('L2 Norm for \beta')
 print('plots/end_load_x_steady_state_error','-depsc')
 
-% L2 norm
+% L2 norm beta
 figure
 %subplot(211)
 h1 = loglog(delta_s,beta_l2norm,'.-');
 set(h1, 'MarkerSize', 16, 'Color', 'k', 'LineWidth', 1);
 hold on
 % loglog(delta_s,delta_s.^0.5*1e-2,'-s')
-loglog(delta_s,delta_s.^(1.0)*10^(-0.00),'k--')
-loglog(delta_s,delta_s.^(1.05)*10^(0.21),'k--')
+%loglog(delta_s,delta_s.^(2)*10^(-0.0),'k--')
+%loglog(delta_s,delta_s.^(2)*10^(-0.3),'k--')
 grid
 set(gca, 'FontName', 'Times', 'FontSize', 16)
 xlabel('$\Delta s$ [m]','FontName', 'Times', 'FontSize', 16,'Interpreter','latex')
 ylabel('$\mathnormal{l}_2$ for $\beta$ [rad]', 'FontSize', 16,'Interpreter','latex')
-%legend('l2norm','O(N^1)','O(N^{1.5})')
+%legend('l_2','O(N^{2})','O(N^{2})')
 %title('L2 Norm for \beta')
 print('plots/end_load_beta_l2_norm','-depsc')
 
@@ -185,12 +185,12 @@ figure
 h2 = loglog(delta_s,x_l2norm,'.-');
 set(h2, 'MarkerSize', 16, 'Color', 'k', 'LineWidth', 1);
 hold on
-loglog(delta_s,delta_s.^(0.95)*10^(-1.32),'k--')
-loglog(delta_s,delta_s.^(1.0)*10^(-1.12),'k--')
+loglog(delta_s,delta_s.^(2.0)*10^(0.01),'k--')
+loglog(delta_s,delta_s.^(2.1)*10^(0.36),'k--')
 grid on
 set(gca, 'FontName', 'Times', 'FontSize', 16)
 xlabel('$\Delta s$ [m]','FontName', 'Times', 'FontSize', 16,'Interpreter','latex')
 ylabel('$\mathnormal{l}_2$ for $x$ [m]', 'FontSize', 16,'Interpreter','latex')
-%legend('l_2','O(N^1)','O(N^{1.5})')
+legend('l_2','O(N^{2.0})','O(N^{2.1})')
 %title('L2 Norm for x')
 print('plots/end_load_x_l2_norm','-depsc')
