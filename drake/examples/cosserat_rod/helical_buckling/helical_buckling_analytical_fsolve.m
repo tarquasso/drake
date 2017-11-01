@@ -5,50 +5,87 @@ close all
 
 %global L alpha beta D Phi
 L = 100; % [m] Beam Length
-R = 0.015; % [m] Radius Beam
+R = 0.35; % [m] Radius Beam
 Dia = R * 2; % [m] Diameter of manipulator, assumed constant for now
 
-E = 5.0e5; % 592949 Pa Dragon Skin 30 https://www.smooth-on.com/products/dragon-skin-30/
-
-nu = 0.5;  % Poission ratio [-]
-G = E / (2*(1+nu));  % Shear modulus. E = 2G(1+ν) 
 A = pi * Dia^2 / 4;
-I1 = A^2 / (pi *4);
+I1 = A^2 / (pi *4); % [m^4]
 I3 = 2 * I1;
-
-%M_h = 1;
-%T_h = 1;
-
-alphaAlt =  E * I1;
-betaAlt = G * I3;
 
 alpha = 1.345; % [Nm^2] twisting stiffness
 beta = 0.789; % [Nm^2]
 
+E = alpha/I1;
+G_paper = beta/I3;
+
+rho_lin_paper = 1; %[kg/m]
+
+
+Ealt = 3.3827e7; % 5e5 or 592949 Pa Dragon Skin 30 https://www.smooth-on.com/products/dragon-skin-30/
+
+nu = 0.5;  % Poission ratio [-]
+G = E / (2*(1+nu));  % Shear modulus. E = 2G(1+ν) 
+
+%M_h = 1;
+%T_h = 1;
+
+alphaAlt =  E * I1
+betaAlt = G * I3
+
+
+
 D = 3; % [m] Slack
 Phi = 27* 2 * pi; % [rad] Twist
+
+%D = 3/27; % [m] Slack
+%Phi = 3 * 2 * pi; % [rad] Twist
 
 
 mhofth = @(th) (sqrt(4*th .* (1 - (D^2*pi^2*th)/(L^2*4))));
 thofmh = @(mh) ((mh./(2*cos(1/4*(Phi-(2*pi*mh)/(beta/alpha))))).^2);
 
+
+%%
 thmax = 450;
 mhmax = 21.2;
-varth = linspace(0,thmax,1000)';
-varmh = linspace(0,mhmax,1000)';
+varth = linspace(0,thmax,5000)';
+varmh = linspace(0,mhmax,5000)';
 
 
 figure
-plot(varth,mhofth(varth))
+plot(mhofth(varth),varth)
 % xlabel('t_h')
 % ylabel('m_h')
 hold on
 
 
-plot(thofmh(varmh), varmh)
-xlabel('t_h')
-ylabel('m_h')
-axis([0 thmax 0 mhmax])
+plot(varmh,thofmh(varmh))
+xlabel('m_h')
+ylabel('t_h')
+axis([0 mhmax 0 thmax])
+
+plot(15.6834, 73.4830,'*')
+plot(15.4037,  380.0260,'*')
+
+% find solutions in a one dimensional way
+
+g = @(mh) (mh - mhofth(thofmh(mh)));
+
+
+%CONTINUE WORKING ON THE INTERVALS TO FIND SOLUTIONS!
+intervals = [0, 0.5,0.8, 1.158, 1.17, 1.187, 1.76, 2.137];
+
+
+%interval = [18.99 19.39];
+
+mh0 = fzero(g,intervals(1,4))
+
+
+th0 = thofmh(mh0)
+
+
+   
+
 
 %DoverL = D/L;
 
@@ -66,14 +103,45 @@ guess = [1.2,2];
 %sols = fsolve(@dlandphi,guess);
 sols = fsolve(F,guess);
 
-
-%% 
 % results are:
 M_h = sols(1);%1.3017510114772594996354481051657;
 T_h = sols(2);%2.0178798356198609814539591089399;
-m_h(M_h)
-t_h(T_h)
+%m_h(M_h) %=15.4037
+%t_h(T_h) %=380.0260
 
+%% solve non-dimensional
+
+DoverLFcn2 = @(m_h,t_h) (sqrt(4 / (pi^2 *t_h) * (1 - m_h^2 / (4 *t_h))));
+PhiFcn2 = @(m_h,t_h) (2* pi * m_h / (beta/alpha) + 4* acos(m_h/(2*sqrt(t_h))));
+
+
+F2 = @(x) ([D/L-DoverLFcn2(x(1),x(2)), Phi - PhiFcn2(x(1),x(2))]);
+guess2 = [15,380];
+guess2 = [5.28,6.969]; % ->   15.6834 - 0.0000i  73.4830 + 0.0000i
+
+guess2 = [0.8,0.3]; % ->   15.40 + 0.0000i   380.03 + 0.0000i
+guess2 = [20.78, 177.7]; %->   15.4037  380.0260
+
+guess2 = [21.2,214];
+guess2 = [15.4037,  380.0260];
+guess2 = [26,76.92]; %->[15.6834, 73.4830]
+
+guess2 =  [15.6834, 73.4830];
+
+ guess2 =  [20,137];
+ guess2 =  [19.15,128.5];
+ 
+options = optimoptions('fsolve','Display','iter');
+sols2 = fsolve(F2,guess2,options)
+
+
+% results are:
+m_h = sols2(1);%1.3017510114772594996354481051657;
+t_h = sols2(2);%2.0178798356198609814539591089399;
+
+
+%%
+  
 dlandphi(sols)
 
 DoverLCalc = eval(subs(sqrt(4 / (pi^2 *t_h) * (1 - m_h^2 / (4 *t_h)))))
