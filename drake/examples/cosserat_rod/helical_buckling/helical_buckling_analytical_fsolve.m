@@ -51,41 +51,59 @@ mhmax = 21.2;
 varth = linspace(0,thmax,5000)';
 varmh = linspace(0,mhmax,5000)';
 
-
-figure
+% plot roots
+figure(1)
 plot(mhofth(varth),varth)
-% xlabel('t_h')
-% ylabel('m_h')
 hold on
-
-
 plot(varmh,thofmh(varmh))
 xlabel('m_h')
 ylabel('t_h')
 axis([0 mhmax 0 thmax])
 
-plot(15.6834, 73.4830,'*')
-plot(15.4037,  380.0260,'*')
+%plot(15.6834, 73.4830,'*')
+%plot(15.4037,  380.0260,'*')
 
 % find solutions in a one dimensional way
 
 g = @(mh) (mh - mhofth(thofmh(mh)));
 
+%% find more solutions
+it = 3;
+intval = zeros(it,2);
+mh0 = zeros(it,1);
+th0 = zeros(it,1);
 
-%CONTINUE WORKING ON THE INTERVALS TO FIND SOLUTIONS!
-intervals = [0, 0.5,0.8, 1.158, 1.17, 1.187, 1.76, 2.137];
+intval(1,:) = [4.046, 4.105];
+intval(2,:) = [8.287, 8.291];
+intval(3,:) = [9.7, 9.99];
+intval(4,:) = [15.40, 15.41];
+intval(5,:) = [15.68, 15.69];
+intval(6,:) = [20.24, 20.38];
+
+for i =1:it
+mh0(i) = fzero(g,intval(i,:));
+th0(i) = thofmh(mh0(i));
+figure(1)
+plot(mh0(i), th0(i),'*')
+hold on
+figure(2) 
+plotCurve(mh0(i),th0(i),L)
+hold on
+end
+figure(2)
+legend('1','2','3','4','5','6')
 
 
+%% CONTINUE WORKING ON THE INTERVALS TO FIND SOLUTIONS!
+%intervals = [0, 0.5,0.8, 1.158, 1.17, 1.187, 1.76, 2.137];
 %interval = [18.99 19.39];
+%mh0 = fzero(g,intervals(1,4))
+%th0 = thofmh(mh0)
 
-mh0 = fzero(g,intervals(1,4))
-
-
-th0 = thofmh(mh0)
 
 
    
-
+%% 
 
 %DoverL = D/L;
 
@@ -148,6 +166,8 @@ DoverLCalc = eval(subs(sqrt(4 / (pi^2 *t_h) * (1 - m_h^2 / (4 *t_h)))))
 PhiCalc = eval(subs(2* pi * m_h / (beta/alpha) + 4* acos(m_h/(2*sqrt(t_h)))))
 
 %%
+
+function plotCurve(m_h,t_h,L)
 N = 1000;
 sh = linspace(-0.5,0.5,N)'; % sh = s/L - 0.5
 
@@ -159,9 +179,8 @@ req_j = eval(subs(- comp1 .* cos(m_h*pi*sh)));
 
 req_k = eval(subs(L * (sh - 1/(2*pi*t_h) * sqrt(4 * t_h - m_h^2) * tanh(pi * sh * sqrt(4 * t_h - m_h^2)))));
 
-figure
 plot3(req_i,req_j,req_k)
 xlabel('i')
 ylabel('j')
 zlabel('k')
-
+end
