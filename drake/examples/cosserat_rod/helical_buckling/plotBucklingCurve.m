@@ -1,6 +1,6 @@
-function [sh,r] = plotBucklingCurve(m_h,t_h)
+function [sh,r] = plotBucklingCurve(m_h,t_h,shmax)
 N = 5000;
-shmax = 3.5;
+shmax = shmax;
 shmin = -shmax;
 sh = linspace(shmin,shmax,N)'; % sh = s/L - 0.5
 L = 1; % length is normalized to 1

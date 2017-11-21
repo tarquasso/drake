@@ -51,27 +51,47 @@ ic = 1;
 % %intval(ic,:) = [3.28,3.334]; ic=ic+1;
 % intval(ic,:) = [3.334,3.385]; ic=ic+1;
 
-%lower branch
-%intval(ic,:) = [4.5,4.67]; ic=ic+1;
-intval(ic,:) = [4.67,4.9]; ic=ic+1;
+%% LOW RANGE:
+%shmax = 3.5; %3.5 for low energy values
+%%lower branch
+%%intval(ic,:) = [4.5,4.67]; ic=ic+1;
+%intval(ic,:) = [4.67,4.9]; ic=ic+1;
 
+%%upper branch
+%%intval(ic,:) = [5.279,5.28]; ic=ic+1; %th going up
+%intval(ic,:) = [5.3875,5.388]; ic=ic+1; %th going down
+
+%%lower branch
+%%intval(ic,:) = [5.9,5.99]; ic=ic+1;
+%intval(ic,:) = [5.99,6.09]; ic=ic+1;
+
+%%upper branch
+%%intval(ic,:) = [6.599,6.6]; ic=ic+1; %th going up
+%intval(ic,:) = [6.735,6.736]; ic=ic+1; %th going down
+
+
+%% HIGH RANGE:
+shmax = 0.08; %0.08 for high values
 % upper branch
-%intval(ic,:) = [5.279,5.28]; ic=ic+1; %th going up
-intval(ic,:) = [5.3875,5.388]; ic=ic+1; %th going down
+%intval(ic,:) = [19.74,19.76]; ic=ic+1; %th going up
+intval(ic,:) = [20.26,20.27]; ic=ic+1; %th going up
 
-%lower branch
-%intval(ic,:) = [5.9,5.99]; ic=ic+1;
-intval(ic,:) = [5.99,6.09]; ic=ic+1;
+%lower branch (last ones on the lower branch)
+intval(ic,:) = [20.38,20.41]; ic=ic+1;
+intval(ic,:) = [20.96,20.98]; ic=ic+1;
 
-% upper branch
-%intval(ic,:) = [6.599,6.6]; ic=ic+1; %th going up
-intval(ic,:) = [6.735,6.736]; ic=ic+1; %th going down
+% upper branch (last one)
+intval(ic,:) = [21.02,21.04]; ic=ic+1; %th going down
+
+
 
 legtext = cell(it,1);
 sh = cell(it,1);
 req = cell(it,1);
-
+tangent = cell(it,1);
+phi = cell(it,1);
 chosenIndices = 1:1:ic-1;
+
 
 for i =chosenIndices
 mh0(i) = fzero(g,intval(i,:));
@@ -80,12 +100,24 @@ figure(1)
 plot(mh0(i), th0(i),'*')
 hold on
 figure(2) 
-[sh{i},req{i}] = plotBucklingCurve(mh0(i),th0(i));
+[sh{i},req{i}] = plotBucklingCurve(mh0(i),th0(i),shmax);
 hold on
 legtext{i} = strcat('sol', num2str(i));
+% Calculate Tangent
+tangent{i} = calcTangent(req{i},sh{i});
+phi{i} = calcPhi(tangent{i});
+figure(3)
+plot(sh{i},phi{i})
+hold on
 end
 figure(2)
 legend(legtext{chosenIndices})
+figure(3)
+legend(legtext{chosenIndices})
+xlabel('$\overline{s}$','Interpreter','latex')
+ylabel('$\phi$','Interpreter','latex')
+
+
 
 
 %% CONTINUE WORKING ON THE INTERVALS TO FIND SOLUTIONS!
