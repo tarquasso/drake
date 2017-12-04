@@ -15,6 +15,8 @@ class ArticulatedInertia {
  public:
   DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(ArticulatedInertia)
 
+  ArticulatedInertia() {}
+
   explicit ArticulatedInertia(const Matrix6<T>& I_SP_E) : I_SP_E_(I_SP_E) {}
 
   explicit ArticulatedInertia(const SpatialInertia<T>& M_SP_E)
@@ -29,7 +31,7 @@ class ArticulatedInertia {
     return ArticulatedInertia<T>(T_EA.transpose() * I_SP_E_ * T_EA);
   }
 
-  ArticulatedInertia<T> Shift(const Matrix3<T>& p_PQ_E) const {
+  ArticulatedInertia<T> Shift(const Vector3<T>& p_PQ_E) const {
     Matrix6<T> T_EA = CalcShift_(Matrix3<T>::Identity(), p_PQ_E);
     return ArticulatedInertia<T>(T_EA.transpose() * I_SP_E_ * T_EA);
   }

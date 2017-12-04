@@ -16,6 +16,7 @@
 #include "drake/multibody/multibody_tree/position_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/spatial_inertia.h"
 #include "drake/multibody/multibody_tree/velocity_kinematics_cache.h"
+#include "drake/multibody/multibody_tree/articulated_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
@@ -905,11 +906,11 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
 
     // Re-express in F frame.
     const Matrix3<T> R_FB = X_FB.linear();
-    const SpatialVelocity<T> V_WBMo_F = X_FB * V_WBMo_B;
+    const SpatialVelocity<T> V_WBMo_F = R_FB * V_WBMo_B;
 
     // Compute H_FM.
     // See CalcAcrossNodeGeometricJacobianExpressedInWorld() for more details.
-    Matrix6X<T> H_FM = Matrix6X<T>::Zero(get_num_mobilizer_velocites());
+    Matrix6X<T> H_FM = Matrix6X<T>::Zero(6, get_num_mobilizer_velocites());
     VectorUpTo6<T> v = VectorUpTo6<T>::Zero(get_num_mobilizer_velocites());
 
     for (int imob = 0; imob < get_num_mobilizer_velocites(); ++imob) {
@@ -1007,7 +1008,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const SpatialForce<T> Fp_BMo_F = R_FB * Fp_BMo_B;
 
     // Compute and cache U_FM.
-    const Matrix6X<T> U_FM = I_BMo_F * H_FM;
+    const Matrix6X<T> U_FM = I_BMo_F.get_matrix() * H_FM;
     bc.get_mutable_U_FM(topology_.index) = U_FM;
 
     // Compute and cache D_FM.
@@ -1110,7 +1111,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
 
     // Compute spatial acceleration for this node.
     const SpatialAcceleration<T> A_WBMo_F = SpatialAcceleration<T>(
-        A_WPMo_F.get_coeffs() + H_FM * vmdot + Az_FM
+        A_WPMo_F.get_coeffs() + H_FM * vmdot + Az_FM.get_coeffs()
     );
 
     // Compute R_WF.
