@@ -55,62 +55,52 @@ class ArticulatedKinematicsCache {
     return Fp_FMBo_B_pool_[body_node_index];
   }
 
-  const Vector6<T>& get_Az_FMb_B(BodyNodeIndex body_node_index) const {
+  const SpatialAcceleration<T>& get_Az_FM(BodyNodeIndex body_node_index) const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return Az_FMb_B_pool_[body_node_index];
+    return Az_FM_pool_[body_node_index];
   }
 
-  Vector6<T>& get_mutable_Az_FMb_B(BodyNodeIndex body_node_index) {
+  SpatialAcceleration<T>& get_mutable_Az_FM(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return Az_FMb_B_pool_[body_node_index];
+    return Az_FM_pool_[body_node_index];
   }
 
-  const Matrix6X<T>& get_U_FM_M(BodyNodeIndex body_node_index) const {
+  const Matrix6X<T>& get_U_FM(BodyNodeIndex body_node_index) const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return U_FM_M_pool_[body_node_index];
+    return U_FM_pool_[body_node_index];
   }
 
-  Matrix6X<T>& get_mutable_U_FM_M(BodyNodeIndex body_node_index) {
+  Matrix6X<T>& get_mutable_U_FM(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return U_FM_M_pool_[body_node_index];
+    return U_FM_pool_[body_node_index];
   }
 
-  const MatrixX<T>& get_D_FM_M(BodyNodeIndex body_node_index) const {
+  const MatrixX<T>& get_D_FM(BodyNodeIndex body_node_index) const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return D_FM_M_pool_[body_node_index];
+    return D_FM_pool_[body_node_index];
   }
 
-  MatrixX<T>& get_mutable_D_FM_M(BodyNodeIndex body_node_index) {
+  MatrixX<T>& get_mutable_D_FM(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return D_FM_M_pool_[body_node_index];
+    return D_FM_pool_[body_node_index];
   }
 
-  const VectorX<T>& get_u_FM_M(BodyNodeIndex body_node_index) const {
+  const VectorX<T>& get_u_FM(BodyNodeIndex body_node_index) const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return u_FM_M_pool_[body_node_index];
+    return u_FM_pool_[body_node_index];
   }
 
-  VectorX<T>& get_mutable_u_FM_M(BodyNodeIndex body_node_index) {
+  VectorX<T>& get_mutable_u_FM(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return u_FM_M_pool_[body_node_index];
-  }
-
-  const Vector6<T>& get_A_WB_B(BodyNodeIndex body_node_index) const {
-    DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return A_WB_B_pool_[body_node_index];
-  }
-
-  Vector6<T>& get_mutable_A_WB_B(BodyNodeIndex body_node_index) {
-    DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return A_WB_B_pool_[body_node_index];
+    return u_FM_pool_[body_node_index];
   }
 
  private:
   typedef std::vector<Matrix6X<T>> Matrix6X_PoolType;
   typedef std::vector<ArticulatedInertia<T>> ArticulatedInertia_PoolType;
   typedef std::vector<SpatialForce<T>> SpatialForce_PoolType;
+  typedef std::vector<SpatialAcceleration<T>> SpatialAcceleration_PoolType;
 
-  typedef std::vector<Vector6<T>> Vector6_PoolType;
   typedef std::vector<VectorX<T>> VectorX_PoolType;
   typedef std::vector<MatrixX<T>> MatrixX_PoolType;
 
@@ -118,15 +108,10 @@ class ArticulatedKinematicsCache {
     H_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
     I_FMBo_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
     Fp_FMBo_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
-
-    Az_FMb_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
-    U_FM_M_pool_.resize(static_cast<unsigned long>(num_nodes_));
-    D_FM_M_pool_.resize(static_cast<unsigned long>(num_nodes_));
-    u_FM_M_pool_.resize(static_cast<unsigned long>(num_nodes_));
-    A_WB_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
-
-    // Spatial acceleration of world is zero.
-    A_WB_B_pool_[world_index()] = Vector6<T>::Zero();
+    Az_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    U_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    D_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    u_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
   }
 
   int num_nodes_{0};
@@ -134,12 +119,10 @@ class ArticulatedKinematicsCache {
   Matrix6X_PoolType H_FM_pool_{};
   ArticulatedInertia_PoolType I_FMBo_B_pool_{};
   SpatialForce_PoolType Fp_FMBo_B_pool_{};
-
-  Vector6_PoolType Az_FMb_B_pool_{};
-  Matrix6X_PoolType U_FM_M_pool_{};
-  MatrixX_PoolType D_FM_M_pool_{};
-  VectorX_PoolType u_FM_M_pool_{};
-  Vector6_PoolType A_WB_B_pool_{};
+  SpatialAcceleration_PoolType Az_FM_pool_{};
+  Matrix6X_PoolType U_FM_pool_{};
+  MatrixX_PoolType D_FM_pool_{};
+  VectorX_PoolType u_FM_pool_{};
 };
 
 }  // namespace multibody

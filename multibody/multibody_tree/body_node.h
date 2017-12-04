@@ -930,16 +930,19 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // This is done by calling CalcAcrossMobilizerSpatialAcceleration().
     // Equivalent to `Ḣ_FM(q) * v + V_WBMo_F x V_FM`.
     const VectorX<T> vdot = VectorX<T>::Zero(get_num_mobilizer_velocites());
-    const SpatialAcceleration<T> Az_FM1 =
+    const SpatialAcceleration<T> Az1_FM =
         get_mobilizer().CalcAcrossMobilizerSpatialAcceleration(context, vdot);
-    const SpatialAcceleration<T> Az_FM2 = SpatialAcceleration<T>(
+    const SpatialAcceleration<T> Az2_FM = SpatialAcceleration<T>(
         V_WBMo_F.rotational().cross(V_FM.rotational()),
         V_WBMo_F.rotational().cross(V_FM.translational())
             + V_WBMo_F.translational().cross(V_FM.rotational())
     );
     const SpatialAcceleration<T> Az_FM = SpatialAcceleration<T>(
-        Az_FM1.get_coeffs() + Az_FM2.get_coeffs()
+        Az1_FM.get_coeffs() + Az2_FM.get_coeffs()
     );
+
+    // Cache Az_FM.
+    bc.get_mutable_Az_FM(topology_.index) = Az_FM;
 
     // Compute articulated bias force (Fp).
     // This is done using CalcBodySpatialForceGivenItsSpatialAcceleration().
@@ -993,7 +996,58 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
       Fp_BBo_B += Fp_FMBo_B;
     }
 
-    
+    // Re-express articulated body inertia in F and shift to Mo.
+    // This is required prior to projection onto the subspace of H_FM.
+    const ArticulatedInertia<T> I_BMo_B = I_BBo_B.Shift(p_BoMo_B);
+    const ArticulatedInertia<T> I_BMo_F = I_BMo_B.ReExpress(R_FB);
+
+    // Re-express articulated bias force in F and shift to Mo.
+    // This is required prior to projection onto the subspace of H_FM.
+    const SpatialForce<T> Fp_BMo_B = Fp_BBo_B.Shift(p_BoMo_B);
+    const SpatialForce<T> Fp_BMo_F = R_FB * Fp_BMo_B;
+
+    // Compute and cache U_FM.
+    const Matrix6X<T> U_FM = I_BMo_F * H_FM;
+    bc.get_mutable_U_FM(topology_.index) = U_FM;
+
+    // Compute and cache D_FM.
+    const MatrixX<T> D_FM = (H_FM.transpose() * U_FM).inverse();
+    bc.get_mutable_D_FM(topology_.index) = D_FM;
+
+    // Compute and cache u_FM.
+    const VectorX<T> u_FM = tau_applied
+        - U_FM.transpose() * Az_FM.get_coeffs()
+        - H_FM.transpose() * Fp_BMo_F.get_coeffs();
+    bc.get_mutable_u_FM(topology_.index) = u_FM;
+
+    // Compute R_BF and p_MoBo_B.
+    const Matrix3<T> R_BF = X_BF.linear();
+    const Vector3<T> p_MoBo_B = -p_BoMo_B;
+
+    // Compute across mobilizer articulated body inertia.
+    const ArticulatedInertia<T> I_FMMo_F = ArticulatedInertia<T>(
+        I_BMo_F.get_matrix() - U_FM * D_FM * U_FM.transpose()
+    );
+
+    // Re-express in frame B and shift to Bo.
+    const ArticulatedInertia<T> I_FMMo_B = I_FMMo_F.ReExpress(R_BF);
+    const ArticulatedInertia<T> I_FMBo_B = I_FMMo_B.Shift(p_MoBo_B);
+
+    // Cache I_FMBo_B.
+    bc.get_mutable_I_FMBo_B(topology_.index) = I_FMBo_B;
+
+    // Compute across mobilizer articulated bias force.
+    const SpatialForce<T> Fp_FMMo_F = SpatialForce<T>(
+        Fp_BMo_F.get_coeffs() + I_BMo_F.get_matrix() * Az_FM.get_coeffs()
+            + U_FM * D_FM * u_FM
+    );
+
+    // Re-express in frame B and shift to Bo.
+    const SpatialForce<T> Fp_FMMo_B = R_BF * Fp_FMMo_F;
+    const SpatialForce<T> Fp_FMBo_B = Fp_FMMo_B.Shift(p_MoBo_B);
+
+    // Cache Fp_FMBo_B.
+    bc.get_mutable_Fp_FMBo_B(topology_.index) = Fp_FMBo_B;
   }
 
  protected:
