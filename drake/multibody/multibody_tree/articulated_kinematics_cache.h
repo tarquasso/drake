@@ -5,6 +5,7 @@
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/multibody_tree/multibody_tree_indexes.h"
 #include "drake/multibody/multibody_tree/multibody_tree_topology.h"
+#include "drake/multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
 namespace multibody {
@@ -23,24 +24,35 @@ class ArticulatedKinematicsCache {
     Allocate();
   }
 
-  const Matrix6<T>& get_IA_FMb_B(BodyNodeIndex body_node_index) const {
+  const Matrix6X<T>& get_H_FM(BodyNodeIndex body_node_index) const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return IA_FMb_B_pool_[body_node_index];
+    return H_FM_pool_[body_node_index];
   }
 
-  Matrix6<T>& get_mutable_IA_FMb_B(BodyNodeIndex body_node_index) {
+  Matrix6X<T>& get_mutable_H_FM(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return IA_FMb_B_pool_[body_node_index];
+    return H_FM_pool_[body_node_index];
   }
 
-  const Vector6<T>& get_FpA_FMb_B(BodyNodeIndex body_node_index) const {
+  const ArticulatedInertia<T>& get_I_FMBo_B(BodyNodeIndex body_node_index)
+  const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return FpA_FMb_B_pool_[body_node_index];
+    return I_FMBo_B_pool_[body_node_index];
   }
 
-  Vector6<T>& get_mutable_FpA_FMb_B(BodyNodeIndex body_node_index) {
+  ArticulatedInertia<T>& get_mutable_I_FMBo_B(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
-    return FpA_FMb_B_pool_[body_node_index];
+    return I_FMBo_B_pool_[body_node_index];
+  }
+
+  const SpatialForce<T>& get_Fp_FMBo_B(BodyNodeIndex body_node_index) const {
+    DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
+    return Fp_FMBo_B_pool_[body_node_index];
+  }
+
+  SpatialForce<T>& get_mutable_Fp_FMBo_B(BodyNodeIndex body_node_index) {
+    DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
+    return Fp_FMBo_B_pool_[body_node_index];
   }
 
   const Vector6<T>& get_Az_FMb_B(BodyNodeIndex body_node_index) const {
@@ -94,15 +106,19 @@ class ArticulatedKinematicsCache {
   }
 
  private:
-  typedef std::vector<Matrix6<T>> Matrix6_PoolType;
   typedef std::vector<Matrix6X<T>> Matrix6X_PoolType;
+  typedef std::vector<ArticulatedInertia<T>> ArticulatedInertia_PoolType;
+  typedef std::vector<SpatialForce<T>> SpatialForce_PoolType;
+
   typedef std::vector<Vector6<T>> Vector6_PoolType;
   typedef std::vector<VectorX<T>> VectorX_PoolType;
   typedef std::vector<MatrixX<T>> MatrixX_PoolType;
 
   void Allocate() {
-    IA_FMb_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
-    FpA_FMb_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    H_FM_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    I_FMBo_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
+    Fp_FMBo_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
+
     Az_FMb_B_pool_.resize(static_cast<unsigned long>(num_nodes_));
     U_FM_M_pool_.resize(static_cast<unsigned long>(num_nodes_));
     D_FM_M_pool_.resize(static_cast<unsigned long>(num_nodes_));
@@ -115,9 +131,10 @@ class ArticulatedKinematicsCache {
 
   int num_nodes_{0};
 
-  // Pool names are directly from [Jain 2010, Algorithm 7.2].
-  Matrix6_PoolType IA_FMb_B_pool_{};
-  Vector6_PoolType FpA_FMb_B_pool_{};
+  Matrix6X_PoolType H_FM_pool_{};
+  ArticulatedInertia_PoolType I_FMBo_B_pool_{};
+  SpatialForce_PoolType Fp_FMBo_B_pool_{};
+
   Vector6_PoolType Az_FMb_B_pool_{};
   Matrix6X_PoolType U_FM_M_pool_{};
   MatrixX_PoolType D_FM_M_pool_{};

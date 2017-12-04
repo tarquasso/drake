@@ -48,6 +48,7 @@ drake_cc_library(
         "velocity_kinematics_cache.h",
     ],
     deps = [
+        ":articulated_inertia",
         ":multibody_tree_topology",
         "//drake/common:autodiff",
         "//drake/multibody/multibody_tree/math:spatial_acceleration",
