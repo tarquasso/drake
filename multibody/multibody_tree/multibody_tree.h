@@ -890,7 +890,7 @@ class MultibodyTree {
       const VelocityKinematicsCache<T>& vc,
       const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array,
       const Eigen::Ref<const VectorX<T>>& tau_applied_array,
-      EigenPtr<VectorX<T>> qddot
+      EigenPtr<VectorX<T>> vdot
   ) const;
 
   /// Computes the combined force contribution of ForceElement objects in the

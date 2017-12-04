@@ -1050,6 +1050,86 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     bc.get_mutable_Fp_FMBo_B(topology_.index) = Fp_FMBo_B;
   }
 
+  void CalcForwardDynamics_BaseToTip(
+      const MultibodyTreeContext<T>& context,
+      const PositionKinematicsCache<T>& pc,
+      const VelocityKinematicsCache<T>& vc,
+      const ArticulatedKinematicsCache<T>& bc,
+      AccelerationKinematicsCache<T>& ac,
+      EigenPtr<VectorX<T>> vdot
+  ) const {
+    // Get this node's mobilizer inboard/outboard frame.
+    const Frame<T>& frame_F = get_mobilizer().get_inboard_frame();
+    const Frame<T>& frame_M = get_mobilizer().get_outboard_frame();
+
+    // Compute the pose of frame F and M relative to B.
+    const Isometry3<T> X_BF = frame_F.CalcPoseInBodyFrame(context);
+    const Isometry3<T> X_BM = frame_M.CalcPoseInBodyFrame(context);
+
+    // Get spatial acceleration of parent.
+    const SpatialAcceleration<T> A_WP = ac.get_A_WB(parent_node_->get_index());
+
+    // Get angular velocity of P in W frame.
+    const Vector3<T> w_WP = get_V_WP(vc).rotational();
+
+    // Get X_PB, X_WP, and X_WB.
+    const Isometry3<T> X_PB = get_X_PB(pc);
+    const Isometry3<T> X_WP = get_X_WP(pc);
+    const Isometry3<T> X_WB = get_X_WB(pc);
+
+    // Compute R_FW.
+    const Matrix3<T> R_BW = get_X_WB(pc).linear().transpose();
+    const Matrix3<T> R_FW = X_BF.linear().transpose() * R_BW;
+
+    // Compute shift vector from Po to Mo expressed in W.
+    const Vector3<T> p_PoBo_W = X_WP.linear() * X_PB.translation();
+    const Vector3<T> p_BoMo_W = X_WB.linear() * X_BM.translation();
+    const Vector3<T> p_PoMo_W = p_PoBo_W + p_BoMo_W;
+
+    // Shift spatial acceleration to Mo and re-express in frame B.
+    const SpatialAcceleration<T> A_WPMo = A_WP.Shift(p_PoMo_W, w_WP);
+    const SpatialAcceleration<T> A_WPMo_F = R_FW * A_WPMo;
+
+    // Pull D_FM, U_FM, and u_FM from cache.
+    const MatrixX<T> D_FM = bc.get_D_FM(topology_.index);
+    const VectorX<T> u_FM = bc.get_u_FM(topology_.index);
+    const Matrix6X<T> U_FM = bc.get_U_FM(topology_.index);
+
+    // Compute vmdot for mobilizer.
+    const VectorX<T> vmdot =
+        D_FM * (u_FM - U_FM.transpose() * A_WPMo_F.get_coeffs());
+
+    // Store vmdot result.
+    get_mutable_velocities_from_array(vdot) = vmdot;
+
+    // Pull Az_FM from cache.
+    const SpatialAcceleration<T> Az_FM = bc.get_Az_FM(topology_.index);
+
+    // Pull H_FM from cache.
+    const Matrix6X<T> H_FM = bc.get_H_FM(topology_.index);
+
+    // Compute spatial acceleration for this node.
+    const SpatialAcceleration<T> A_WBMo_F = SpatialAcceleration<T>(
+        A_WPMo_F.get_coeffs() + H_FM * vmdot + Az_FM
+    );
+
+    // Compute R_WF.
+    const Matrix3<T> R_WF = R_FW.transpose();
+
+    // Compute p_MoBo_W.
+    const Vector3<T> p_MoBo_W = -p_BoMo_W;
+
+    // Get angular velocity of B measured and expressed in W frame.
+    const Vector3<T> w_WB = get_V_WB(vc).rotational();
+
+    // Re-express in W frame and shift to Bo.
+    const SpatialAcceleration<T> A_WBMo = R_WF * A_WBMo_F;
+    const SpatialAcceleration<T> A_WB = A_WBMo.Shift(p_MoBo_W, w_WB);
+
+    // Cache spatial acceleration.
+    ac.get_mutable_A_WB(topology_.index) = A_WB;
+  }
+
  protected:
   /// Returns the inboard frame F of this node's mobilizer.
   /// @throws std::runtime_error if called on the root node corresponding to
