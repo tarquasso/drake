@@ -875,18 +875,16 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // Body for this node.
     const Body<T>& body_B = get_body();
 
-    // Get this node's mobilizer inboard/outboard frame.
-    const Frame<T>& frame_F = get_mobilizer().get_inboard_frame();
+    // Get this node's mobilizer outboard frame.
     const Frame<T>& frame_M = get_mobilizer().get_outboard_frame();
 
-    // Compute the pose of frame F and M relative to B.
-    const Isometry3<T> X_BF = frame_F.CalcPoseInBodyFrame(context);
+    // Compute the pose of frame M relative to B.
     const Isometry3<T> X_BM = frame_M.CalcPoseInBodyFrame(context);
 
     // Get the pose of frame M relative to frame F.
     const Isometry3<T> X_FM = get_X_FM(pc);
 
-    // Compute X_MF and X_MB.
+    // Compute X_MB and X_FB.
     const Isometry3<T> X_MB = X_BM.inverse();
     const Isometry3<T> X_FB = X_FM * X_MB;
 
@@ -945,23 +943,24 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // Cache Az_FM.
     bc.get_mutable_Az_FM(topology_.index) = Az_FM;
 
+    // Get M_B.
+    const SpatialInertia<T> M_B = body_B.CalcSpatialInertiaInBodyFrame(context);
+
     // Compute articulated bias force (Fp).
-    // This is done using CalcBodySpatialForceGivenItsSpatialAcceleration().
-    SpatialForce<T> Fp_BBo_W;
-    CalcBodySpatialForceGivenItsSpatialAcceleration(
-        context, pc, vc, SpatialAcceleration<T>(Vector6<T>::Zero()), &Fp_BBo_W
+    const SpatialForce<T> Ftemp = SpatialForce<T>(
+        M_B.CopyToFullMatrix6() * V_WB_B.get_coeffs()
+    );
+    SpatialForce<T> Fp_BBo_B = SpatialForce<T>(
+        V_WB_B.rotational().cross(Ftemp.rotational())
+            + V_WB_B.translational().cross(Ftemp.translational()),
+        V_WB_B.rotational().cross(Ftemp.translational())
     );
 
     // Subtract external force contribution from Fp.
-    Fp_BBo_W -= Fapplied_Bo_W;
-
-    // Shift articulated bias force to B frame.
-    SpatialForce<T> Fp_BBo_B = R_BW * Fp_BBo_W;
+    Fp_BBo_B -= R_BW * Fapplied_Bo_W;
 
     // Compute articulated body inertia for body.
-    ArticulatedInertia<T> I_BBo_B = ArticulatedInertia<T>(
-        body_B.CalcSpatialInertiaInBodyFrame(context)
-    );
+    ArticulatedInertia<T> I_BBo_B = ArticulatedInertia<T>(M_B);
 
     // Add articulated body contributions from all children.
     // This differs slightly from the formulation in [Springer 2008, Tb. 2.8].
@@ -1021,14 +1020,14 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
         - H_FM.transpose() * Fp_BMo_F.get_coeffs();
     bc.get_mutable_u_FM(topology_.index) = u_FM;
 
-    // Compute R_BF and p_MoBo_B.
-    const Matrix3<T> R_BF = X_BF.linear();
-    const Vector3<T> p_MoBo_B = -p_BoMo_B;
-
     // Compute across mobilizer articulated body inertia.
     const ArticulatedInertia<T> I_FMMo_F = ArticulatedInertia<T>(
         I_BMo_F.get_matrix() - U_FM * D_FM * U_FM.transpose()
     );
+
+    // Compute R_BF and p_MoBo_B.
+    const Matrix3<T> R_BF = R_FB.transpose();
+    const Vector3<T> p_MoBo_B = -p_BoMo_B;
 
     // Re-express in frame B and shift to Bo.
     const ArticulatedInertia<T> I_FMMo_B = I_FMMo_F.ReExpress(R_BF);
@@ -1063,15 +1062,12 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const Frame<T>& frame_F = get_mobilizer().get_inboard_frame();
     const Frame<T>& frame_M = get_mobilizer().get_outboard_frame();
 
-    // Compute the pose of frame F and M relative to B.
-    const Isometry3<T> X_BF = frame_F.CalcPoseInBodyFrame(context);
+    // Compute the pose of frame F and M relative to their bodies.
+    const Isometry3<T> X_PF = frame_F.CalcPoseInBodyFrame(context);
     const Isometry3<T> X_BM = frame_M.CalcPoseInBodyFrame(context);
 
     // Get spatial acceleration of parent.
     const SpatialAcceleration<T> A_WP = ac.get_A_WB(parent_node_->get_index());
-
-    // Get angular velocity of P in W frame.
-    const Vector3<T> w_WP = get_V_WP(vc).rotational();
 
     // Get X_PB, X_WP, and X_WB.
     const Isometry3<T> X_PB = get_X_PB(pc);
@@ -1079,8 +1075,9 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const Isometry3<T> X_WB = get_X_WB(pc);
 
     // Compute R_FW.
-    const Matrix3<T> R_BW = get_X_WB(pc).linear().transpose();
-    const Matrix3<T> R_FW = X_BF.linear().transpose() * R_BW;
+    const Matrix3<T> R_PW = X_WP.linear().transpose();
+    const Matrix3<T> R_FP = X_PF.linear().transpose();
+    const Matrix3<T> R_FW = R_FP * R_PW;
 
     // Compute shift vector from Po to Mo expressed in W.
     const Vector3<T> p_PoBo_W = X_WP.linear() * X_PB.translation();
@@ -1088,7 +1085,9 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const Vector3<T> p_PoMo_W = p_PoBo_W + p_BoMo_W;
 
     // Shift spatial acceleration to Mo and re-express in frame B.
-    const SpatialAcceleration<T> A_WPMo = A_WP.Shift(p_PoMo_W, w_WP);
+    const SpatialAcceleration<T> A_WPMo = A_WP.Shift(
+        p_PoMo_W, Vector3<T>::Zero()
+    );
     const SpatialAcceleration<T> A_WPMo_F = R_FW * A_WPMo;
 
     // Pull D_FM, U_FM, and u_FM from cache.
@@ -1120,12 +1119,11 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // Compute p_MoBo_W.
     const Vector3<T> p_MoBo_W = -p_BoMo_W;
 
-    // Get angular velocity of B measured and expressed in W frame.
-    const Vector3<T> w_WB = get_V_WB(vc).rotational();
-
     // Re-express in W frame and shift to Bo.
     const SpatialAcceleration<T> A_WBMo = R_WF * A_WBMo_F;
-    const SpatialAcceleration<T> A_WB = A_WBMo.Shift(p_MoBo_W, w_WB);
+    const SpatialAcceleration<T> A_WB = A_WBMo.Shift(
+        p_MoBo_W, Vector3<T>::Zero()
+    );
 
     // Cache spatial acceleration.
     ac.get_mutable_A_WB(topology_.index) = A_WB;
