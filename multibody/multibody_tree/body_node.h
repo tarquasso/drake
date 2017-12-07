@@ -966,21 +966,20 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // This differs slightly from the formulation in [Springer 2008, Tb. 2.8].
     // Across mobilizer quantities are computed and cached by all children.
     for (const BodyNode<T>* child : children_) {
-      // Get X_BC (which is X_PB for child) and invert to get X_CB.
+      // Get X_BC (which is X_PB for child).
       const Isometry3<T> X_BC = child->get_X_PB(pc);
-      const Isometry3<T> X_CB = X_BC.inverse();
 
-      // Compute p_CoBo_C and R_BC.
-      const Vector3<T> p_CoBo_C = X_CB.translation();
+      // Compute R_BC and p_CoBo_B.
       const Matrix3<T> R_BC = X_BC.linear();
+      const Vector3<T> p_CoBo_B = -X_BC.translation();
 
       // Pull I_FMCo_C from cache (which is I_FMBo_B for child).
       const ArticulatedInertia<T>
           I_FMCo_C = bc.get_I_FMBo_B(child->get_index());
 
-      // Shift to Bo and re-express in frame B.
-      const ArticulatedInertia<T> I_FMBo_C = I_FMCo_C.Shift(p_CoBo_C);
-      const ArticulatedInertia<T> I_FMBo_B = I_FMBo_C.ReExpress(R_BC);
+      // Re-express in frame B and shift to Bo.
+      const ArticulatedInertia<T> I_FMCo_B = I_FMCo_C.ReExpress(R_BC);
+      const ArticulatedInertia<T> I_FMBo_B = I_FMCo_B.Shift(p_CoBo_B);
 
       // Add to articulated body inertia.
       I_BBo_B += I_FMBo_B;
@@ -988,9 +987,9 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
       // Pull Fp_FMCo_C from cache (which is Fp_FMBo_B for child).
       const SpatialForce<T> Fp_FMCo_C = bc.get_Fp_FMBo_B(child->get_index());
 
-      // Shift to Bo and re-express in frame B.
-      const SpatialForce<T> Fp_FMBo_C = Fp_FMCo_C.Shift(p_CoBo_C);
-      const SpatialForce<T> Fp_FMBo_B = R_BC * Fp_FMBo_C;
+      // Re-express in frame B and shift to Bo.
+      const SpatialForce<T> Fp_FMCo_B = R_BC * Fp_FMCo_C;
+      const SpatialForce<T> Fp_FMBo_B = Fp_FMCo_B.Shift(p_CoBo_B);
 
       // Add to articulated bias force.
       Fp_BBo_B += Fp_FMBo_B;
