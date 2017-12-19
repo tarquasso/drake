@@ -608,6 +608,55 @@ class PendulumKinematicTests : public PendulumTests {
         C, C_expected, kTolerance, MatrixCompareType::relative));
   }
 
+  void VerifyForwardDynamicsViaInverseDynamics(double shoulder_angle,
+                                               double elbow_angle,
+                                               double shoulder_rate,
+                                               double elbow_rate) {
+    const double kTolerance = 7 * kEpsilon;
+
+    shoulder_mobilizer_->set_angle(context_.get(), shoulder_angle);
+    elbow_mobilizer_->set_angle(context_.get(), elbow_angle);
+
+    // Variables for temporary computation results.
+    PositionKinematicsCache<double> pc(model_->get_topology());
+    VelocityKinematicsCache<double> vc(model_->get_topology());
+    Matrix2d M;
+    Vector2d C;
+    VectorXd tau_applied(model_->get_num_velocities());
+    std::vector<SpatialForce<double>> Fapplied_Bo_W_array(
+        static_cast<unsigned long>(model_->get_num_bodies()));
+    std::vector<SpatialAcceleration<double>> A_WB_array(
+        static_cast<unsigned long>(model_->get_num_bodies()));
+
+    Vector2d qddot;
+    Vector2d qddot_expected;
+
+    // Test with no angular velocity.
+    shoulder_mobilizer_->set_angular_rate(context_.get(), shoulder_rate);
+    elbow_mobilizer_->set_angular_rate(context_.get(), elbow_rate);
+
+    M = acrobot_benchmark_.CalcMassMatrix(elbow_angle);
+    model_->CalcPositionKinematicsCache(*context_, &pc);
+    model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
+    model_->CalcForceElementsContribution(
+        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied);
+
+    // Compute qddot via ABA.
+    model_->CalcForwardDynamics(
+        *context_, pc, vc, Fapplied_Bo_W_array, tau_applied, &qddot);
+
+    //Compute qddot_expected via explicit inversion.
+    Vector2d vdot = Vector2d::Zero();
+    model_->CalcInverseDynamics(
+        *context_, pc, vc, vdot, Fapplied_Bo_W_array, tau_applied,
+        &A_WB_array, &Fapplied_Bo_W_array, &C);
+    qddot_expected = M.llt().solve(-C);
+
+    // Compare.
+    EXPECT_TRUE(CompareMatrices(
+        qddot, qddot_expected, kTolerance, MatrixCompareType::relative));
+  }
+
   /// This method verifies the correctness of
   /// MultibodyTree::CalcForceElementsContribution() to compute the vector of
   /// generalized forces due to gravity.
@@ -1342,6 +1391,26 @@ TEST_F(PendulumKinematicTests, PointsHaveTheWrongSize) {
       *context_,
       lower_link_->get_body_frame(), p_LQi_set,
       model_->get_world_frame(), &p_WQi_set), std::runtime_error);
+}
+
+TEST_F(PendulumKinematicTests, ForwardDynamics) {
+  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 0.0, 0.0);
+  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 1.0, 1.0);
+
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 0.0, 0.0);
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 1.0, 1.0);
+
+  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 2.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 3.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 4.0, 1.0, 1.0);
+
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 2.0, -1.0, 1.0);
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 3.0, 0.0, -1.0);
+  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 4.0, -1.0, 0.0);
 }
 
 }  // namespace
