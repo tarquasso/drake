@@ -16,8 +16,8 @@
 #include "drake/multibody/multibody_tree/position_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/spatial_inertia.h"
 #include "drake/multibody/multibody_tree/velocity_kinematics_cache.h"
-#include "drake/multibody/multibody_tree/articulated_kinematics_cache.h"
-#include "drake/multibody/multibody_tree/articulated_inertia.h"
+#include "multibody/multibody_tree/articulated_kinematics_cache.h"
+#include "multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
 namespace multibody {

@@ -11,7 +11,7 @@
 #include "drake/common/drake_copyable.h"
 #include "drake/common/drake_optional.h"
 #include "drake/multibody/multibody_tree/acceleration_kinematics_cache.h"
-#include "drake/multibody/multibody_tree/articulated_kinematics_cache.h"
+#include "multibody/multibody_tree/articulated_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/body.h"
 #include "drake/multibody/multibody_tree/body_node.h"
 #include "drake/multibody/multibody_tree/force_element.h"

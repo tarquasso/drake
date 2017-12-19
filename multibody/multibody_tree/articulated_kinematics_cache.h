@@ -5,7 +5,7 @@
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/multibody_tree/multibody_tree_indexes.h"
 #include "drake/multibody/multibody_tree/multibody_tree_topology.h"
-#include "drake/multibody/multibody_tree/articulated_inertia.h"
+#include "multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
 namespace multibody {
