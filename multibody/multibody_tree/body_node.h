@@ -16,8 +16,8 @@
 #include "drake/multibody/multibody_tree/position_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/spatial_inertia.h"
 #include "drake/multibody/multibody_tree/velocity_kinematics_cache.h"
-#include "multibody/multibody_tree/articulated_kinematics_cache.h"
-#include "multibody/multibody_tree/articulated_inertia.h"
+#include "drake/multibody/multibody_tree/articulated_kinematics_cache.h"
+#include "drake/multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
 namespace multibody {
@@ -864,10 +864,13 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     return Eigen::Map<MatrixUpTo6<T>>(H_col0.data(), 6, num_velocities);
   }
 
+#define USE_JAIN_CORIOLIS false
+
   void CalcArticulatedKinematicsCache_TipToBase(
       const MultibodyTreeContext<T>& context,
       const PositionKinematicsCache<T>& pc,
       const VelocityKinematicsCache<T>& vc,
+      const Eigen::Ref<const MatrixUpTo6<T>>& H_PB_W,
       const SpatialForce<T>& Fapplied_Bo_W,
       const Eigen::Ref<const VectorX<T>>& tau_applied,
       ArticulatedKinematicsCache<T>& bc
@@ -875,257 +878,216 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // Body for this node.
     const Body<T>& body_B = get_body();
 
-    // Get this node's mobilizer outboard frame.
-    const Frame<T>& frame_M = get_mobilizer().get_outboard_frame();
-
-    // Compute the pose of frame M relative to B.
-    const Isometry3<T> X_BM = frame_M.CalcPoseInBodyFrame(context);
-
-    // Get the pose of frame M relative to frame F.
-    const Isometry3<T> X_FM = get_X_FM(pc);
-
-    // Compute X_MB and X_FB.
-    const Isometry3<T> X_MB = X_BM.inverse();
-    const Isometry3<T> X_FB = X_FM * X_MB;
-
     // Get pose of B in W.
     const Isometry3<T> X_WB = get_X_WB(pc);
 
-    // Get spatial velocity of body.
-    const SpatialVelocity<T> V_WB = get_V_WB(vc);
+    // Get R_WB.
+    const Matrix3<T> R_WB = X_WB.linear();
 
-    // Re-express in B frame.
-    const Matrix3<T> R_BW = X_WB.linear().transpose();
-    const SpatialVelocity<T> V_WB_B = R_BW * V_WB;
-
-    // Shift to Mo.
-    const Vector3<T> p_BoMo_B = X_BM.translation();
-    const SpatialVelocity<T> V_WBMo_B = V_WB_B.Shift(p_BoMo_B);
-
-    // Re-express in F frame.
-    const Matrix3<T> R_FB = X_FB.linear();
-    const SpatialVelocity<T> V_WBMo_F = R_FB * V_WBMo_B;
-
-    // Compute H_FM.
-    // See CalcAcrossNodeGeometricJacobianExpressedInWorld() for more details.
-    Matrix6X<T> H_FM = Matrix6X<T>::Zero(6, get_num_mobilizer_velocites());
-    VectorUpTo6<T> v = VectorUpTo6<T>::Zero(get_num_mobilizer_velocites());
-
-    for (int imob = 0; imob < get_num_mobilizer_velocites(); ++imob) {
-      v(imob) = 1.0;
-      const SpatialVelocity<T> Himob_FM =
-          get_mobilizer().CalcAcrossMobilizerSpatialVelocity(context, v);
-      v(imob) = 0.0;
-      H_FM.col(imob) = Himob_FM.get_coeffs();
-    }
-
-    // Cache H_FM.
-    bc.get_mutable_H_FM(topology_.index) = H_FM;
-
-    // Get V_FM.
-    const SpatialVelocity<T> V_FM = get_V_FM(vc);
-
-    // Compute across mobilizer coriolis acceleration (Az).
-    // This is done by calling CalcAcrossMobilizerSpatialAcceleration().
-    // Equivalent to `Ḣ_FM(q) * v + V_WBMo_F x V_FM`.
-    const VectorX<T> vdot = VectorX<T>::Zero(get_num_mobilizer_velocites());
-    const SpatialAcceleration<T> Az1_FM =
-        get_mobilizer().CalcAcrossMobilizerSpatialAcceleration(context, vdot);
-    const SpatialAcceleration<T> Az2_FM = SpatialAcceleration<T>(
-        V_WBMo_F.rotational().cross(V_FM.rotational()),
-        V_WBMo_F.rotational().cross(V_FM.translational())
-            + V_WBMo_F.translational().cross(V_FM.rotational())
-    );
-    const SpatialAcceleration<T> Az_FM = SpatialAcceleration<T>(
-        Az1_FM.get_coeffs() + Az2_FM.get_coeffs()
-    );
-
-    // Cache Az_FM.
-    bc.get_mutable_Az_FM(topology_.index) = Az_FM;
-
-    // Get M_B.
+    // Compute the spatial inertia for this body and re-express in W frame.
     const SpatialInertia<T> M_B = body_B.CalcSpatialInertiaInBodyFrame(context);
-
-    // Compute articulated bias force (Fp).
-    const SpatialForce<T> Ftemp = SpatialForce<T>(
-        M_B.CopyToFullMatrix6() * V_WB_B.get_coeffs()
-    );
-    SpatialForce<T> Fp_BBo_B = SpatialForce<T>(
-        V_WB_B.rotational().cross(Ftemp.rotational())
-            + V_WB_B.translational().cross(Ftemp.translational()),
-        V_WB_B.rotational().cross(Ftemp.translational())
-    );
-
-    // Subtract external force contribution from Fp.
-    Fp_BBo_B -= R_BW * Fapplied_Bo_W;
+    const SpatialInertia<T> M_B_W = M_B.ReExpress(R_WB);
 
     // Compute articulated body inertia for body.
-    ArticulatedInertia<T> I_BBo_B = ArticulatedInertia<T>(M_B);
+    ArticulatedInertia<T> P_B_W = ArticulatedInertia<T>(M_B_W);
 
-    // Add articulated body contributions from all children.
-    // This differs slightly from the formulation in [Springer 2008, Tb. 2.8].
-    // Across mobilizer quantities are computed and cached by all children.
+    // Add articulated body inertia contributions from all children.
     for (const BodyNode<T>* child : children_) {
       // Get X_BC (which is X_PB for child).
       const Isometry3<T> X_BC = child->get_X_PB(pc);
 
-      // Compute R_BC and p_CoBo_B.
-      const Matrix3<T> R_BC = X_BC.linear();
+      // Compute shift vector p_CoBo_W.
       const Vector3<T> p_CoBo_B = -X_BC.translation();
+      const Vector3<T> p_CoBo_W = R_WB * p_CoBo_B;
 
-      // Pull I_FMCo_C from cache (which is I_FMBo_B for child).
-      const ArticulatedInertia<T>
-          I_FMCo_C = bc.get_I_FMBo_B(child->get_index());
+      // Pull P_BC_W from cache (which is P_PB_W for child).
+      const ArticulatedInertia<T> P_BC_W = bc.get_P_PB_W(child->get_index());
 
-      // Re-express in frame B and shift to Bo.
-      const ArticulatedInertia<T> I_FMCo_B = I_FMCo_C.ReExpress(R_BC);
-      const ArticulatedInertia<T> I_FMBo_B = I_FMCo_B.Shift(p_CoBo_B);
+      // Shift P_BC_W to P_BCb_W.
+      const ArticulatedInertia<T> P_BCb_W = P_BC_W.Shift(p_CoBo_W);
 
-      // Add to articulated body inertia.
-      I_BBo_B += I_FMBo_B;
-
-      // Pull Fp_FMCo_C from cache (which is Fp_FMBo_B for child).
-      const SpatialForce<T> Fp_FMCo_C = bc.get_Fp_FMBo_B(child->get_index());
-
-      // Re-express in frame B and shift to Bo.
-      const SpatialForce<T> Fp_FMCo_B = R_BC * Fp_FMCo_C;
-      const SpatialForce<T> Fp_FMBo_B = Fp_FMCo_B.Shift(p_CoBo_B);
-
-      // Add to articulated bias force.
-      Fp_BBo_B += Fp_FMBo_B;
+      // Add P_BCb_W contribution to articulated body inertia.
+      P_B_W += P_BCb_W;
     }
 
-    // Re-express articulated body inertia in F and shift to Mo.
-    // This is required prior to projection onto the subspace of H_FM.
-    const ArticulatedInertia<T> I_BMo_B = I_BBo_B.Shift(p_BoMo_B);
-    const ArticulatedInertia<T> I_BMo_F = I_BMo_B.ReExpress(R_FB);
+    // Compute D_W, the articulated body hinge inertia.
+    const MatrixX<T> D_W = H_PB_W.transpose() * P_B_W.get_matrix() * H_PB_W;
 
-    // Re-express articulated bias force in F and shift to Mo.
-    // This is required prior to projection onto the subspace of H_FM.
-    const SpatialForce<T> Fp_BMo_B = Fp_BBo_B.Shift(p_BoMo_B);
-    const SpatialForce<T> Fp_BMo_F = R_FB * Fp_BMo_B;
+    // Invert D_W to get DI_W.
+    const MatrixX<T> DI_W = D_W.inverse();
 
-    // Compute and cache U_FM.
-    const Matrix6X<T> U_FM = I_BMo_F.get_matrix() * H_FM;
-    bc.get_mutable_U_FM(topology_.index) = U_FM;
+    // Compute G_W, the Kalman gain.
+    const Matrix6X<T> G_W = P_B_W.get_matrix() * H_PB_W * DI_W;
 
-    // Compute and cache D_FM.
-    const MatrixX<T> D_FM = (H_FM.transpose() * U_FM).inverse();
-    bc.get_mutable_D_FM(topology_.index) = D_FM;
+    // Cache G_W.
+    bc.get_mutable_G_W(topology_.index) = G_W;
 
-    // Compute and cache u_FM.
-    const VectorX<T> u_FM = tau_applied
-        - U_FM.transpose() * Az_FM.get_coeffs()
-        - H_FM.transpose() * Fp_BMo_F.get_coeffs();
-    bc.get_mutable_u_FM(topology_.index) = u_FM;
+    // Compute T_W, the articulated body inertia projection matrix.
+    const Matrix6<T> T_W = Matrix6<T>::Identity() - G_W * H_PB_W.transpose();
 
-    // Compute across mobilizer articulated body inertia.
-    const ArticulatedInertia<T> I_FMMo_F = ArticulatedInertia<T>(
-        I_BMo_F.get_matrix() - U_FM * D_FM * U_FM.transpose()
+    // Compute and cache P_PB_W.
+    bc.get_mutable_P_PB_W(topology_.index) = ArticulatedInertia<T>(
+        T_W * P_B_W.get_matrix()
     );
 
-    // Compute R_BF and p_MoBo_B.
-    const Matrix3<T> R_BF = R_FB.transpose();
-    const Vector3<T> p_MoBo_B = -p_BoMo_B;
+    // Define a few zero helper vectors.
+    const VectorX<T> vmdot_zero =
+        VectorX<T>::Zero(get_num_mobilizer_velocites());
+    const SpatialAcceleration<T> A_zero =
+        SpatialAcceleration<T>(Vector6<T>::Zero());
 
-    // Re-express in frame B and shift to Bo.
-    const ArticulatedInertia<T> I_FMMo_B = I_FMMo_F.ReExpress(R_BF);
-    const ArticulatedInertia<T> I_FMBo_B = I_FMMo_B.Shift(p_MoBo_B);
-
-    // Cache I_FMBo_B.
-    bc.get_mutable_I_FMBo_B(topology_.index) = I_FMBo_B;
-
-    // Compute across mobilizer articulated bias force.
-    const SpatialForce<T> Fp_FMMo_F = SpatialForce<T>(
-        Fp_BMo_F.get_coeffs() + I_BMo_F.get_matrix() * Az_FM.get_coeffs()
-            + U_FM * D_FM * u_FM
+    // Compute Fb_B_W, the gyroscopic force.
+    // This is equal to computing the spatial force under zero acceleration.
+    SpatialForce<T> Fb_B_W;
+    CalcBodySpatialForceGivenItsSpatialAcceleration(
+        context, pc, vc, A_zero, &Fb_B_W
     );
 
-    // Re-express in frame B and shift to Bo.
-    const SpatialForce<T> Fp_FMMo_B = R_BF * Fp_FMMo_F;
-    const SpatialForce<T> Fp_FMBo_B = Fp_FMMo_B.Shift(p_MoBo_B);
+    // Compute Aa_B_W, the coriolis acceleration.
+    // Do this by first computing A_FM = Hdot_FM * vm.
+    const SpatialAcceleration<T> A_FM = get_mobilizer()
+        .CalcAcrossMobilizerSpatialAcceleration(context, vmdot_zero);
 
-    // Cache Fp_FMBo_B.
-    bc.get_mutable_Fp_FMBo_B(topology_.index) = Fp_FMBo_B;
+    // Inboard frame F and outboard frame M of this node's mobilizer.
+    const Frame<T>& frame_F = get_inboard_frame();
+    const Frame<T>& frame_M = get_outboard_frame();
+
+    // Compute X_PF and X_MB.
+    const Isometry3<T> X_PF = frame_F.CalcPoseInBodyFrame(context);
+    const Isometry3<T> X_MB = frame_M.CalcPoseInBodyFrame(context).inverse();
+
+    // Get X_WP.
+    const Isometry3<T>& X_WP = get_X_WP(pc);
+
+    // Compute R_WF.
+    const Matrix3<T> R_WF = X_WP.linear() * X_PF.linear();
+
+    // Compute shift vector p_MoBo_F.
+    const Vector3<T> p_MoBo_F = get_X_FM(pc).linear() * X_MB.translation();
+
+    // Get V_FM.
+    const SpatialVelocity<T>& V_FM = get_V_FM(vc);
+
+    // Get A_PB_W by shifting and re-expressing.
+    const SpatialAcceleration<T> A_PB_W =
+        R_WF * A_FM.Shift(p_MoBo_F, V_FM.rotational());
+
+#if USE_JAIN_CORIOLIS
+    // Get V_WB.
+    const SpatialVelocity<T> V_WB = get_V_WB(vc);
+
+    // Get V_WP.
+    const SpatialVelocity<T> V_WP = get_V_WP(vc);
+
+    // Get V_FM and V_FM_W.
+    const SpatialVelocity<T> V_PB_W = get_V_PB_W(vc);
+
+    // Compute Aa_B_W, the coriolis acceleration, per [Jain, eq. 5.20b].
+    SpatialAcceleration<T> Aa_B_W = SpatialAcceleration<T>(
+        V_WB.rotational().cross(V_PB_W.rotational()),
+        V_WP.rotational().cross(V_WB.translational() - V_WP.translational()
+                                    + V_PB_W.translational())
+    );
+
+    // Add contribution from Hdot.
+    Aa_B_W.get_coeffs() += A_PB_W.get_coeffs();
+#else
+    // Get V_WP.
+    const SpatialVelocity<T>& V_WP = get_V_WP(vc);
+
+    // Get V_PB_W.
+    const SpatialVelocity<T>& V_PB_W = get_V_PB_W(vc);
+
+    // Compute shift vector p_PoBo_W.
+    const Vector3<T> p_PoBo_W = X_WP.linear() * get_X_PB(pc).translation();
+
+    // Compute coriolis acceleration Aa_B_W by composing using zero.
+    const SpatialAcceleration<T> Aa_B_W =
+        A_zero.ComposeWithMovingFrameAcceleration(p_PoBo_W, V_WP.rotational(),
+                                                  V_PB_W, A_PB_W);
+#endif
+
+    // Cache Aa_B_W.
+    bc.get_mutable_Aa_B_W(topology_.index) = Aa_B_W;
+
+    // Compute the articulated body bias force.
+    SpatialForce<T> Fz_B_W = SpatialForce<T>(
+        P_B_W.get_matrix() * Aa_B_W.get_coeffs() + Fb_B_W.get_coeffs()
+    );
+
+    // Subtract off external force contribution.
+    Fz_B_W -= Fapplied_Bo_W;
+
+    // Add articulated body bias force contributions from all children.
+    for (const BodyNode<T>* child : children_) {
+      // Get X_BC (which is X_PB for child).
+      const Isometry3<T> X_BC = child->get_X_PB(pc);
+
+      // Compute shift vector p_CoBo_W.
+      const Vector3<T> p_CoBo_B = -X_BC.translation();
+      const Vector3<T> p_CoBo_W = R_WB * p_CoBo_B;
+
+      // Pull Fz_BC_W from cache (which is Fz_PB_W for child).
+      const SpatialForce<T> Fz_BC_W = bc.get_Fz_PB_W(child->get_index());
+
+      // Shift Fz_BC_W to Fz_BCb_W.
+      const SpatialForce<T> Fz_BCb_W = Fz_BC_W.Shift(p_CoBo_W);
+
+      // Add Fz_BCb_W contribution to articulated body bias force.
+      Fz_B_W += Fz_BCb_W;
+    }
+
+    // Compute e_W.
+    const VectorX<T> e_W =
+        tau_applied - H_PB_W.transpose() * Fz_B_W.get_coeffs();
+
+    // Compute and cache nu_W.
+    bc.get_mutable_nu_W(topology_.index) = DI_W * e_W;
+
+    // Compute and cache Fz_PB_W.
+    bc.get_mutable_Fz_PB_W(topology_.index) = SpatialForce<T>(
+        Fz_B_W.get_coeffs() + G_W * e_W
+    );
   }
 
   void CalcForwardDynamics_BaseToTip(
       const MultibodyTreeContext<T>& context,
       const PositionKinematicsCache<T>& pc,
       const VelocityKinematicsCache<T>& vc,
+      const Eigen::Ref<const MatrixUpTo6<T>>& H_PB_W,
       const ArticulatedKinematicsCache<T>& bc,
       AccelerationKinematicsCache<T>& ac,
       EigenPtr<VectorX<T>> vdot
   ) const {
-    // Get this node's mobilizer inboard/outboard frame.
-    const Frame<T>& frame_F = get_mobilizer().get_inboard_frame();
-    const Frame<T>& frame_M = get_mobilizer().get_outboard_frame();
-
-    // Compute the pose of frame F and M relative to their bodies.
-    const Isometry3<T> X_PF = frame_F.CalcPoseInBodyFrame(context);
-    const Isometry3<T> X_BM = frame_M.CalcPoseInBodyFrame(context);
-
-    // Get spatial acceleration of parent.
+    // Get A_WP.
     const SpatialAcceleration<T> A_WP = ac.get_A_WB(parent_node_->get_index());
 
-    // Get X_PB, X_WP, and X_WB.
-    const Isometry3<T> X_PB = get_X_PB(pc);
-    const Isometry3<T> X_WP = get_X_WP(pc);
-    const Isometry3<T> X_WB = get_X_WB(pc);
+    // Compute shift vector, p_PoBo_W.
+    const Vector3<T> p_PoBo_W =
+        get_X_WP(pc).linear() * get_X_PB(pc).translation();
 
-    // Compute R_FW.
-    const Matrix3<T> R_PW = X_WP.linear().transpose();
-    const Matrix3<T> R_FP = X_PF.linear().transpose();
-    const Matrix3<T> R_FW = R_FP * R_PW;
-
-    // Compute shift vector from Po to Mo expressed in W.
-    const Vector3<T> p_PoBo_W = X_WP.linear() * X_PB.translation();
-    const Vector3<T> p_BoMo_W = X_WB.linear() * X_BM.translation();
-    const Vector3<T> p_PoMo_W = p_PoBo_W + p_BoMo_W;
-
-    // Shift spatial acceleration to Mo and re-express in frame B.
-    const SpatialAcceleration<T> A_WPMo = A_WP.Shift(
-        p_PoMo_W, Vector3<T>::Zero()
+    // Shift A_WP to A_WPb, ignoring coriolis terms from w_WP.
+    const SpatialAcceleration<T> A_WPb = A_WP.Shift(
+        p_PoBo_W, Vector3<T>::Zero()
     );
-    const SpatialAcceleration<T> A_WPMo_F = R_FW * A_WPMo;
 
-    // Pull D_FM, U_FM, and u_FM from cache.
-    const MatrixX<T> D_FM = bc.get_D_FM(topology_.index);
-    const VectorX<T> u_FM = bc.get_u_FM(topology_.index);
-    const Matrix6X<T> U_FM = bc.get_U_FM(topology_.index);
+    // Pull nu_W and G_W from cache.
+    const VectorX<T> nu_W = bc.get_nu_W(topology_.index);
+    const Matrix6X<T> G_W = bc.get_G_W(topology_.index);
 
-    // Compute vmdot for mobilizer.
-    const VectorX<T> vmdot =
-        D_FM * (u_FM - U_FM.transpose() * A_WPMo_F.get_coeffs());
+    // Compute vmdot.
+    const VectorX<T> vmdot = nu_W - G_W.transpose() * A_WPb.get_coeffs();
 
     // Store vmdot result.
     get_mutable_velocities_from_array(vdot) = vmdot;
 
-    // Pull Az_FM from cache.
-    const SpatialAcceleration<T> Az_FM = bc.get_Az_FM(topology_.index);
+    // Pull Aa_B_W from cache.
+    const SpatialAcceleration<T> Aa_B_W = bc.get_Aa_B_W(topology_.index);
 
-    // Pull H_FM from cache.
-    const Matrix6X<T> H_FM = bc.get_H_FM(topology_.index);
-
-    // Compute spatial acceleration for this node.
-    const SpatialAcceleration<T> A_WBMo_F = SpatialAcceleration<T>(
-        A_WPMo_F.get_coeffs() + H_FM * vmdot + Az_FM.get_coeffs()
+    // Compute and cache A_WB.
+    ac.get_mutable_A_WB(topology_.index) = SpatialAcceleration<T>(
+        A_WPb.get_coeffs() + H_PB_W * vmdot + Aa_B_W.get_coeffs()
     );
-
-    // Compute R_WF.
-    const Matrix3<T> R_WF = R_FW.transpose();
-
-    // Compute p_MoBo_W.
-    const Vector3<T> p_MoBo_W = -p_BoMo_W;
-
-    // Re-express in W frame and shift to Bo.
-    const SpatialAcceleration<T> A_WBMo = R_WF * A_WBMo_F;
-    const SpatialAcceleration<T> A_WB = A_WBMo.Shift(
-        p_MoBo_W, Vector3<T>::Zero()
-    );
-
-    // Cache spatial acceleration.
-    ac.get_mutable_A_WB(topology_.index) = A_WB;
   }
 
  protected:

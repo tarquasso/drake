@@ -27,13 +27,13 @@ class ArticulatedInertia {
   const Matrix6<T>& get_matrix() const { return I_SP_E_; }
 
   ArticulatedInertia<T> ReExpress(const Matrix3<T>& R_AE) const {
-    Matrix6<T> T_EA = CalcShift_(R_AE.transpose(), Vector3<T>::Zero());
-    return ArticulatedInertia<T>(T_EA.transpose() * I_SP_E_ * T_EA);
+    Matrix6<T> T_AE = CalcPhi_(R_AE, Vector3<T>::Zero());
+    return ArticulatedInertia<T>(T_AE * I_SP_E_ * T_AE.transpose());
   }
 
   ArticulatedInertia<T> Shift(const Vector3<T>& p_PQ_E) const {
-    Matrix6<T> T_EA = CalcShift_(Matrix3<T>::Identity(), p_PQ_E);
-    return ArticulatedInertia<T>(T_EA.transpose() * I_SP_E_ * T_EA);
+    Matrix6<T> T_AE = CalcPhi_(Matrix3<T>::Identity(), -p_PQ_E);
+    return ArticulatedInertia<T>(T_AE * I_SP_E_ * T_AE.transpose());
   }
 
   ArticulatedInertia<T>& operator+=(const ArticulatedInertia<T>& I_BP_E) {
@@ -42,9 +42,8 @@ class ArticulatedInertia {
   }
 
  private:
-  /// See [Springer 2008, Eq. 2.9].
-  const Matrix6<T> CalcShift_(const Matrix3<T>& R_FG,
-                              const Vector3<T>& p_FoGo_F) const {
+  const Matrix6<T> CalcPhi_(const Matrix3<T>& R_FG,
+                            const Vector3<T>& p_FoGo_F) const {
     using math::VectorToSkewSymmetric;
 
     // Construct shift matrix.
@@ -56,7 +55,7 @@ class ArticulatedInertia {
 
     // Top right is l_FG * R_FG.
     Matrix3<T> l_FG = VectorToSkewSymmetric(p_FoGo_F);
-    T_FG.block(3, 0, 3, 3) = l_FG * R_FG;
+    T_FG.block(0, 3, 3, 3) = l_FG * R_FG;
 
     return T_FG;
   }
@@ -64,5 +63,5 @@ class ArticulatedInertia {
   Matrix6<T> I_SP_E_{};
 };
 
-}
-}
+} // namespace multibody
+} // namespace drake

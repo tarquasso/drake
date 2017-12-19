@@ -1,6 +1,4 @@
-#include "multibody/multibody_tree/articulated_inertia.h"
-
-#include "drake/common/autodiff.h"
+#include "drake/multibody/multibody_tree/articulated_inertia.h"
 
 namespace drake {
 namespace multibody {

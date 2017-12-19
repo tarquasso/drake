@@ -406,10 +406,13 @@ void MultibodyTree<T>::CalcForwardDynamics(
 
   VectorX<T> tau_applied_mobilizer(0);
   SpatialForce<T> Fapplied_Bo_W = SpatialForce<T>::Zero();
-  VectorX<T> qdot_mobilizer(0);
 
   const auto& mbt_context =
       dynamic_cast<const MultibodyTreeContext<T>&>(context);
+
+  std::vector<Vector6<T>> H_PB_W_cache(
+      static_cast<unsigned long>(get_num_velocities()));
+  CalcAcrossNodeGeometricJacobianExpressedInWorld(context, pc, &H_PB_W_cache);
 
   ArticulatedKinematicsCache<T> bc = ArticulatedKinematicsCache<T>(topology_);
 
@@ -425,8 +428,11 @@ void MultibodyTree<T>::CalcForwardDynamics(
         Fapplied_Bo_W = Fapplied_Bo_W_array[body_node_index];
       }
 
+      Eigen::Map<const MatrixUpTo6<T>> H_PB_W =
+          node.GetJacobianFromArray(H_PB_W_cache);
+
       node.CalcArticulatedKinematicsCache_TipToBase(
-          mbt_context, pc, vc, Fapplied_Bo_W, tau_applied_mobilizer, bc
+          mbt_context, pc, vc, H_PB_W, Fapplied_Bo_W, tau_applied_mobilizer, bc
       );
     }
   }
@@ -437,8 +443,11 @@ void MultibodyTree<T>::CalcForwardDynamics(
     for (BodyNodeIndex body_node_index : body_node_levels_[depth]) {
       const BodyNode<T>& node = *body_nodes_[body_node_index];
 
+      Eigen::Map<const MatrixUpTo6<T>> H_PB_W =
+          node.GetJacobianFromArray(H_PB_W_cache);
+
       node.CalcForwardDynamics_BaseToTip(
-          mbt_context, pc, vc, bc, ac, vdot
+          mbt_context, pc, vc, H_PB_W, bc, ac, vdot
       );
     }
   }
