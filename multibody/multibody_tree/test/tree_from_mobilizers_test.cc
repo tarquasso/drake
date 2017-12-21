@@ -608,10 +608,10 @@ class PendulumKinematicTests : public PendulumTests {
         C, C_expected, kTolerance, MatrixCompareType::relative));
   }
 
-  void VerifyForwardDynamicsViaInverseDynamics(double shoulder_angle,
-                                               double elbow_angle,
-                                               double shoulder_rate,
-                                               double elbow_rate) {
+  void VerifyForwardDynamicsViaInversion(double shoulder_angle,
+                                         double elbow_angle,
+                                         double shoulder_rate,
+                                         double elbow_rate) {
     const double kTolerance = 7 * kEpsilon;
 
     shoulder_mobilizer_->set_angle(context_.get(), shoulder_angle);
@@ -1394,23 +1394,23 @@ TEST_F(PendulumKinematicTests, PointsHaveTheWrongSize) {
 }
 
 TEST_F(PendulumKinematicTests, ForwardDynamics) {
-  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 0.0, 0.0);
-  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 1.0, 0.0);
-  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 0.0, 1.0);
-  VerifyForwardDynamicsViaInverseDynamics(0.0, 0.0, 1.0, 1.0);
+  VerifyForwardDynamicsViaInversion(0.0, 0.0, 0.0, 0.0);
+  VerifyForwardDynamicsViaInversion(0.0, 0.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInversion(0.0, 0.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInversion(0.0, 0.0, 1.0, 1.0);
 
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 0.0, 0.0);
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 1.0, 0.0);
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 0.0, 1.0);
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, 0.0, 1.0, 1.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, 0.0, 0.0, 0.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, 0.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, 0.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, 0.0, 1.0, 1.0);
 
-  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 2.0, 1.0, 0.0);
-  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 3.0, 0.0, 1.0);
-  VerifyForwardDynamicsViaInverseDynamics(0.0, M_PI / 4.0, 1.0, 1.0);
+  VerifyForwardDynamicsViaInversion(0.0, M_PI / 2.0, 1.0, 0.0);
+  VerifyForwardDynamicsViaInversion(0.0, M_PI / 3.0, 0.0, 1.0);
+  VerifyForwardDynamicsViaInversion(0.0, M_PI / 4.0, 1.0, 1.0);
 
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 2.0, -1.0, 1.0);
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 3.0, 0.0, -1.0);
-  VerifyForwardDynamicsViaInverseDynamics(M_PI / 3.0, M_PI / 4.0, -1.0, 0.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, M_PI / 2.0, -1.0, 1.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, M_PI / 3.0, 0.0, -1.0);
+  VerifyForwardDynamicsViaInversion(M_PI / 3.0, M_PI / 4.0, -1.0, 0.0);
 }
 
 }  // namespace

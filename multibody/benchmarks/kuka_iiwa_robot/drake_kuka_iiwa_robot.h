@@ -16,6 +16,7 @@
 #include "drake/multibody/multibody_tree/test_utilities/spatial_kinematics.h"
 #include "drake/multibody/multibody_tree/uniform_gravity_field_element.h"
 #include "drake/systems/framework/context.h"
+#include "drake/multibody/benchmarks/kuka_iiwa_robot/drake_kuka_iiwa_robot.h"
 
 namespace drake {
 namespace multibody {
@@ -344,6 +345,66 @@ class DrakeKukaIIwaRobot {
     reaction_forces.F_Fo_W = F_BMo_W_array[linkF_->get_node_index()];
     reaction_forces.F_Go_W = F_BMo_W_array[linkG_->get_node_index()];
     return reaction_forces;
+  }
+
+  void CalcForwardDynamicsViaInverse(
+      const Eigen::Ref<const VectorX<T>>& q,
+      const Eigen::Ref<const VectorX<T>>& qdot,
+      EigenPtr<VectorX<T>> qddot) {
+    // Update joint positions and velocities.
+    SetJointAnglesAnd1stDerivatives(q.data(), qdot.data());
+
+    // Compute position and velocity cache.
+    PositionKinematicsCache<T> pc(model_->get_topology());
+    VelocityKinematicsCache<T> vc(model_->get_topology());
+    model_->CalcPositionKinematicsCache(*context_, &pc);
+    model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
+
+    // Compute force element contributions.
+    const int num_bodies = model_->get_num_bodies();
+    std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
+    const int num_velocities = model_->get_num_velocities();
+    VectorX<T> tau_applied_array(num_velocities);
+
+    // Construct M explicity.
+    const int nv = model_->get_num_velocities();
+    MatrixX<T> M(nv, nv);
+    model_->CalcMassMatrixViaInverseDynamics(*context_, &M);
+
+    // Construct C explicitly under zero acceleration.
+    std::vector<SpatialAcceleration<T>> A_WB_array(num_bodies);
+    std::vector<SpatialForce<T>> F_BMo_W_array(num_bodies);
+    VectorX<T> C(nv);
+    model_->CalcInverseDynamics(
+        *context_, pc, vc, VectorX<T>::Zero(nv), Fapplied_Bo_W_array,
+        tau_applied_array, &A_WB_array, &F_BMo_W_array, &C);
+
+    // Solve for qddot via inverse.
+    *qddot = M.llt().solve(-C);
+  }
+
+  void CalcForwardDynamicsViaABA(
+      const Eigen::Ref<const VectorX<T>>& q,
+      const Eigen::Ref<const VectorX<T>>& qdot,
+      EigenPtr<VectorX<T>> qddot) {
+    // Update joint positions and velocities.
+    SetJointAnglesAnd1stDerivatives(q.data(), qdot.data());
+
+    // Compute position and velocity cache.
+    PositionKinematicsCache<T> pc(model_->get_topology());
+    VelocityKinematicsCache<T> vc(model_->get_topology());
+    model_->CalcPositionKinematicsCache(*context_, &pc);
+    model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
+
+    // Compute force element contributions.
+    const int num_bodies = model_->get_num_bodies();
+    std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
+    const int num_velocities = model_->get_num_velocities();
+    VectorX<T> tau_applied_array(num_velocities);
+
+    // Compute forward dynamics using ABA.
+    model_->CalcForwardDynamics(
+        *context_, pc, vc, Fapplied_Bo_W_array, tau_applied_array, qddot);
   }
 
  private:
