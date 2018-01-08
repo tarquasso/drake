@@ -883,7 +883,67 @@ class MultibodyTree {
       std::vector<SpatialForce<T>>* F_BMo_W_array,
       EigenPtr<VectorX<T>> tau_array) const;
 
-  /// Computes forward dynamics.
+  /// Given the state of `this` %MultibodyTree in `context`, a known vector of
+  /// applied spatial forces `Fapplied_Bo_W_array`, and a known vector of
+  /// applied generalized forces `tau_applied_array`, this method computes the
+  /// set of generalized accelerations `vdot` that result from the input forces
+  /// at each Mobilizer. Mathematically, this method computes: <pre>
+  ///   v̇ = M⁻¹(q) (-C(q, v)v + tau_app + ∑ J_WBᵀ(q) Fapp_Bo_W)
+  /// </pre>
+  /// where `M(q)` is the %MultibodyTree mass matrix, `C(q, v)v` is the bias
+  /// term containing Coriolis and gyroscopic effects, and `tau_app` is a vector
+  /// of applied generalized forces. The last term is a summation over all
+  /// bodies in the model where `Fapp_Bo_W` is an applied spatial force on body
+  /// B at `Bo` which gets projected into the space of generalized forces with
+  /// the geometric Jacobian `J_WB(q)` which maps generalized velocities into
+  /// body B spatial velocity as `V_WB = J_WB(q)v`.
+  /// This method does not compute explicit expressions for the mass matrix nor
+  /// for the bias term. Instead, it implements an `O(n)` Articulated Body
+  /// recursive algorithm, where n is the number of bodies in the
+  /// %MultibodyTree. Explicitly forming the term `M⁻¹(q)` requires at least
+  /// `O(n³)` operations. The Articulated Body algorithm is the most efficient
+  /// currently known general method for solving forward dynamics [Featherstone
+  /// 2008].
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model.
+  /// @param[in] pc
+  ///   A position kinematics cache object already updated to be in sync with
+  ///   `context`.
+  /// @param[in] vc
+  ///   A velocity kinematics cache object already updated to be in sync with
+  ///   `context`.
+  /// @param[in] Fapplied_Bo_W_array
+  ///   A vector containing the spatial force `Fapplied_Bo_W` applied on each
+  ///   body at the body's frame origin `Bo` and expressed in the world frame W.
+  ///   `Fapplied_Bo_W_array` can have zero size which means there are no
+  ///   applied forces. To apply non-zero forces, `Fapplied_Bo_W_array` must be
+  ///   of size equal to the number of bodies in `this` %MultibodyTree model.
+  ///   This array must be ordered by BodyNodeIndex, which for a given body can
+  ///   be retrieved with Body::get_node_index().
+  ///   This method will abort if provided with an array that does not have a
+  ///   size of either `get_num_bodies()` or zero.
+  /// @param[in] tau_applied_array
+  ///   An array of applied generalized forces for the entire model. For a
+  ///   given mobilizer, entries in this array can be accessed using the method
+  ///   Mobilizer::get_generalized_forces_from_array() while its mutable
+  ///   counterpart, Mobilizer::get_mutable_generalized_forces_from_array(),
+  ///   allows writing into this array.
+  ///   `tau_applied_array` can have zero size, which means there are no applied
+  ///   forces. To apply non-zero forces, `tau_applied_array` must be of size
+  ///   equal to the number to the number of generalized velocities in the
+  ///   model, see MultibodyTree::get_num_velocities().
+  ///   This method will abort if provided with an array that does not have a
+  ///   size of either MultibodyTree::get_num_velocities() or zero.
+  /// @param[out] vdot
+  ///   A vector with the known generalized accelerations `vdot` for the full
+  ///   %MultibodyTree model. Use Mobilizer::get_accelerations_from_array() to
+  ///   access entries into this array for a particular Mobilizer.
+  ///
+  /// @pre The position kinematics `pc` must have been previously updated with a
+  /// call to CalcPositionKinematicsCache().
+  /// @pre The velocity kinematics `vc` must have been previously updated with a
+  /// call to CalcVelocityKinematicsCache().
   void CalcForwardDynamicsViaArticulatedBody(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
