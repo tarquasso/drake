@@ -390,7 +390,7 @@ void MultibodyTree<T>::CalcInverseDynamics(
 }
 
 template <typename T>
-void MultibodyTree<T>::CalcForwardDynamics(
+void MultibodyTree<T>::CalcForwardDynamicsViaArticulatedBody(
     const systems::Context<T>& context,
     const PositionKinematicsCache<T>& pc,
     const VelocityKinematicsCache<T>& vc,

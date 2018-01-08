@@ -642,7 +642,7 @@ class PendulumKinematicTests : public PendulumTests {
         *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied);
 
     // Compute qddot via ABA.
-    model_->CalcForwardDynamics(
+    model_->CalcForwardDynamicsViaArticulatedBody(
         *context_, pc, vc, Fapplied_Bo_W_array, tau_applied, &qddot);
 
     //Compute qddot_expected via explicit inversion.

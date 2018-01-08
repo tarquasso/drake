@@ -403,7 +403,7 @@ class DrakeKukaIIwaRobot {
     VectorX<T> tau_applied_array(num_velocities);
 
     // Compute forward dynamics using ABA.
-    model_->CalcForwardDynamics(
+    model_->CalcForwardDynamicsViaArticulatedBody(
         *context_, pc, vc, Fapplied_Bo_W_array, tau_applied_array, qddot);
   }
 

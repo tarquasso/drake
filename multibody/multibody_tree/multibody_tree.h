@@ -884,14 +884,13 @@ class MultibodyTree {
       EigenPtr<VectorX<T>> tau_array) const;
 
   /// Computes forward dynamics.
-  void CalcForwardDynamics(
+  void CalcForwardDynamicsViaArticulatedBody(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
       const VelocityKinematicsCache<T>& vc,
       const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array,
       const Eigen::Ref<const VectorX<T>>& tau_applied_array,
-      EigenPtr<VectorX<T>> vdot
-  ) const;
+      EigenPtr<VectorX<T>> vdot) const;
 
   /// Computes the combined force contribution of ForceElement objects in the
   /// model. A ForceElement can apply forces as a spatial force per body or as
