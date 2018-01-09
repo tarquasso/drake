@@ -365,6 +365,8 @@ class DrakeKukaIIwaRobot {
     std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
     const int num_velocities = model_->get_num_velocities();
     VectorX<T> tau_applied_array(num_velocities);
+    model_->CalcForceElementsContribution(
+        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied_array);
 
     // Construct M explicity.
     const int nv = model_->get_num_velocities();
@@ -401,6 +403,8 @@ class DrakeKukaIIwaRobot {
     std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
     const int num_velocities = model_->get_num_velocities();
     VectorX<T> tau_applied_array(num_velocities);
+    model_->CalcForceElementsContribution(
+        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied_array);
 
     // Compute forward dynamics using ABA.
     model_->CalcForwardDynamicsViaArticulatedBody(

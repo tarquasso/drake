@@ -19,7 +19,7 @@ void TestKukaArmForwardDynamics(
     const Eigen::Ref<const VectorX<double>>& q,
     const Eigen::Ref<const VectorX<double>>& qdot) {
   // Create Kuka robot.
-  const double gravity = 9.8;
+  const double gravity = 9.81;
   DrakeKukaIIwaRobot<double> kuka_robot(gravity);
 
   // Compute forward dynamics using ABA.
@@ -31,7 +31,7 @@ void TestKukaArmForwardDynamics(
   kuka_robot.CalcForwardDynamicsViaInverse(q, qdot, &qddot_expected);
 
   // Compare expected results against actual qddot.
-  const double kTolerance = 50 * kEpsilon;
+  const double kTolerance = 30 * kEpsilon;
   EXPECT_TRUE(CompareMatrices(
       qddot, qddot_expected, kTolerance, MatrixCompareType::relative));
 }
