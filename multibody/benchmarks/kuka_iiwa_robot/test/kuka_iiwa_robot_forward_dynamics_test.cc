@@ -94,23 +94,11 @@ GTEST_TEST(KukaIIwaRobotKinematics, ForwardDynamicsTestA) {
   q << -q45, q60, -q30, q45, -q60, q30, -q45;
   qdot << 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1;
   TestKukaArmForwardDynamics(q, qdot);
-}
 
-GTEST_TEST(KukaIIwaRobotKinematics, ForwardDynamicsTestB) {
-  // State variables and helper angles.
-  Vector7d q, qdot;
-  double q30 = M_PI / 6, q45 = M_PI / 4, q60 = M_PI / 3;
-
-  // Initialize a non-trivial state.
+  // Test 5: Another non-static configuration.
   q << q30, q45, q60, -q30, -q45, -q60, 0;
   qdot << 0.3, -0.1, 0.4, -0.1, 0.5, -0.9, 0.2;
-
-  // Ensure solution validity.
   TestKukaArmForwardDynamics(q, qdot);
-
-  // Ensure expected performance ratio.
-  const int iterations = 1000;
-  BenchmarkKukaArmForwardDynamics(q, qdot, iterations);
 }
 
 }  // namespace
