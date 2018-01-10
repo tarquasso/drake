@@ -36,40 +36,6 @@ void TestKukaArmForwardDynamics(
       qddot, qddot_expected, kTolerance, MatrixCompareType::relative));
 }
 
-void BenchmarkKukaArmForwardDynamics(
-    const Eigen::Ref<const VectorX<double>>& q,
-    const Eigen::Ref<const VectorX<double>>& qdot,
-    const int iterations) {
-  // Create Kuka robot.
-  const double gravity = 9.8;
-  DrakeKukaIIwaRobot<double> kuka_robot(gravity);
-
-  // Variable to hold forward dynamics output.
-  Vector7d qddot;
-
-  // Time ABA.
-  auto aba_start = std::chrono::steady_clock::now();
-  for (int i = 0; i < iterations; i++) {
-    kuka_robot.CalcForwardDynamicsViaABA(q, qdot, &qddot);
-  }
-  auto aba_end = std::chrono::steady_clock::now();
-
-  // Time explicit inverse.
-  auto inverse_start = std::chrono::steady_clock::now();
-  for (int i = 0; i < iterations; i++) {
-    kuka_robot.CalcForwardDynamicsViaInverse(q, qdot, &qddot);
-  }
-  auto inverse_end = std::chrono::steady_clock::now();
-
-  // Compute durations.
-  std::chrono::duration<double> aba_diff = aba_end - aba_start;
-  std::chrono::duration<double> inverse_diff = inverse_end - inverse_start;
-
-  // Check expected performance ratio.
-  const double ratio = 1.75;
-  EXPECT_LE(ratio * aba_diff.count(), inverse_diff.count());
-}
-
 GTEST_TEST(KukaIIwaRobotKinematics, ForwardDynamicsTestA) {
   // State variables and helper angles.
   Vector7d q, qdot;

@@ -17,7 +17,7 @@
 #include "drake/multibody/multibody_tree/spatial_inertia.h"
 #include "drake/multibody/multibody_tree/velocity_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/articulated_kinematics_cache.h"
-#include "drake/multibody/multibody_tree/articulated_inertia.h"
+#include "drake/multibody/multibody_tree/articulated_body_inertia.h"
 
 namespace drake {
 namespace multibody {
@@ -889,7 +889,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const SpatialInertia<T> M_B_W = M_B.ReExpress(R_WB);
 
     // Compute articulated body inertia for body.
-    ArticulatedInertia<T> P_B_W = ArticulatedInertia<T>(M_B_W);
+    ArticulatedBodyInertia<T> P_B_W = ArticulatedBodyInertia<T>(M_B_W);
 
     // Add articulated body inertia contributions from all children.
     for (const BodyNode<T>* child : children_) {
@@ -901,10 +901,10 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
       const Vector3<T> p_CoBo_W = R_WB * p_CoBo_B;
 
       // Pull P_BC_W from cache (which is P_PB_W for child).
-      const ArticulatedInertia<T> P_BC_W = bc.get_P_PB_W(child->get_index());
+      const ArticulatedBodyInertia<T> P_BC_W = bc.get_P_PB_W(child->get_index());
 
       // Shift P_BC_W to P_BCb_W.
-      const ArticulatedInertia<T> P_BCb_W = P_BC_W.Shift(p_CoBo_W);
+      const ArticulatedBodyInertia<T> P_BCb_W = P_BC_W.Shift(p_CoBo_W);
 
       // Add P_BCb_W contribution to articulated body inertia.
       P_B_W += P_BCb_W;
@@ -926,7 +926,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     const Matrix6<T> T_W = Matrix6<T>::Identity() - G_W * H_PB_W.transpose();
 
     // Compute and cache P_PB_W.
-    bc.get_mutable_P_PB_W(topology_.index) = ArticulatedInertia<T>(
+    bc.get_mutable_P_PB_W(topology_.index) = ArticulatedBodyInertia<T>(
         T_W * P_B_W.get_matrix()
     );
 

@@ -401,8 +401,8 @@ void MultibodyTree<T>::CalcForwardDynamicsViaArticulatedBody(
   DRAKE_DEMAND(vdot != nullptr);
   DRAKE_DEMAND(vdot->size() == get_num_velocities());
 
-  const int Fapplied_size = (int) (Fapplied_Bo_W_array.size());
-  const int tau_array_size = (int) (tau_applied_array.size());
+  const int Fapplied_size = static_cast<int>(Fapplied_Bo_W_array.size());
+  const int tau_array_size = static_cast<int>(tau_applied_array.size());
 
   VectorX<T> tau_applied_mobilizer(0);
   SpatialForce<T> Fapplied_Bo_W = SpatialForce<T>::Zero();

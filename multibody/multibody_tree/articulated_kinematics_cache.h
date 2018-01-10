@@ -5,7 +5,7 @@
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/multibody_tree/multibody_tree_indexes.h"
 #include "drake/multibody/multibody_tree/multibody_tree_topology.h"
-#include "drake/multibody/multibody_tree/articulated_inertia.h"
+#include "drake/multibody/multibody_tree/articulated_body_inertia.h"
 
 namespace drake {
 namespace multibody {
@@ -24,13 +24,13 @@ class ArticulatedKinematicsCache {
     Allocate();
   }
 
-  const ArticulatedInertia<T>& get_P_PB_W(BodyNodeIndex body_node_index)
+  const ArticulatedBodyInertia<T>& get_P_PB_W(BodyNodeIndex body_node_index)
   const {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
     return P_PB_W_pool_[body_node_index];
   }
 
-  ArticulatedInertia<T>& get_mutable_P_PB_W(BodyNodeIndex body_node_index) {
+  ArticulatedBodyInertia<T>& get_mutable_P_PB_W(BodyNodeIndex body_node_index) {
     DRAKE_ASSERT(0 <= body_node_index && body_node_index < num_nodes_);
     return P_PB_W_pool_[body_node_index];
   }
@@ -78,7 +78,7 @@ class ArticulatedKinematicsCache {
 
  private:
   typedef std::vector<Matrix6X<T>> Matrix6X_PoolType;
-  typedef std::vector<ArticulatedInertia<T>> ArticulatedInertia_PoolType;
+  typedef std::vector<ArticulatedBodyInertia<T>> ArticulatedInertia_PoolType;
   typedef std::vector<SpatialForce<T>> SpatialForce_PoolType;
   typedef std::vector<SpatialAcceleration<T>> SpatialAcceleration_PoolType;
   typedef std::vector<VectorX<T>> VectorX_PoolType;
