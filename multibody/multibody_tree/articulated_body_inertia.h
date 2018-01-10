@@ -64,8 +64,8 @@ class ArticulatedBodyInertia {
   /// @note Only the values in the lower triangular part of the matrix will be
   /// used to construct the articulated body inertia.
   explicit ArticulatedBodyInertia(const Matrix6<T>& P_SA_E) {
-    matrix_.triangularView<Eigen::Lower>() =
-        P_SA_E.triangularView<Eigen::Lower>();
+    matrix_.template triangularView<Eigen::Lower>() =
+        P_SA_E.template triangularView<Eigen::Lower>();
   }
 
   /// Constructs an articulated body inertia from the spatial inertia of a
@@ -76,18 +76,18 @@ class ArticulatedBodyInertia {
   /// @param[in] M_SA_E The spatial inertia of a body or composite body S about
   ///                   point A and expressed in frame E.
   explicit ArticulatedBodyInertia(const SpatialInertia<T>& M_SA_E) {
-    matrix_.triangularView<Eigen::Lower>() =
-        M_SA_E.CopyToFullMatrix6().triangularView<Eigen::Lower>();
+    matrix_.template triangularView<Eigen::Lower>() =
+        M_SA_E.CopyToFullMatrix6().template triangularView<Eigen::Lower>();
   }
 
   /// Copy to a full 6x6 matrix representation.
   Matrix6<T> CopyToFullMatrix6() const {
     Matrix6<T> P;
-    P.triangularView<Eigen::StrictlyLower>() =
-        matrix_.triangularView<Eigen::StrictlyLower>();
-    P.triangularView<Eigen::StrictlyUpper>() =
-        matrix_.triangularView<Eigen::StrictlyLower>().transpose();
-    P.diagonal() = matrix_.diagonal();
+    P.template triangularView<Eigen::StrictlyLower>() =
+        matrix_.template triangularView<Eigen::StrictlyLower>();
+    P.template triangularView<Eigen::StrictlyUpper>() =
+        matrix_.template triangularView<Eigen::StrictlyLower>().transpose();
+    P.template diagonal() = matrix_.template diagonal();
     return P;
   }
 
@@ -112,11 +112,11 @@ class ArticulatedBodyInertia {
 
     // Construct shift matrix.
     Matrix6<T> phi_AB = Matrix6<T>::Identity();
-    phi_AB.block<3, 3>(0, 3) = VectorToSkewSymmetric(-p_AB_E);
+    phi_AB.template block<3, 3>(0, 3) = VectorToSkewSymmetric(-p_AB_E);
 
     // Perform shift.
-    matrix_.triangularView<Eigen::Lower>() =
-        phi_AB * matrix_.selfadjointView<Eigen::Lower>() * phi_AB.transpose();
+    matrix_.template triangularView<Eigen::Lower>() = phi_AB *
+        matrix_.template selfadjointView<Eigen::Lower>() * phi_AB.transpose();
 
     return *this;
   }
@@ -155,12 +155,12 @@ class ArticulatedBodyInertia {
   ArticulatedBodyInertia<T>& ReExpressInPlace(const Matrix3<T>& R_FE) {
     // Construct shift matrix.
     Matrix6<T> phi_AB = Matrix6<T>::Zero();
-    phi_AB.block<3, 3>(0, 0) = R_FE;
-    phi_AB.block<3, 3>(3, 3) = R_FE;
+    phi_AB.template block<3, 3>(0, 0) = R_FE;
+    phi_AB.template block<3, 3>(3, 3) = R_FE;
 
     // Perform shift.
-    matrix_.triangularView<Eigen::Lower>() =
-        phi_AB * matrix_.selfadjointView<Eigen::Lower>() * phi_AB.transpose();
+    matrix_.template triangularView<Eigen::Lower>() = phi_AB *
+        matrix_.template selfadjointView<Eigen::Lower>() * phi_AB.transpose();
 
     return *this;
   }
@@ -190,8 +190,7 @@ class ArticulatedBodyInertia {
   /// are computed about the same point A and expressed in the same frame E.
   ArticulatedBodyInertia<T>& operator+=(const ArticulatedBodyInertia<T>& P_BP_E)
   {
-    matrix_.triangularView<Eigen::Lower>() +=
-        P_BP_E.matrix_.triangularView<Eigen::Lower>();
+    matrix_.template triangularView<Eigen::Lower>() = matrix_ + P_BP_E.matrix_;
     return *this;
   }
 

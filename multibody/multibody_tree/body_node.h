@@ -911,13 +911,14 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     }
 
     // Compute D_W, the articulated body hinge inertia.
-    const MatrixX<T> D_W = H_PB_W.transpose() * P_B_W.get_matrix() * H_PB_W;
+    const MatrixX<T> D_W = H_PB_W.transpose() * P_B_W.CopyToFullMatrix6()
+        * H_PB_W;
 
     // Invert D_W to get DI_W.
     const MatrixX<T> DI_W = D_W.inverse();
 
     // Compute G_W, the Kalman gain.
-    const Matrix6X<T> G_W = P_B_W.get_matrix() * H_PB_W * DI_W;
+    const Matrix6X<T> G_W = P_B_W.CopyToFullMatrix6() * H_PB_W * DI_W;
 
     // Cache G_W.
     bc.get_mutable_G_W(topology_.index) = G_W;
@@ -927,7 +928,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
 
     // Compute and cache P_PB_W.
     bc.get_mutable_P_PB_W(topology_.index) = ArticulatedBodyInertia<T>(
-        T_W * P_B_W.get_matrix()
+        T_W * P_B_W.CopyToFullMatrix6()
     );
 
     // Define a few zero helper vectors.
@@ -1012,7 +1013,7 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
 
     // Compute the articulated body bias force.
     SpatialForce<T> Fz_B_W = SpatialForce<T>(
-        P_B_W.get_matrix() * Aa_B_W.get_coeffs() + Fb_B_W.get_coeffs()
+        P_B_W.CopyToFullMatrix6() * Aa_B_W.get_coeffs() + Fb_B_W.get_coeffs()
     );
 
     // Subtract off external force contribution.
