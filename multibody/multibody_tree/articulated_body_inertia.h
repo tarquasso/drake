@@ -47,6 +47,9 @@ namespace multibody {
 /// They are already available to link against in the containing library.
 template<typename T>
 class ArticulatedBodyInertia {
+  // Typedef for SelfAdjointView.
+  typedef Eigen::SelfAdjointView<const Matrix6<T>, Eigen::Lower> AdjointView;
+
  public:
   DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(ArticulatedBodyInertia)
 
@@ -192,6 +195,33 @@ class ArticulatedBodyInertia {
   {
     matrix_.template triangularView<Eigen::Lower>() = matrix_ + P_BP_E.matrix_;
     return *this;
+  }
+
+  /// Multiplies `this` articulated body inertia on the right by a matrix or
+  /// vector. This method does not construct the full inertia matrix, as it
+  /// only operates on the lower triangular region.
+  ///
+  /// @note This method does not evaulate the product immediately. Instead, it
+  /// returns an intermediate Eigen quantity that can be optimized automatically
+  /// during compile time.
+  template<typename OtherDerived>
+  const Eigen::Product<AdjointView, OtherDerived>
+  operator*(const Eigen::MatrixBase<OtherDerived>& rhs) const {
+    return matrix_.template selfadjointView<Eigen::Lower>() * rhs;
+  }
+
+  /// Multiplies `this` articulated body inertia on the left by a matrix or
+  /// vector. This method does not construct the full inertia matrix, as it
+  /// only operates on the lower triangular region.
+  ///
+  /// @note This method does not evaulate the product immediately. Instead, it
+  /// returns an intermediate Eigen quantity that can be optimized automatically
+  /// during compile time.
+  template<typename OtherDerived> friend
+  const Eigen::Product<OtherDerived, AdjointView>
+  operator*(const Eigen::MatrixBase<OtherDerived>& lhs,
+            const ArticulatedBodyInertia& rhs) {
+    return lhs * rhs.matrix_.template selfadjointView<Eigen::Lower>();
   }
 
  private:

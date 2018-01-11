@@ -31,7 +31,7 @@ void TestKukaArmForwardDynamics(
   kuka_robot.CalcForwardDynamicsViaInverse(q, qdot, &qddot_expected);
 
   // Compare expected results against actual qddot.
-  const double kTolerance = 30 * kEpsilon;
+  const double kTolerance = 50 * kEpsilon;
   EXPECT_TRUE(CompareMatrices(
       qddot, qddot_expected, kTolerance, MatrixCompareType::relative));
 }
