@@ -67,8 +67,7 @@ class ArticulatedBodyInertia {
   /// @note Only the values in the lower triangular part of the matrix will be
   /// used to construct the articulated body inertia.
   explicit ArticulatedBodyInertia(const Matrix6<T>& P_SA_E) {
-    matrix_.template triangularView<Eigen::Lower>() =
-        P_SA_E.template triangularView<Eigen::Lower>();
+    matrix_.template triangularView<Eigen::Lower>() = P_SA_E;
   }
 
   /// Constructs an articulated body inertia from the spatial inertia of a
@@ -80,17 +79,14 @@ class ArticulatedBodyInertia {
   ///                   point A and expressed in frame E.
   explicit ArticulatedBodyInertia(const SpatialInertia<T>& M_SA_E) {
     matrix_.template triangularView<Eigen::Lower>() =
-        M_SA_E.CopyToFullMatrix6().template triangularView<Eigen::Lower>();
+        M_SA_E.CopyToFullMatrix6();
   }
 
   /// Copy to a full 6x6 matrix representation.
   Matrix6<T> CopyToFullMatrix6() const {
     Matrix6<T> P;
-    P.template triangularView<Eigen::StrictlyLower>() =
-        matrix_.template triangularView<Eigen::StrictlyLower>();
-    P.template triangularView<Eigen::StrictlyUpper>() =
-        matrix_.template triangularView<Eigen::StrictlyLower>().transpose();
-    P.template diagonal() = matrix_.template diagonal();
+    P.template triangularView<Eigen::Lower>() = matrix_;
+    P.template triangularView<Eigen::StrictlyUpper>() = matrix_.transpose();
     return P;
   }
 
