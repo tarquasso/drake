@@ -891,8 +891,6 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
     // Compute articulated body inertia for body.
     ArticulatedBodyInertia<T> P_B_W = ArticulatedBodyInertia<T>(M_B_W);
 
-    std::cout << "OUTSIDE" << std::endl;
-
     // Add articulated body inertia contributions from all children.
     for (const BodyNode<T>* child : children_) {
       // Get X_BC (which is X_PB for child).
@@ -910,7 +908,6 @@ class BodyNode : public MultibodyTreeElement<BodyNode<T>, BodyNodeIndex> {
 
       // Add P_BCb_W contribution to articulated body inertia.
       P_B_W += P_BCb_W;
-
     }
 
     // Compute D_W, the articulated body hinge inertia.
