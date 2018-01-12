@@ -78,7 +78,7 @@ const BallMobilizer<T>& BallMobilizer<T>::set_angular_velocity(
 template <typename T>
 void BallMobilizer<T>::set_zero_state(const systems::Context<T>& context,
                                           systems::State<T>* state) const {
-  //this->set_default_zero_state(context, state);
+  this->set_default_zero_state(context, state);
 }
 
 template <typename T>
