@@ -269,11 +269,27 @@ drake_cc_googletest(
     ],
 )
 
-drake_cc_googletest(
-    name = "3d_double_pendulum_test",
+drake_cc_library(
+    name = "double_pendulum_3d_plant",
+    srcs = ["test/double_pendulum_3d_plant.cc"],
+    hdrs = ["test/double_pendulum_3d_plant.h"],
     deps = [
-        ":multibody_tree",
+        "//drake/common:default_scalars",
+        "//drake/geometry:geometry_ids",
+        "//drake/geometry:geometry_system",
+        "//drake/math:geometric_transform",
+        "//drake/multibody/multibody_tree",
+        "//drake/systems/framework",
+        "//drake/systems/framework:leaf_system",
+    ],
+)
+
+drake_cc_googletest(
+    name = "double_pendulum_3d_test",
+    deps = [
+        ":double_pendulum_3d_plant",
         "//drake/common/test_utilities:eigen_matrix_compare",
+        "//drake/systems/analysis:simulator",
     ],
 )
 
