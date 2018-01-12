@@ -6,7 +6,7 @@
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/examples/cosserat_rod/rod_element.h"
-#include "drake/lcmtypes/drake/lcmt_viewer_load_robot.hpp"
+#include "drake/lcmt_viewer_load_robot.hpp"
 #include "drake/multibody/multibody_tree/rigid_body.h"
 #include "drake/multibody/multibody_tree/multibody_tree.h"
 #include "drake/systems/rendering/pose_bundle.h"

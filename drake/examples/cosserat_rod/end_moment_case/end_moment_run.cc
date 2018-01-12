@@ -21,7 +21,7 @@
 
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcmt_viewer_draw.hpp"
-#include "drake/lcmtypes/drake/lcmt_viewer_load_robot.hpp"
+#include "drake/lcmt_viewer_load_robot.hpp"
 #include "drake/systems/lcm/lcm_publisher_system.h"
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/lcm/serializer.h"
@@ -152,7 +152,7 @@ int do_main(int argc, char* argv[]) {
   systems::Simulator<double> simulator(*diagram);
   systems::Context<double>& rod_context =
       diagram->GetMutableSubsystemContext(*rod_plant,
-                                          simulator.get_mutable_context());
+                                          &simulator.get_mutable_context());
 
   rod_plant->SetBentState(&rod_context);
   //rod_plant->SetHorizontalCantileverState(&rod_context);
@@ -170,7 +170,7 @@ int do_main(int argc, char* argv[]) {
   //    *diagram, dt, simulator.get_mutable_context());
   ImplicitEulerIntegrator<double>* integrator =
       simulator.reset_integrator<ImplicitEulerIntegrator<double>>(
-          *diagram, simulator.get_mutable_context());
+          *diagram, &simulator.get_mutable_context());
   //integrator->set_jacobian_computation_scheme(
   //    ImplicitEulerIntegrator<double>::JacobianComputationScheme::
   //    kCentralDifference);

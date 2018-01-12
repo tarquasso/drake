@@ -401,7 +401,7 @@ template <typename T>
 void CosseratRodPlant<T>::SetHorizontalCantileverState(
     systems::Context<T>* context) const {
 
-  model_.SetDefaults(context);
+  model_.SetDefaultContext(context);
 
 #if 0
   // The first joint, connecting to the world has angle = -pi/2:
@@ -425,7 +425,7 @@ void CosseratRodPlant<T>::SetBentState(
   using std::cos;
   using std::sin;
 
-  model_.SetDefaults(context);
+  model_.SetDefaultContext(context);
 
   // Set the rest to zero angle.
   for (int joint_index(0); joint_index < num_elements_; ++joint_index) {
@@ -460,7 +460,7 @@ void CosseratRodPlant<T>::OutputState(
     const systems::Context<T>& context, 
     systems::BasicVector<T>* state_port_value) const {
   // Output port value is just the continuous or discrete state.
-  const VectorX<T> state = context.get_continuous_state()->CopyToVector();
+  const VectorX<T> state = context.get_continuous_state().CopyToVector();
   state_port_value->SetFromVector(state);
 }
 
@@ -492,7 +492,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   PRINT_VAR(last_element_->get_node_index());
 
   MatrixX<T> M(nv, nv);
-  model_.CalcMassMatrixViaInverseDynamics(context, pc, &M);
+  model_.CalcMassMatrixViaInverseDynamics(context, &M);
   // Check if M is symmetric.
   const T err_sym = (M - M.transpose()).norm();
   PRINT_VAR(err_sym);
@@ -548,7 +548,14 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   }
 
   VectorX<T> C(nv);
-  model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
+  //model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
+
+  const VectorX<T> vdot = VectorX<T>::Zero(model_.get_num_velocities());
+  std::vector<SpatialAcceleration<T>> A_WB_array(model_.get_num_bodies());
+  std::vector<SpatialForce<T>> F_BMo_W_array(model_.get_num_bodies());
+  model_.CalcInverseDynamics(
+      context, pc, vc, vdot, Fapplied_Bo_W_array, tau,
+      &A_WB_array, &F_BMo_W_array, &C);
 
   PRINT_VAR(C.transpose());
 
