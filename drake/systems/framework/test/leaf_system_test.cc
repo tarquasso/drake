@@ -8,7 +8,8 @@
 #include <gtest/gtest.h>
 
 #include "drake/common/eigen_types.h"
-#include "drake/common/test/is_dynamic_castable.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/is_dynamic_castable.h"
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/leaf_context.h"
@@ -36,10 +37,24 @@ class TestSystem : public LeafSystem<T> {
     const double period = 10.0;
     const double offset = 5.0;
     this->DeclarePeriodicDiscreteUpdate(period, offset);
+    optional<typename Event<T>::PeriodicAttribute> periodic_attr =
+        this->GetUniquePeriodicDiscreteUpdateAttribute();
+    ASSERT_TRUE(periodic_attr);
+    EXPECT_EQ(periodic_attr.value().period_sec, period);
+    EXPECT_EQ(periodic_attr.value().offset_sec, offset);
   }
 
   void AddPeriodicUpdate(double period) {
     const double offset = 0.0;
+    this->DeclarePeriodicDiscreteUpdate(period, offset);
+    optional<Event<double>::PeriodicAttribute> periodic_attr =
+       this->GetUniquePeriodicDiscreteUpdateAttribute();
+    ASSERT_TRUE(periodic_attr);
+    EXPECT_EQ(periodic_attr.value().period_sec, period);
+    EXPECT_EQ(periodic_attr.value().offset_sec, offset);
+  }
+
+  void AddPeriodicUpdate(double period, double offset) {
     this->DeclarePeriodicDiscreteUpdate(period, offset);
   }
 
@@ -63,12 +78,12 @@ class TestSystem : public LeafSystem<T> {
     return std::make_unique<Parameters<T>>(std::make_unique<BasicVector<T>>(2));
   }
 
-  void SetDefaultParameters(const LeafContext<T>& context,
+  void SetDefaultParameters(const Context<T>& context,
                             Parameters<T>* params) const override {
-    BasicVector<T>* param = params->get_mutable_numeric_parameter(0);
+    BasicVector<T>& param = params->get_mutable_numeric_parameter(0);
     Vector2<T> p0;
     p0 << 13.0, 7.0;
-    param->SetFromVector(p0);
+    param.SetFromVector(p0);
   }
 
   const BasicVector<T>& GetVanillaNumericParameters(
@@ -76,7 +91,7 @@ class TestSystem : public LeafSystem<T> {
     return this->GetNumericParameter(context, 0 /* index */);
   }
 
-  BasicVector<T>* GetVanillaMutableNumericParameters(
+  BasicVector<T>& GetVanillaMutableNumericParameters(
       Context<T>* context) const {
     return this->GetMutableNumericParameter(context, 0 /* index */);
   }
@@ -104,6 +119,31 @@ TEST_F(LeafSystemTest, NoUpdateEvents) {
   EXPECT_EQ(std::numeric_limits<double>::infinity(), time);
   EXPECT_TRUE(!leaf_info_->HasEvents());
 }
+
+// Tests that multiple periodic updates with the same periodic attribute are
+// identified as unique.
+TEST_F(LeafSystemTest, MultipleUniquePeriods) {
+  system_.AddPeriodicUpdate();
+  system_.AddPeriodicUpdate();
+
+  // Verify the size of the periodic events mapping.
+  auto mapping = system_.GetPeriodicEvents();
+  ASSERT_EQ(mapping.size(), 1);
+  EXPECT_EQ(mapping.begin()->second.size(), 2);
+}
+
+// Tests that periodic updates with different periodic attributes are
+// identified as non-unique.
+TEST_F(LeafSystemTest, MultipleNonUniquePeriods) {
+  system_.AddPeriodicUpdate(1.0, 2.0);
+  system_.AddPeriodicUpdate(2.0, 3.0);
+
+  // Verify the size of the periodic events mapping.
+  auto mapping = system_.GetPeriodicEvents();
+  ASSERT_EQ(mapping.size(), 2);
+  EXPECT_FALSE(system_.GetUniquePeriodicDiscreteUpdateAttribute());
+}
+
 
 // Tests that if the current time is smaller than the offset, the next
 // update time is the offset.
@@ -279,9 +319,9 @@ TEST_F(LeafSystemTest, Parameters) {
       system_.GetVanillaNumericParameters(*context);
   EXPECT_EQ(13.0, vec[0]);
   EXPECT_EQ(7.0, vec[1]);
-  BasicVector<double>* mutable_vec =
+  BasicVector<double>& mutable_vec =
       system_.GetVanillaMutableNumericParameters(context.get());
-  mutable_vec->SetAtIndex(1, 42.0);
+  mutable_vec.SetAtIndex(1, 42.0);
   EXPECT_EQ(42.0, vec[1]);
 }
 
@@ -289,11 +329,11 @@ TEST_F(LeafSystemTest, Parameters) {
 TEST_F(LeafSystemTest, DeclareVanillaMiscContinuousState) {
   system_.DeclareContinuousState(2);
   std::unique_ptr<Context<double>> context = system_.CreateDefaultContext();
-  const ContinuousState<double>* xc = context->get_continuous_state();
-  EXPECT_EQ(2, xc->size());
-  EXPECT_EQ(0, xc->get_generalized_position().size());
-  EXPECT_EQ(0, xc->get_generalized_velocity().size());
-  EXPECT_EQ(2, xc->get_misc_continuous_state().size());
+  const ContinuousState<double>& xc = context->get_continuous_state();
+  EXPECT_EQ(2, xc.size());
+  EXPECT_EQ(0, xc.get_generalized_position().size());
+  EXPECT_EQ(0, xc.get_generalized_velocity().size());
+  EXPECT_EQ(2, xc.get_misc_continuous_state().size());
 }
 
 // Tests that the leaf system reserved the declared misc continuous state of
@@ -301,14 +341,14 @@ TEST_F(LeafSystemTest, DeclareVanillaMiscContinuousState) {
 TEST_F(LeafSystemTest, DeclareTypedMiscContinuousState) {
   system_.DeclareContinuousState(MyVector2d());
   std::unique_ptr<Context<double>> context = system_.CreateDefaultContext();
-  const ContinuousState<double>* xc = context->get_continuous_state();
+  const ContinuousState<double>& xc = context->get_continuous_state();
   // Check that type was preserved.
   EXPECT_NE(nullptr, dynamic_cast<MyVector2d*>(
-                         context->get_mutable_continuous_state_vector()));
-  EXPECT_EQ(2, xc->size());
-  EXPECT_EQ(0, xc->get_generalized_position().size());
-  EXPECT_EQ(0, xc->get_generalized_velocity().size());
-  EXPECT_EQ(2, xc->get_misc_continuous_state().size());
+                         &context->get_mutable_continuous_state_vector()));
+  EXPECT_EQ(2, xc.size());
+  EXPECT_EQ(0, xc.get_generalized_position().size());
+  EXPECT_EQ(0, xc.get_generalized_velocity().size());
+  EXPECT_EQ(2, xc.get_misc_continuous_state().size());
 }
 
 // Tests that the leaf system reserved the declared continuous state with
@@ -316,11 +356,11 @@ TEST_F(LeafSystemTest, DeclareTypedMiscContinuousState) {
 TEST_F(LeafSystemTest, DeclareVanillaContinuousState) {
   system_.DeclareContinuousState(4, 3, 2);
   std::unique_ptr<Context<double>> context = system_.CreateDefaultContext();
-  const ContinuousState<double>* xc = context->get_continuous_state();
-  EXPECT_EQ(4 + 3 + 2, xc->size());
-  EXPECT_EQ(4, xc->get_generalized_position().size());
-  EXPECT_EQ(3, xc->get_generalized_velocity().size());
-  EXPECT_EQ(2, xc->get_misc_continuous_state().size());
+  const ContinuousState<double>& xc = context->get_continuous_state();
+  EXPECT_EQ(4 + 3 + 2, xc.size());
+  EXPECT_EQ(4, xc.get_generalized_position().size());
+  EXPECT_EQ(3, xc.get_generalized_velocity().size());
+  EXPECT_EQ(2, xc.get_misc_continuous_state().size());
 }
 
 // Tests that the leaf system reserved the declared continuous state with
@@ -329,15 +369,15 @@ TEST_F(LeafSystemTest, DeclareTypedContinuousState) {
   using MyVector9d = MyVector<4 + 3 + 2, double>;
   system_.DeclareContinuousState(MyVector9d(), 4, 3, 2);
   std::unique_ptr<Context<double>> context = system_.CreateDefaultContext();
-  const ContinuousState<double>* xc = context->get_continuous_state();
+  const ContinuousState<double>& xc = context->get_continuous_state();
   // Check that type was preserved.
   EXPECT_NE(nullptr, dynamic_cast<MyVector9d*>(
-                         context->get_mutable_continuous_state_vector()));
+                         &context->get_mutable_continuous_state_vector()));
   // Check that dimensions were preserved.
-  EXPECT_EQ(4 + 3 + 2, xc->size());
-  EXPECT_EQ(4, xc->get_generalized_position().size());
-  EXPECT_EQ(3, xc->get_generalized_velocity().size());
-  EXPECT_EQ(2, xc->get_misc_continuous_state().size());
+  EXPECT_EQ(4 + 3 + 2, xc.size());
+  EXPECT_EQ(4, xc.get_generalized_position().size());
+  EXPECT_EQ(3, xc.get_generalized_velocity().size());
+  EXPECT_EQ(2, xc.get_misc_continuous_state().size());
 }
 
 TEST_F(LeafSystemTest, DeclarePerStepEvents) {
@@ -380,6 +420,10 @@ class DeclaredModelPortsSystem : public LeafSystem<double> {
     this->DeclareInputPort(kVectorValued, 1);
     this->DeclareVectorInputPort(MyVector2d());
     this->DeclareAbstractInputPort(Value<int>(22));
+    this->DeclareVectorInputPort(MyVector2d(),
+                                 RandomDistribution::kUniform);
+    this->DeclareVectorInputPort(MyVector2d(),
+                                 RandomDistribution::kGaussian);
 
     // Output port 0 uses a BasicVector base class model.
     this->DeclareVectorOutputPort(BasicVector<double>(3),
@@ -443,12 +487,14 @@ class DeclaredModelPortsSystem : public LeafSystem<double> {
 GTEST_TEST(ModelLeafSystemTest, ModelPortsTopology) {
   DeclaredModelPortsSystem dut;
 
-  ASSERT_EQ(dut.get_num_input_ports(), 3);
+  ASSERT_EQ(dut.get_num_input_ports(), 5);
   ASSERT_EQ(dut.get_num_output_ports(), 4);
 
   const InputPortDescriptor<double>& in0 = dut.get_input_port(0);
   const InputPortDescriptor<double>& in1 = dut.get_input_port(1);
   const InputPortDescriptor<double>& in2 = dut.get_input_port(2);
+  const InputPortDescriptor<double>& in3 = dut.get_input_port(3);
+  const InputPortDescriptor<double>& in4 = dut.get_input_port(4);
 
   const OutputPort<double>& out0 = dut.get_output_port(0);
   const OutputPort<double>& out1 = dut.get_output_port(1);
@@ -458,6 +504,8 @@ GTEST_TEST(ModelLeafSystemTest, ModelPortsTopology) {
   EXPECT_EQ(in0.get_data_type(), kVectorValued);
   EXPECT_EQ(in1.get_data_type(), kVectorValued);
   EXPECT_EQ(in2.get_data_type(), kAbstractValued);
+  EXPECT_EQ(in3.get_data_type(), kVectorValued);
+  EXPECT_EQ(in4.get_data_type(), kVectorValued);
 
   EXPECT_EQ(out0.get_data_type(), kVectorValued);
   EXPECT_EQ(out1.get_data_type(), kVectorValued);
@@ -466,10 +514,24 @@ GTEST_TEST(ModelLeafSystemTest, ModelPortsTopology) {
 
   EXPECT_EQ(in0.size(), 1);
   EXPECT_EQ(in1.size(), 2);
+  EXPECT_EQ(in3.size(), 2);
+  EXPECT_EQ(in4.size(), 2);
 
   EXPECT_EQ(out0.size(), 3);
   EXPECT_EQ(out1.size(), 4);
   EXPECT_EQ(out3.size(), 2);
+
+  EXPECT_FALSE(in0.is_random());
+  EXPECT_FALSE(in1.is_random());
+  EXPECT_FALSE(in2.is_random());
+  EXPECT_TRUE(in3.is_random());
+  EXPECT_TRUE(in4.is_random());
+
+  EXPECT_FALSE(in0.get_random_type());
+  EXPECT_FALSE(in1.get_random_type());
+  EXPECT_FALSE(in2.get_random_type());
+  EXPECT_EQ(in3.get_random_type(), RandomDistribution::kUniform);
+  EXPECT_EQ(in4.get_random_type(), RandomDistribution::kGaussian);
 }
 
 // Tests that the model values specified in Declare{...} are actually used by
@@ -565,12 +627,12 @@ GTEST_TEST(ModelLeafSystemTest, ModelNumericParams) {
   DeclaredModelPortsSystem dut;
   auto context = dut.CreateDefaultContext();
   ASSERT_EQ(context->num_numeric_parameters(), 1);
-  const BasicVector<double>* const param = context->get_numeric_parameter(0);
+  const BasicVector<double>& param = context->get_numeric_parameter(0);
   // Check that type was preserved.
-  ASSERT_NE(nullptr, dynamic_cast<const MyVector2d*>(param));
-  EXPECT_EQ(2, param->size());
-  EXPECT_EQ(1.1, param->GetAtIndex(0));
-  EXPECT_EQ(2.2, param->GetAtIndex(1));
+  ASSERT_TRUE(is_dynamic_castable<const MyVector2d>(&param));
+  EXPECT_EQ(2, param.size());
+  EXPECT_EQ(1.1, param.GetAtIndex(0));
+  EXPECT_EQ(2.2, param.GetAtIndex(1));
 }
 
 // Tests that DeclareAbstractState works expectedly.
@@ -1082,6 +1144,12 @@ GTEST_TEST(LeafSystemScalarConverterTest, AutoDiffYes) {
   auto maybe = dut.ToAutoDiffXdMaybe();
   ASSERT_NE(maybe, nullptr);
   EXPECT_EQ(maybe->get_name(), "special_name");
+
+  // Spot check the specific converter object.
+  EXPECT_TRUE((
+      dut.get_system_scalar_converter().IsConvertible<AutoDiffXd, double>()));
+  EXPECT_FALSE((
+      dut.get_system_scalar_converter().IsConvertible<double, double>()));
 }
 
 // Sanity check the default implementation of ToAutoDiffXd, for cases that
@@ -1296,13 +1364,32 @@ GTEST_TEST(CustomContextTest, AllocatedContext) {
   ASSERT_TRUE(is_dynamic_castable<CustomContext<double>>(defaulted.get()));
 }
 
+// Specializes BasicVector to add inequality constraints.
+template <typename T, int bias>
+class ConstraintBasicVector final : public BasicVector<T> {
+ public:
+  static constexpr int kSize = 3;
+  ConstraintBasicVector() : BasicVector<T>(VectorX<T>::Zero(kSize)) {}
+  BasicVector<T>* DoClone() const override { return new ConstraintBasicVector; }
+
+  // Declare a single constraint `this[0] >= bias`.
+  void CalcInequalityConstraint(VectorX<T>* value) const override {
+    value->resize(1);
+    (*value)[0] = (*this)[0] - T{bias};
+  }
+};
+
 class ConstraintTestSystem : public LeafSystem<double> {
  public:
   ConstraintTestSystem() { DeclareContinuousState(2); }
 
   // Expose some protected methods for testing.
-  using LeafSystem<double>::DeclareInequalityConstraint;
+  using LeafSystem<double>::DeclareContinuousState;
   using LeafSystem<double>::DeclareEqualityConstraint;
+  using LeafSystem<double>::DeclareInequalityConstraint;
+  using LeafSystem<double>::DeclareNumericParameter;
+  using LeafSystem<double>::DeclareVectorInputPort;
+  using LeafSystem<double>::DeclareVectorOutputPort;
 
   void CalcState0Constraint(const Context<double>& context,
                             Eigen::VectorXd* value) const {
@@ -1311,6 +1398,12 @@ class ConstraintTestSystem : public LeafSystem<double> {
   void CalcStateConstraint(const Context<double>& context,
                            Eigen::VectorXd* value) const {
     *value = context.get_continuous_state_vector().CopyToVector();
+  }
+
+  void CalcOutput(
+      const Context<double>& context,
+      ConstraintBasicVector<double, 44>* output) const {
+    output->SetFromVector(Eigen::VectorXd::Constant(output->size(), 4.0));
   }
 
  private:
@@ -1340,7 +1433,7 @@ GTEST_TEST(SystemConstraintTest, ClassMethodTest) {
   EXPECT_EQ(dut.get_num_constraints(), 2);
 
   auto context = dut.CreateDefaultContext();
-  context->get_mutable_continuous_state_vector()->SetFromVector(
+  context->get_mutable_continuous_state_vector().SetFromVector(
       Eigen::Vector2d(5.0, 7.0));
 
   EXPECT_EQ(dut.get_constraint(SystemConstraintIndex(0)).size(), 1);
@@ -1378,7 +1471,7 @@ GTEST_TEST(SystemConstraintTest, FunctionHandleTest) {
   EXPECT_EQ(dut.get_num_constraints(), 1);
 
   auto context = dut.CreateDefaultContext();
-  context->get_mutable_continuous_state_vector()->SetFromVector(
+  context->get_mutable_continuous_state_vector().SetFromVector(
       Eigen::Vector2d(5.0, 7.0));
 
   Eigen::VectorXd value;
@@ -1401,6 +1494,227 @@ GTEST_TEST(SystemConstraintTest, FunctionHandleTest) {
   EXPECT_TRUE(equality_constraint.is_equality_constraint());
   EXPECT_EQ(equality_constraint.description(), "x1eq");
 }
+
+// Tests constraints implied by BasicVector subtypes.
+GTEST_TEST(SystemConstraintTest, ModelVectorTest) {
+  ConstraintTestSystem dut;
+  EXPECT_EQ(dut.get_num_constraints(), 0);
+
+  // Declaring a constrained model vector parameter should add constraints.
+  // We want `vec[0] >= 11` on the parameter vector.
+  using ParameterVector = ConstraintBasicVector<double, 11>;
+  dut.DeclareNumericParameter(ParameterVector{});
+  ASSERT_EQ(dut.get_num_constraints(), 1);
+  using Index = SystemConstraintIndex;
+  const SystemConstraint<double>& constraint0 = dut.get_constraint(Index{0});
+  EXPECT_FALSE(constraint0.is_equality_constraint());
+  EXPECT_THAT(constraint0.description(), ::testing::ContainsRegex(
+      "^parameter 0 of type .*ConstraintBasicVector<double,11>$"));
+
+  // Declaring constrained model continuous state should add constraints.
+  // We want `vec[0] >= 22` on the state vector.
+  using StateVector = ConstraintBasicVector<double, 22>;
+  dut.DeclareContinuousState(StateVector{}, 0, 0, StateVector::kSize);
+  EXPECT_EQ(dut.get_num_constraints(), 2);
+  const SystemConstraint<double>& constraint1 = dut.get_constraint(Index{1});
+  EXPECT_FALSE(constraint1.is_equality_constraint());
+  EXPECT_THAT(constraint1.description(), ::testing::ContainsRegex(
+      "^continuous state of type .*ConstraintBasicVector<double,22>$"));
+
+  // Declaring a constrained model vector input should add constraints.
+  // We want `vec[0] >= 33` on the input vector.
+  using InputVector = ConstraintBasicVector<double, 33>;
+  dut.DeclareVectorInputPort(InputVector{});
+  EXPECT_EQ(dut.get_num_constraints(), 3);
+  const SystemConstraint<double>& constraint2 = dut.get_constraint(Index{2});
+  EXPECT_FALSE(constraint2.is_equality_constraint());
+  EXPECT_THAT(constraint2.description(), ::testing::ContainsRegex(
+      "^input 0 of type .*ConstraintBasicVector<double,33>$"));
+
+  // Declaring a constrained model vector output should add constraints.
+  // We want `vec[0] >= 44` on the output vector.
+  dut.DeclareVectorOutputPort(&ConstraintTestSystem::CalcOutput);
+  EXPECT_EQ(dut.get_num_constraints(), 4);
+  const SystemConstraint<double>& constraint3 = dut.get_constraint(Index{3});
+  EXPECT_FALSE(constraint3.is_equality_constraint());
+  EXPECT_THAT(constraint3.description(), ::testing::ContainsRegex(
+      "^output 0 of type .*ConstraintBasicVector<double,44>$"));
+
+  // We'll work through the Calc results all at the end, so that we don't
+  // change the shape of the System and Context while we're Calc'ing.
+  auto context = dut.CreateDefaultContext();
+
+  // `param0[0] >= 11.0` with `param0[0] == 1.0` produces `-10.0 >= 0.0`.
+  context->get_mutable_numeric_parameter(0).SetAtIndex(0, 1.0);
+  Eigen::VectorXd value0;
+  constraint0.Calc(*context, &value0);
+  EXPECT_TRUE(CompareMatrices(value0, Vector1<double>::Constant(-10.0)));
+
+  // `xc[0] >= 22.0` with `xc[0] == 2.0` produces `-20.0 >= 0.0`.
+  context->get_mutable_continuous_state_vector().SetAtIndex(0, 2.0);
+  Eigen::VectorXd value1;
+  constraint1.Calc(*context, &value1);
+  EXPECT_TRUE(CompareMatrices(value1, Vector1<double>::Constant(-20.0)));
+
+  // `u0[0] >= 33.0` with `u0[0] == 3.0` produces `-30.0 >= 0.0`.
+  auto input = std::make_unique<InputVector>();
+  input->SetAtIndex(0, 3.0);
+  context->FixInputPort(0, std::move(input));
+  Eigen::VectorXd value2;
+  constraint2.Calc(*context, &value2);
+  EXPECT_TRUE(CompareMatrices(value2, Vector1<double>::Constant(-30.0)));
+
+  // `y0[0] >= 44.0` with `y0[0] == 4.0` produces `-40.0 >= 0.0`.
+  Eigen::VectorXd value3;
+  constraint3.Calc(*context, &value3);
+  EXPECT_TRUE(CompareMatrices(value3, Vector1<double>::Constant(-40.0)));
+}
+
+// Note: this class is duplicated in diagram_test.
+class RandomContextTestSystem : public LeafSystem<double> {
+ public:
+  RandomContextTestSystem() {
+    this->DeclareContinuousState(
+        BasicVector<double>(Eigen::Vector2d(-1.0, -2.0)));
+    this->DeclareNumericParameter(
+        BasicVector<double>(Eigen::Vector3d(1.0, 2.0, 3.0)));
+  }
+
+  void SetRandomState(const Context<double>& context, State<double>* state,
+                      RandomGenerator* generator) const override {
+    std::normal_distribution<double> normal;
+    for (int i = 0; i < context.get_continuous_state_vector().size(); i++) {
+      state->get_mutable_continuous_state().get_mutable_vector().SetAtIndex(
+          i, normal(*generator));
+    }
+  }
+  void SetRandomParameters(const Context<double>& context,
+                           Parameters<double>* params,
+                           RandomGenerator* generator) const override {
+    std::uniform_real_distribution<double> uniform;
+    for (int i = 0; i < context.get_numeric_parameter(0).size(); i++) {
+      params->get_mutable_numeric_parameter(0).SetAtIndex(i,
+                                                          uniform(*generator));
+    }
+  }
+};
+
+GTEST_TEST(RandomContextTest, SetRandomTest) {
+  RandomContextTestSystem system;
+
+  auto context = system.CreateDefaultContext();
+
+  // Back-up the numeric context values.
+  Eigen::Vector2d state = context->get_continuous_state_vector().CopyToVector();
+  Eigen::Vector3d params = context->get_numeric_parameter(0).CopyToVector();
+
+  // Should return the (same) original values.
+  system.SetDefaultContext(context.get());
+  EXPECT_TRUE((state.array() ==
+               context->get_continuous_state_vector().CopyToVector().array())
+                  .all());
+  EXPECT_TRUE(
+      (params.array() == context->get_numeric_parameter(0).get_value().array())
+          .all());
+
+  RandomGenerator generator;
+
+  // Should return different values.
+  system.SetRandomContext(context.get(), &generator);
+  EXPECT_TRUE((state.array() !=
+               context->get_continuous_state_vector().CopyToVector().array())
+                  .all());
+  EXPECT_TRUE(
+      (params.array() != context->get_numeric_parameter(0).get_value().array())
+          .all());
+
+  // Update backup.
+  state = context->get_continuous_state_vector().CopyToVector();
+  params = context->get_numeric_parameter(0).CopyToVector();
+
+  // Should return different values (again).
+  system.SetRandomContext(context.get(), &generator);
+  EXPECT_TRUE((state.array() !=
+               context->get_continuous_state_vector().CopyToVector().array())
+                  .all());
+  EXPECT_TRUE(
+      (params.array() != context->get_numeric_parameter(0).get_value().array())
+          .all());
+}
+
+// Tests initialization works properly for a leaf system.
+GTEST_TEST(InitializationTest, InitializationTest) {
+  class InitializationTestSystem : public LeafSystem<double> {
+   public:
+    InitializationTestSystem() {
+      PublishEvent<double> pub_event(
+          Event<double>::TriggerType::kInitialization,
+          std::bind(&InitializationTestSystem::InitPublish, this,
+                    std::placeholders::_1, std::placeholders::_2));
+      DeclareInitializationEvent(pub_event);
+
+      DeclareInitializationEvent(DiscreteUpdateEvent<double>(
+          Event<double>::TriggerType::kInitialization));
+      DeclareInitializationEvent(UnrestrictedUpdateEvent<double>(
+          Event<double>::TriggerType::kInitialization));
+    }
+
+    bool get_pub_init() const { return pub_init_; }
+    bool get_dis_update_init() const { return dis_update_init_; }
+    bool get_unres_update_init() const { return unres_update_init_; }
+
+   private:
+    void InitPublish(const Context<double>&,
+                     const PublishEvent<double>& event) const {
+      EXPECT_EQ(event.get_trigger_type(),
+                Event<double>::TriggerType::kInitialization);
+      pub_init_ = true;
+    }
+
+    void DoCalcDiscreteVariableUpdates(
+        const Context<double>&,
+        const std::vector<const DiscreteUpdateEvent<double>*>& events,
+        DiscreteValues<double>*) const final {
+      EXPECT_EQ(events.size(), 1);
+      EXPECT_EQ(events.front()->get_trigger_type(),
+                Event<double>::TriggerType::kInitialization);
+      dis_update_init_ = true;
+    }
+
+    void DoCalcUnrestrictedUpdate(
+        const Context<double>&,
+        const std::vector<const UnrestrictedUpdateEvent<double>*>& events,
+        State<double>*) const final {
+      EXPECT_EQ(events.size(), 1);
+      EXPECT_EQ(events.front()->get_trigger_type(),
+                Event<double>::TriggerType::kInitialization);
+      unres_update_init_ = true;
+    }
+
+    mutable bool pub_init_{false};
+    mutable bool dis_update_init_{false};
+    mutable bool unres_update_init_{false};
+  };
+
+  InitializationTestSystem dut;
+  auto context = dut.CreateDefaultContext();
+  auto discrete_updates = dut.AllocateDiscreteVariables();
+  auto state = context->CloneState();
+  auto init_events = dut.AllocateCompositeEventCollection();
+  dut.GetInitializationEvents(*context, init_events.get());
+
+  dut.Publish(*context, init_events->get_publish_events());
+  dut.CalcDiscreteVariableUpdates(*context,
+                                  init_events->get_discrete_update_events(),
+                                  discrete_updates.get());
+  dut.CalcUnrestrictedUpdate(
+      *context, init_events->get_unrestricted_update_events(), state.get());
+
+  EXPECT_TRUE(dut.get_pub_init());
+  EXPECT_TRUE(dut.get_dis_update_init());
+  EXPECT_TRUE(dut.get_unres_update_init());
+}
+
 
 }  // namespace
 }  // namespace systems

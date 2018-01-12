@@ -10,7 +10,6 @@
 #include "drake/lcm/drake_lcm_interface.h"
 #include "drake/lcm/drake_lcm_message_handler_interface.h"
 #include "drake/systems/framework/basic_vector.h"
-#include "drake/systems/framework/leaf_context.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/lcm/lcm_and_vector_base_translator.h"
 #include "drake/systems/lcm/lcm_translator_dictionary.h"
@@ -147,7 +146,7 @@ class LcmSubscriberSystem : public LeafSystem<double>,
       const Context<double>&,
       const std::vector<const systems::UnrestrictedUpdateEvent<double>*>&,
       State<double>* state) const override {
-    ProcessMessageAndStoreToAbstractState(state->get_mutable_abstract_state());
+    ProcessMessageAndStoreToAbstractState(&state->get_mutable_abstract_state());
   }
 
   std::unique_ptr<AbstractValues> AllocateAbstractState() const override;
@@ -217,6 +216,8 @@ class LcmSubscriberSystem : public LeafSystem<double>,
 
   // A message counter that's incremented every time the handler is called.
   int received_message_count_{0};
+
+  drake::lcm::DrakeLcmInterface* lcm_interface_;
 };
 
 }  // namespace lcm

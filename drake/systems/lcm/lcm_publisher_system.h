@@ -6,7 +6,6 @@
 
 #include "drake/common/drake_copyable.h"
 #include "drake/lcm/drake_lcm_interface.h"
-#include "drake/systems/framework/leaf_context.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/lcm/lcm_and_vector_base_translator.h"
 #include "drake/systems/lcm/lcm_translator_dictionary.h"
@@ -42,6 +41,9 @@ class LcmPublisherSystem : public LeafSystem<double> {
     return std::make_unique<LcmPublisherSystem>(
         channel, std::make_unique<Serializer<LcmMessage>>(), lcm);
   }
+
+  // TODO(siyuan): add multiple DrakeLcmInterface, so you can publish to a log
+  // and real lcm at the same time.
 
   /**
    * A constructor for an %LcmPublisherSystem that takes LCM message objects on

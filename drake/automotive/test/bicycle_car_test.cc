@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/systems/framework/test_utilities/scalar_conversion.h"
 
 namespace drake {
@@ -28,15 +28,16 @@ class BicycleCarTest : public ::testing::Test {
   }
 
   BicycleCarState<double>* continuous_state() {
-    auto xc = context_->get_mutable_continuous_state_vector();
-    BicycleCarState<double>* state = dynamic_cast<BicycleCarState<double>*>(xc);
+    auto& xc = context_->get_mutable_continuous_state_vector();
+    BicycleCarState<double>* state =
+        dynamic_cast<BicycleCarState<double>*>(&xc);
     DRAKE_DEMAND(state != nullptr);
     return state;
   }
 
   const BicycleCarState<double>* derivatives() const {
     const auto derivatives = dynamic_cast<const BicycleCarState<double>*>(
-        derivatives_->get_mutable_vector());
+        &derivatives_->get_mutable_vector());
     DRAKE_DEMAND(derivatives != nullptr);
     return derivatives;
   }

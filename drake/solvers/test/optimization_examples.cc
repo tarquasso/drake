@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/solvers/solver_type_converter.h"
 #include "drake/solvers/test/mathematical_program_test_util.h"
 
@@ -87,6 +87,9 @@ double OptimizationProgram::GetSolverSolutionDefaultCompareTolerance(
     }
     case SolverType::kNlopt : {
       return 1E-6;
+    }
+    case SolverType::kScs : {
+      return 1E-1;  // Scs is not very accurate.
     }
     default : {
       throw std::runtime_error("Unsupported solver type.");

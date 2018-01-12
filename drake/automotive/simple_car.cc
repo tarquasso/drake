@@ -8,12 +8,10 @@
 #include <Eigen/Geometry>
 
 #include "drake/automotive/calc_smooth_acceleration.h"
-#include "drake/common/autodiff_overloads.h"
 #include "drake/common/cond.h"
+#include "drake/common/default_scalars.h"
 #include "drake/common/double_overloads.h"
 #include "drake/common/drake_assert.h"
-#include "drake/common/eigen_autodiff_types.h"
-#include "drake/common/symbolic.h"
 #include "drake/math/saturate.h"
 #include "drake/systems/framework/vector_base.h"
 
@@ -51,7 +49,8 @@ const DrivingCommand<T>& get_input(const SimpleCar<T>* simple_car,
 template <typename T>
 const SimpleCarParams<T>& get_params(const systems::Context<T>& context) {
   const SimpleCarParams<T>* const params =
-      dynamic_cast<const SimpleCarParams<T>*>(context.get_numeric_parameter(0));
+      dynamic_cast<const SimpleCarParams<T>*>(
+          &context.get_numeric_parameter(0));
   DRAKE_DEMAND(params);
   return *params;
 }
@@ -160,11 +159,10 @@ void SimpleCar<T>::DoCalcTimeDerivatives(
 
   // Obtain the result structure.
   DRAKE_ASSERT(derivatives != nullptr);
-  systems::VectorBase<T>* const vector_derivatives =
+  systems::VectorBase<T>& vector_derivatives =
       derivatives->get_mutable_vector();
-  DRAKE_ASSERT(vector_derivatives);
   SimpleCarState<T>* const rates =
-      dynamic_cast<SimpleCarState<T>*>(vector_derivatives);
+      dynamic_cast<SimpleCarState<T>*>(&vector_derivatives);
   DRAKE_ASSERT(rates);
 
   ImplCalcTimeDerivatives(params, state, *input, rates);
@@ -238,10 +236,9 @@ void SimpleCar<T>::CalcVelocityConstraint(const systems::Context<T>& context,
       Vector2<T>(params.max_velocity() - state.velocity(), state.velocity());
 }
 
-// These instantiations must match the API documentation in simple_car.h.
-template class SimpleCar<double>;
-template class SimpleCar<drake::AutoDiffXd>;
-template class SimpleCar<drake::symbolic::Expression>;
-
 }  // namespace automotive
 }  // namespace drake
+
+// These instantiations must match the API documentation in simple_car.h.
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::automotive::SimpleCar)

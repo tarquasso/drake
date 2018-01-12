@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <lcm/lcm-cpp.hpp>
 
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcmt_drake_signal.hpp"
 #include "drake/systems/framework/diagram_builder.h"
@@ -108,7 +108,7 @@ GTEST_TEST(LcmDrivenLoopTest, TestLoop) {
   const AbstractValue& first_msg = dut.WaitForMessage();
   double msg_time =
       dut.get_message_to_time_converter().GetTimeInSeconds(first_msg);
-  dut.get_mutable_context()->set_time(msg_time);
+  dut.get_mutable_context().set_time(msg_time);
 
   // Starts the loop.
   dut.RunToSecondsAssumingInitialized(static_cast<double>(kEnd));

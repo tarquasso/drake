@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "drake/common/drake_copyable.h"
-#include "drake/common/eigen_autodiff_types.h"
+#include "drake/common/autodiff.h"
 #include "drake/multibody/multibody_tree/force_element.h"
 
 namespace drake {
@@ -69,8 +69,7 @@ class RodElement : public ForceElement<T> {
 
   T CalcPotentialEnergy(
       const MultibodyTreeContext<T>& context,
-      const PositionKinematicsCache<T>& pc,
-      const VelocityKinematicsCache<T>& vc) const final;
+      const PositionKinematicsCache<T>& pc) const final;
 
   T CalcConservativePower(
       const MultibodyTreeContext<T>& context,
@@ -88,7 +87,7 @@ class RodElement : public ForceElement<T> {
       const PositionKinematicsCache<T>& pc,
       const VelocityKinematicsCache<T>& vc,
       std::vector<SpatialForce<T>>* F_B_W,
-      Eigen::Ref<VectorX<T>> tau) const final;
+      EigenPtr<VectorX<T>> tau) const final;
 
   std::unique_ptr<ForceElement<double>> DoCloneToScalar(
       const MultibodyTree<double>& tree_clone) const override;

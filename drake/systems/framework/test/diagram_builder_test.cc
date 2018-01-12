@@ -1,5 +1,7 @@
 #include "drake/systems/framework/diagram_builder.h"
 
+#include <regex>
+
 #include <Eigen/Dense>
 #include <gtest/gtest.h>
 
@@ -13,6 +15,16 @@
 namespace drake {
 namespace systems {
 namespace {
+
+#define EXPECT_ERROR_MESSAGE(expression, exception, reg_exp) \
+try { \
+  expression; \
+  GTEST_NONFATAL_FAILURE_("\t" #expression " failed to throw " #exception); \
+} catch (const exception& err) { \
+  auto matcher = [](const char* s, const std::string& re) { \
+    return std::regex_match(s, std::regex(re.c_str())); }; \
+  EXPECT_PRED2(matcher, err.what(), reg_exp); \
+}
 
 // Tests ::empty().
 GTEST_TEST(DiagramBuilderTest, Empty) {
@@ -29,14 +41,18 @@ GTEST_TEST(DiagramBuilderTest, Empty) {
 // system *has* feedthrough, but a cycle in the diagram graph does not imply
 // an algebraic loop.
 template <typename T>
-class ConstAndEcho : public LeafSystem<T> {
+class ConstAndEcho final : public LeafSystem<T> {
  public:
-  ConstAndEcho() {
+  ConstAndEcho() : LeafSystem<T>(SystemTypeTag<systems::ConstAndEcho>{}) {
     this->DeclareInputPort(kVectorValued, 1);
     this->DeclareVectorOutputPort(BasicVector<T>(1), &ConstAndEcho::CalcEcho);
     this->DeclareVectorOutputPort(BasicVector<T>(1),
                                   &ConstAndEcho::CalcConstant);
   }
+
+  // Scalar-converting copy constructor.
+  template <typename U>
+  explicit ConstAndEcho(const ConstAndEcho<U>&) : ConstAndEcho() {}
 
   const systems::InputPortDescriptor<T>& get_vec_input_port() {
     return this->get_input_port(0);
@@ -59,20 +75,20 @@ class ConstAndEcho : public LeafSystem<T> {
     const BasicVector<T>* input_vector = this->EvalVectorInput(context, 0);
     echo->get_mutable_value() = input_vector->get_value();
   }
-
-  ConstAndEcho<symbolic::Expression>* DoToSymbolic() const override {
-    return new ConstAndEcho<symbolic::Expression>();
-  }
 };
 
 // Tests that an exception is thrown if the diagram contains an algebraic loop.
 GTEST_TEST(DiagramBuilderTest, AlgebraicLoop) {
   DiagramBuilder<double> builder;
   auto adder = builder.AddSystem<Adder>(1 /* inputs */, 1 /* size */);
-  adder->set_name("adder");
+  const std::string name{"adder"};
+  adder->set_name(name);
   // Connect the output port to the input port.
   builder.Connect(adder->get_output_port(), adder->get_input_port(0));
-  EXPECT_THROW(builder.Build(), std::logic_error);
+  EXPECT_ERROR_MESSAGE(builder.Build(), std::runtime_error,
+                       "Algebraic loop detected in DiagramBuilder:\n"
+                       "\\s+" + name + ":Out\\(0\\).*\n."
+                       "\\s*" + name + ":In\\(0\\)");
 }
 
 // Tests that a cycle which is not an algebraic loop is recognized as valid.
@@ -123,9 +139,13 @@ GTEST_TEST(DiagramBuilderTest, CycleAtLoopPortLevel) {
   // diagram has a cycle at the *system* level, but there is no algebraic loop.
 
   auto echo = builder.AddSystem<ConstAndEcho>();
-  echo->set_name("echo");
+  const std::string name{"echo"};
+  echo->set_name(name);
   builder.Connect(echo->get_echo_output_port(), echo->get_vec_input_port());
-  EXPECT_THROW(builder.Build(), std::logic_error);
+  EXPECT_ERROR_MESSAGE(builder.Build(), std::runtime_error,
+                       "Algebraic loop detected in DiagramBuilder:\n"
+                           "\\s+" + name + ":Out\\(0\\).*\n."
+                           "\\s*" + name + ":In\\(0\\)");
 }
 
 // Tests that a cycle which is not an algebraic loop is recognized as valid.

@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
 #include "drake/common/eigen_types.h"
-#include "drake/common/test/is_dynamic_castable.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/is_dynamic_castable.h"
 #include "drake/examples/pendulum/pendulum_plant.h"
 #include "drake/systems/primitives/linear_system.h"
 
@@ -64,7 +64,7 @@ GTEST_TEST(LuenbergerObserverTest, ErrorDynamics) {
 
   context->FixInputPort(0, y);
   context->FixInputPort(1, u);
-  context->get_mutable_continuous_state_vector()->SetFromVector(xhat);
+  context->get_mutable_continuous_state_vector().SetFromVector(xhat);
 
   observer->CalcTimeDerivatives(*context, derivatives.get());
   observer->CalcOutput(*context, output.get());

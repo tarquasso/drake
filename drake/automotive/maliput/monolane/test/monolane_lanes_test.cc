@@ -8,11 +8,11 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/automotive/maliput/api/test/maliput_types_compare.h"
+#include "drake/automotive/maliput/api/test_utilities/maliput_types_compare.h"
 #include "drake/automotive/maliput/monolane/junction.h"
 #include "drake/automotive/maliput/monolane/road_geometry.h"
 #include "drake/automotive/maliput/monolane/segment.h"
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 
 namespace drake {
 namespace maliput {

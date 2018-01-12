@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/solvers/gurobi_solver.h"
 #include "drake/solvers/mathematical_program.h"
 #include "drake/solvers/mosek_solver.h"
@@ -19,7 +19,7 @@ void GetMixedIntegerLinearProgramSolvers(
 }  // namespace
 
 // Take the example from Gurobi manual
-// http://www.gurobi.com/documentation/7.0/examples/mip1_c_c.html
+// https://www.gurobi.com/documentation/7.5/examples/mip1_c_c.html
 // min -x(0) - x(1) - 2*x(2)
 // s.t  -inf <= x(0) + 2x(1) + 3*x(2) <= 4
 //         1 <= x(0) + x(1)           <= inf

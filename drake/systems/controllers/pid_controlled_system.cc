@@ -1,8 +1,7 @@
 #include "drake/systems/controllers/pid_controlled_system.h"
 
-#include "drake/common/autodiff_overloads.h"
+#include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
-#include "drake/common/eigen_autodiff_types.h"
 #include "drake/systems/primitives/saturation.h"
 
 namespace drake {
@@ -59,10 +58,6 @@ void PidControlledSystem<T>::Initialize(
     const Eigen::VectorXd& Ki, const Eigen::VectorXd& Kd) {
   DRAKE_DEMAND(plant != nullptr);
 
-  if (plant->get_name().empty()) {
-    plant->set_name("plant");
-  }
-
   DiagramBuilder<T> builder;
   plant_ = builder.template AddSystem(std::move(plant));
   DRAKE_ASSERT(plant_->get_num_input_ports() >= 1);
@@ -89,17 +84,13 @@ PidControlledSystem<T>::ConnectController(
   auto controller = builder->template AddSystem<PidController<T>>(
       feedback_selector,
       Kp, Ki, Kd);
-  controller->set_name("pid_controller");
 
   auto plant_input_adder =
       builder->template AddSystem<Adder<T>>(2, plant_input.size());
-  plant_input_adder->set_name("input_adder");
 
   builder->Connect(plant_output, controller->get_input_port_estimated_state());
-
   builder->Connect(controller->get_output_port_control(),
                    plant_input_adder->get_input_port(0));
-
   builder->Connect(plant_input_adder->get_output_port(), plant_input);
 
   return ConnectResult{
@@ -131,8 +122,6 @@ PidControlledSystem<T>::ConnectControllerWithInputSaturation(
     DiagramBuilder<T>* builder) {
   auto saturation = builder->template AddSystem<Saturation<T>>(
       min_plant_input, max_plant_input);
-  saturation->set_name("saturation");
-
   builder->Connect(saturation->get_output_port(), plant_input);
 
   return
@@ -156,9 +145,9 @@ PidControlledSystem<T>::ConnectControllerWithInputSaturation(
 template <typename T>
 PidControlledSystem<T>::~PidControlledSystem() {}
 
-template class PidControlledSystem<double>;
-template class PidControlledSystem<AutoDiffXd>;
-
 }  // namespace controllers
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
+    class ::drake::systems::controllers::PidControlledSystem)

@@ -68,6 +68,12 @@ const RollPitchYawMobilizer<T>& RollPitchYawMobilizer<T>::set_angular_velocity(
 }
 
 template <typename T>
+void RollPitchYawMobilizer<T>::set_zero_state(const systems::Context<T>& context,
+                                          systems::State<T>* state) const {
+  this->set_default_zero_state(context, state);
+}
+
+template <typename T>
 Isometry3<T> RollPitchYawMobilizer<T>::CalcAcrossMobilizerTransform(
     const MultibodyTreeContext<T>& context) const {
   const auto& rpy = this->get_positions(context);

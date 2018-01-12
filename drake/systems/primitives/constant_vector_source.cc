@@ -1,9 +1,6 @@
 #include "drake/systems/primitives/constant_vector_source.h"
 
-#include "drake/common/autodiff_overloads.h"
-#include "drake/common/eigen_autodiff_types.h"
-#include "drake/common/eigen_types.h"
-#include "drake/common/symbolic.h"
+#include "drake/common/default_scalars.h"
 
 namespace drake {
 namespace systems {
@@ -40,15 +37,13 @@ const BasicVector<T>& ConstantVectorSource<T>::get_source_value(
 }
 
 template <typename T>
-BasicVector<T>* ConstantVectorSource<T>::get_mutable_source_value(
+BasicVector<T>& ConstantVectorSource<T>::get_mutable_source_value(
     Context<T>* context) {
   return this->GetMutableNumericParameter(context, source_value_index_);
 }
 
-// Explicitly instantiates on the most common scalar types.
-template class ConstantVectorSource<double>;
-template class ConstantVectorSource<AutoDiffXd>;
-template class ConstantVectorSource<symbolic::Expression>;
-
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::ConstantVectorSource)

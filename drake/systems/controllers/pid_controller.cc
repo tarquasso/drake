@@ -2,9 +2,7 @@
 
 #include <string>
 
-#include "drake/common/autodiff_overloads.h"
-#include "drake/common/eigen_autodiff_types.h"
-#include "drake/common/symbolic.h"
+#include "drake/common/default_scalars.h"
 
 namespace drake {
 namespace systems {
@@ -88,10 +86,10 @@ void PidController<T>::DoCalcTimeDerivatives(
       this->EvalEigenVectorInput(context, input_index_desired_state_);
 
   // The derivative of the continuous state is the instantaneous position error.
-  VectorBase<T>* const derivatives_vector = derivatives->get_mutable_vector();
+  VectorBase<T>& derivatives_vector = derivatives->get_mutable_vector();
   const VectorX<T> controlled_state_diff =
       state_d - (state_projection_.cast<T>() * state);
-  derivatives_vector->SetFromVector(
+  derivatives_vector.SetFromVector(
       controlled_state_diff.head(num_controlled_q_));
 }
 
@@ -134,10 +132,9 @@ void PidController<T>::GetGraphvizFragment(std::stringstream* dot) const {
   *dot << "\"];" << std::endl;
 }
 
-template class PidController<double>;
-template class PidController<AutoDiffXd>;
-template class PidController<symbolic::Expression>;
-
 }  // namespace controllers
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::controllers::PidController)

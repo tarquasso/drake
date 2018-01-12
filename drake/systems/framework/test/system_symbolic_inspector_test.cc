@@ -59,7 +59,7 @@ class SparseSystem : public LeafSystem<symbolic::Expression> {
               BasicVector<symbolic::Expression>* y1) const {
     const auto& u0 = *(this->EvalVectorInput(context, 0));
     const auto& u1 = *(this->EvalVectorInput(context, 1));
-    const auto& xd = *(context.get_discrete_state(0));
+    const auto& xd = context.get_discrete_state(0);
 
     // Output 1 depends on both inputs and the discrete state.
     y1->set_value(u0.get_value() + u1.get_value() + xd.get_value());
@@ -99,14 +99,14 @@ class SparseSystem : public LeafSystem<symbolic::Expression> {
     const auto u0 = this->EvalVectorInput(context, 0)->CopyToVector();
     const auto u1 = this->EvalVectorInput(context, 1)->CopyToVector();
     const Vector2<symbolic::Expression> xd =
-        context.get_discrete_state(0)->get_value();
+        context.get_discrete_state(0).get_value();
     const Eigen::Matrix2d A = 7 * Eigen::Matrix2d::Identity();
     const Eigen::Matrix2d B1 = 8 * Eigen::Matrix2d::Identity();
     const Eigen::Matrix2d B2 = 9 * Eigen::Matrix2d::Identity();
     const Eigen::Vector2d f0(10.0, 11.0);
     const Vector2<symbolic::Expression> next_xd =
         A * xd + B1 * u0 + B2 * u1 + f0;
-    discrete_state->get_mutable_vector(0)->SetFromVector(next_xd);
+    discrete_state->get_mutable_vector(0).SetFromVector(next_xd);
   }
 };
 
@@ -120,6 +120,19 @@ class SystemSymbolicInspectorTest : public ::testing::Test {
   }
 
   SparseSystem system_;
+  std::unique_ptr<SystemSymbolicInspector> inspector_;
+};
+
+class PendulumInspectorTest : public ::testing::Test {
+ public:
+  PendulumInspectorTest() : system_() {}
+
+ protected:
+  void SetUp() override {
+    inspector_ = std::make_unique<SystemSymbolicInspector>(system_);
+  }
+
+  examples::pendulum::PendulumPlant<symbolic::Expression> system_;
   std::unique_ptr<SystemSymbolicInspector> inspector_;
 };
 
@@ -166,22 +179,37 @@ TEST_F(SystemSymbolicInspectorTest, ConstraintTest) {
 TEST_F(SystemSymbolicInspectorTest, IsTimeInvariant) {
   // The derivatives depends on t.
   EXPECT_FALSE(inspector_->IsTimeInvariant());
+}
 
-  examples::pendulum::PendulumPlant<symbolic::Expression> pendulum;
-  const auto pendulum_inspector =
-      std::make_unique<SystemSymbolicInspector>(pendulum);
-
-  EXPECT_TRUE(pendulum_inspector->IsTimeInvariant());
+TEST_F(PendulumInspectorTest, IsTimeInvariant) {
+  EXPECT_TRUE(inspector_->IsTimeInvariant());
 }
 
 TEST_F(SystemSymbolicInspectorTest, HasAffineDynamics) {
   EXPECT_TRUE(inspector_->HasAffineDynamics());
+}
 
-  examples::pendulum::PendulumPlant<symbolic::Expression> pendulum;
-  const auto pendulum_inspector =
-      std::make_unique<SystemSymbolicInspector>(pendulum);
+TEST_F(PendulumInspectorTest, HasAffineDynamics) {
+  EXPECT_FALSE(inspector_->HasAffineDynamics());
+}
 
-  EXPECT_FALSE(pendulum_inspector->HasAffineDynamics());
+TEST_F(PendulumInspectorTest, SymbolicParameters) {
+  auto params = inspector_->numeric_parameters(0);
+
+  using examples::pendulum::PendulumParamsIndices;
+  EXPECT_EQ(params.size(), PendulumParamsIndices::kNumCoordinates);
+
+  // Test that the damping parameter appears with the correct order in the
+  // derivatives and output methods.
+  symbolic::Variables v({params[PendulumParamsIndices::kDamping]});
+
+  auto derivatives = inspector_->derivatives();
+  EXPECT_EQ(symbolic::Polynomial(derivatives[0], v).TotalDegree(), 0);
+  EXPECT_EQ(symbolic::Polynomial(derivatives[1], v).TotalDegree(), 1);
+
+  auto output = inspector_->output(0);
+  EXPECT_EQ(symbolic::Polynomial(output[0], v).TotalDegree(), 0);
+  EXPECT_EQ(symbolic::Polynomial(output[1], v).TotalDegree(), 0);
 }
 
 }  // namespace

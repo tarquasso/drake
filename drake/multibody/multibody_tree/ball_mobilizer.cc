@@ -76,12 +76,9 @@ const BallMobilizer<T>& BallMobilizer<T>::set_angular_velocity(
 }
 
 template <typename T>
-void BallMobilizer<T>::set_zero_configuration(
-    systems::Context<T>* context) const {
-  auto mbt_context = dynamic_cast<MultibodyTreeContext<T>*>(context);
-  DRAKE_DEMAND(mbt_context != nullptr);
-  set_quaternion(context, Quaternion<T>::Identity());
-  set_angular_velocity(context, Vector3<T>::Zero());
+void BallMobilizer<T>::set_zero_state(const systems::Context<T>& context,
+                                          systems::State<T>* state) const {
+  //this->set_default_zero_state(context, state);
 }
 
 template <typename T>

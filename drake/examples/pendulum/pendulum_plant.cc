@@ -2,8 +2,7 @@
 
 #include <cmath>
 
-#include "drake/common/eigen_autodiff_types.h"
-#include "drake/common/symbolic.h"
+#include "drake/common/default_scalars.h"
 
 namespace drake {
 namespace examples {
@@ -67,20 +66,19 @@ void PendulumPlant<T>::DoCalcTimeDerivatives(
     systems::ContinuousState<T>* derivatives) const {
   const PendulumState<T>& state = get_state(context);
   const PendulumParams<T>& params = get_parameters(context);
-  PendulumState<T>* derivative_vector = get_mutable_state(derivatives);
+  PendulumState<T>& derivative_vector = get_mutable_state(derivatives);
 
-  derivative_vector->set_theta(state.thetadot());
-  derivative_vector->set_thetadot(
+  derivative_vector.set_theta(state.thetadot());
+  derivative_vector.set_thetadot(
       (get_tau(context) -
        params.mass() * params.gravity() * params.length() * sin(state.theta()) -
        params.damping() * state.thetadot()) /
       (params.mass() * params.length() * params.length()));
 }
 
-template class PendulumPlant<double>;
-template class PendulumPlant<AutoDiffXd>;
-template class PendulumPlant<symbolic::Expression>;
-
 }  // namespace pendulum
 }  // namespace examples
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::examples::pendulum::PendulumPlant)

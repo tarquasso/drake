@@ -4,8 +4,8 @@
 #include <gtest/gtest.h>
 
 #include "drake/automotive/simple_car.h"
-#include "drake/common/eigen_matrix_compare.h"
 #include "drake/common/proto/call_matlab.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/systems/trajectory_optimization/direct_collocation.h"
 
 namespace drake {
@@ -48,7 +48,7 @@ GTEST_TEST(TrajectoryOptimizationTest, SimpleCarDircolTest) {
 
   const SimpleCarParams<double>* params =
       dynamic_cast<const SimpleCarParams<double>*>(
-          context->get_numeric_parameter(0));
+          &context->get_numeric_parameter(0));
   DRAKE_DEMAND(params != nullptr);
 
   // Impose limits that are inside the true command limits.

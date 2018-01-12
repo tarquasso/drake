@@ -18,11 +18,11 @@
 
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/eigen_matrix_compare.h"
 #include "drake/common/polynomial.h"
 #include "drake/common/symbolic.h"
-#include "drake/common/test/is_dynamic_castable.h"
-#include "drake/common/test/symbolic_test_util.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/is_dynamic_castable.h"
+#include "drake/common/test_utilities/symbolic_test_util.h"
 #include "drake/math/matrix_util.h"
 #include "drake/solvers/constraint.h"
 #include "drake/solvers/test/generic_trivial_costs.h"
@@ -2070,6 +2070,39 @@ GTEST_TEST(testMathematicalProgram, AddSymbolicRotatedLorentzConeConstraint4) {
   Matrix<Expression, 5, 1> e;
   e << 2 * x(0) + 3 * x(2) + 3, x(0) - 4 * x(2), 2 * x(2), 3 * x(0) + 1, 4;
   CheckParsedSymbolicRotatedLorentzConeConstraint(&prog, e);
+}
+
+GTEST_TEST(testMathematicalProgram, AddSymbolicRotatedLorentzConeConstraint5) {
+  // Add rotated Lorentz cone constraint, using quadratic expression.
+  MathematicalProgram prog;
+  const auto x = prog.NewContinuousVariables<4>("x");
+  Expression linear_expression1 = x(0) + 1;
+  Expression linear_expression2 = x(1) - x(2);
+  Eigen::Matrix2d Q;
+  Eigen::Vector2d b;
+  const double c{5};
+  Q << 1, 0.5, 0.5, 1;
+  b << 0, 0.1;
+  const Expression quadratic_expression =
+      x.head<2>().cast<Expression>().dot(Q * x.head<2>() + b) + c;
+  const auto binding = prog.AddRotatedLorentzConeConstraint(
+      linear_expression1, linear_expression2, quadratic_expression);
+  EXPECT_EQ(binding.constraint(),
+            prog.rotated_lorentz_cone_constraints().back().constraint());
+  const VectorX<Expression> z =
+      binding.constraint()->A() * binding.variables() +
+      binding.constraint()->b();
+  const double tol{1E-10};
+  EXPECT_TRUE(
+      symbolic::test::PolynomialEqual(symbolic::Polynomial(linear_expression1),
+                                      symbolic::Polynomial(z(0)), tol));
+  EXPECT_TRUE(
+      symbolic::test::PolynomialEqual(symbolic::Polynomial(linear_expression2),
+                                      symbolic::Polynomial(z(1)), tol));
+  EXPECT_TRUE(symbolic::test::PolynomialEqual(
+      symbolic::Polynomial(quadratic_expression),
+      symbolic::Polynomial(z.tail(z.rows() - 2).squaredNorm()),
+      tol));
 }
 
 namespace {

@@ -34,7 +34,7 @@ void RodElement<T>::DoCalcAndAddForceContribution(
     const PositionKinematicsCache<T>& pc,
     const VelocityKinematicsCache<T>& vc,
     std::vector<SpatialForce<T>>* F_Bo_W_array,
-    Eigen::Ref<VectorX<T>> tau) const {
+    EigenPtr<VectorX<T>> tau) const {
   using std::abs;
   using std::sin;
   using std::cos;
@@ -169,8 +169,7 @@ void RodElement<T>::DoCalcAndAddForceContribution(
 template <typename T>
 T RodElement<T>::CalcPotentialEnergy(
     const MultibodyTreeContext<T>& context,
-    const PositionKinematicsCache<T>& pc,
-    const VelocityKinematicsCache<T>& vc) const {
+    const PositionKinematicsCache<T>& pc) const {
   T TotalPotentialEnergy = 0.0;
 #if 0
   // Add the potential energy due to gravity for each body in the model.

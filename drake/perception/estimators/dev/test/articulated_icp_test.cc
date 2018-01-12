@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "drake/common/find_resource.h"
-#include "drake/lcmtypes/drake/lcmt_viewer_load_robot.hpp"
+#include "drake/lcmt_viewer_load_robot.hpp"
 #include "drake/math/roll_pitch_yaw.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/create_load_robot_message.h"
@@ -91,6 +91,8 @@ class ArticulatedIcpTest : public TestWithParam<ObjectTestType> {
     tree_cache_.reset(new KinematicsCached(tree_->CreateKinematicsCache()));
 
     const Vector3d obj_xyz = setup.X_WB.translation();
+    // TODO(eric.cousineau): change X_WB.rotation() to X_WB.linear() once #7035
+    // is resolved.
     const Vector3d obj_rpy = math::rotmat2rpy(setup.X_WB.rotation());
     const int nq = tree_->get_num_positions();
 

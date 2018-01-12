@@ -3,6 +3,8 @@
 #include <cmath>
 #include <utility>
 
+#include "drake/common/default_scalars.h"
+
 namespace drake {
 namespace systems {
 namespace estimators {
@@ -34,16 +36,16 @@ LuenbergerObserver<T>::LuenbergerObserver(
   // Observer state is the (estimated) state of the observed system,
   // but the best we can do for now is to allocate a similarly-sized
   // BasicVector (see #6998).
-  const auto xc = observed_system_context_->get_continuous_state();
-  const int num_q = xc->get_generalized_position().size();
-  const int num_v = xc->get_generalized_velocity().size();
-  const int num_z = xc->get_misc_continuous_state().size();
+  const auto& xc = observed_system_context_->get_continuous_state();
+  const int num_q = xc.get_generalized_position().size();
+  const int num_v = xc.get_generalized_velocity().size();
+  const int num_z = xc.get_misc_continuous_state().size();
   this->DeclareContinuousState(num_q, num_v, num_z);
 
   // Output port is the (estimated) state of the observed system.
   // Note: Again, the derived type of the state vector is lost here, because xc
   // is only guaranteed to be a VectorBase, not a BasicVector.
-  this->DeclareVectorOutputPort(BasicVector<T>(xc->size()),
+  this->DeclareVectorOutputPort(BasicVector<T>(xc.size()),
                                 &LuenbergerObserver::CalcEstimatedState);
 
   // First input port is the output of the observed system.
@@ -51,7 +53,7 @@ LuenbergerObserver<T>::LuenbergerObserver(
   this->DeclareVectorInputPort(*observed_system_output_->get_vector_data(0));
 
   // Check the size of the gain matrix.
-  DRAKE_DEMAND(observer_gain_.rows() == xc->size());
+  DRAKE_DEMAND(observer_gain_.rows() == xc.size());
   DRAKE_DEMAND(observer_gain_.cols() ==
                observed_system_->get_output_port(0).size());
 
@@ -85,7 +87,7 @@ void LuenbergerObserver<T>::DoCalcTimeDerivatives(
         0, this->EvalVectorInput(context, 1)->CopyToVector());
   }
   // Set observed system state.
-  observed_system_context_->get_mutable_continuous_state_vector()->SetFrom(
+  observed_system_context_->get_mutable_continuous_state_vector().SetFrom(
       context.get_continuous_state_vector());
 
   // Evaluate the observed system.
@@ -99,16 +101,16 @@ void LuenbergerObserver<T>::DoCalcTimeDerivatives(
   auto yhat = observed_system_output_->GetMutableVectorData(0)->CopyToVector();
 
   // Add in the observed gain terms.
-  auto xdothat = observed_system_derivatives_->get_mutable_vector();
+  auto& xdothat = observed_system_derivatives_->get_mutable_vector();
 
   // xdothat = f(xhat,u) + L(y-yhat).
-  derivatives->SetFromVector(xdothat->CopyToVector() +
+  derivatives->SetFromVector(xdothat.CopyToVector() +
                              observer_gain_ * (y - yhat));
 }
-
-template class LuenbergerObserver<double>;
-template class LuenbergerObserver<AutoDiffXd>;
 
 }  // namespace estimators
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
+    class ::drake::systems::estimators::LuenbergerObserver)

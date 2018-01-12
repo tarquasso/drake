@@ -1,14 +1,11 @@
 #pragma once
 
-#include <memory>
-#include <string>
+#include <cmath>
+#include <stdexcept>
 
 #include "drake/common/drake_copyable.h"
 #include "drake/systems/framework/basic_vector.h"
-#include "drake/systems/framework/leaf_context.h"
 #include "drake/systems/framework/leaf_system.h"
-#include "drake/systems/framework/output_port_value.h"
-#include "drake/systems/framework/vector_base.h"
 
 namespace drake {
 namespace systems {
@@ -79,8 +76,8 @@ class SpringMassSystem : public LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SpringMassSystem)
 
-  /// Construct a spring-mass system with a fixed spring constant and given
-  /// mass.
+  /// Constructs a spring-mass system with a fixed spring constant and given
+  /// mass. Subclasses must use the protected constructor, not this one.
   /// @param[in] spring_constant_N_per_m The spring constant in N/m.
   /// @param[in] mass_Kg The actual value in Kg of the mass attached to the
   /// spring.
@@ -89,7 +86,7 @@ class SpringMassSystem : public LeafSystem<T> {
   SpringMassSystem(double spring_constant_N_per_m, double mass_kg,
                    bool system_is_forced = false);
 
-  /// Scalar-converting copy constructor.  See @ref system_scalar_conversion.
+  /// Scalar-converting copy constructor. See @ref system_scalar_conversion.
   template <typename U>
   explicit SpringMassSystem(const SpringMassSystem<U>&);
 
@@ -138,18 +135,18 @@ class SpringMassSystem : public LeafSystem<T> {
 
   /// Sets the position of the mass in the given Context.
   void set_position(Context<T>* context, const T& position) const {
-    get_mutable_state(context)->set_position(position);
+    get_mutable_state(context).set_position(position);
   }
 
   /// Sets the velocity of the mass in the given Context.
   void set_velocity(Context<T>* context, const T& velocity) const {
-    get_mutable_state(context)->set_velocity(velocity);
+    get_mutable_state(context).set_velocity(velocity);
   }
 
   /// Sets the initial value of the conservative power integral in the given
   /// Context.
   void set_conservative_work(Context<T>* context, const T& energy) const {
-    get_mutable_state(context)->set_conservative_work(energy);
+    get_mutable_state(context).set_conservative_work(energy);
   }
 
   /// Returns the force being applied by the spring to the mass in the given
@@ -243,6 +240,14 @@ class SpringMassSystem : public LeafSystem<T> {
     *vf = -c1*sin(omega*tf)*omega + c2*cos(omega*tf)*omega;
   }
 
+ protected:
+  /// Constructor that specifies @ref system_scalar_conversion support.
+  SpringMassSystem(
+      SystemScalarConverter converter,
+      double spring_constant_N_per_m,
+      double mass_kg,
+      bool system_is_forced);
+
  private:
   // This is the calculator method for the output port.
   void SetOutputValues(const Context<T>& context,
@@ -256,18 +261,18 @@ class SpringMassSystem : public LeafSystem<T> {
     return dynamic_cast<const SpringMassStateVector<T>&>(cstate.get_vector());
   }
 
-  static SpringMassStateVector<T>* get_mutable_state(
+  static SpringMassStateVector<T>& get_mutable_state(
       ContinuousState<T>* cstate) {
-    return dynamic_cast<SpringMassStateVector<T>*>(
+    return dynamic_cast<SpringMassStateVector<T>&>(
         cstate->get_mutable_vector());
   }
 
   static const SpringMassStateVector<T>& get_state(const Context<T>& context) {
-    return get_state(*context.get_continuous_state());
+    return get_state(context.get_continuous_state());
   }
 
-  static SpringMassStateVector<T>* get_mutable_state(Context<T>* context) {
-    return get_mutable_state(context->get_mutable_continuous_state());
+  static SpringMassStateVector<T>& get_mutable_state(Context<T>* context) {
+    return get_mutable_state(&context->get_mutable_continuous_state());
   }
 
   const double spring_constant_N_per_m_{};

@@ -2,10 +2,7 @@
 
 #include <utility>
 
-#include "drake/common/autodiff_overloads.h"
-#include "drake/common/eigen_autodiff_types.h"
-#include "drake/common/symbolic.h"
-#include "drake/systems/framework/basic_vector.h"
+#include "drake/common/default_scalars.h"
 
 namespace drake {
 namespace systems {
@@ -65,9 +62,12 @@ SpringMassStateVector<T>* SpringMassStateVector<T>::DoClone() const {
 }
 
 template <typename T>
-SpringMassSystem<T>::SpringMassSystem(double spring_constant_N_per_m,
-                                      double mass_kg, bool system_is_forced)
-    : LeafSystem<T>(SystemTypeTag<systems::SpringMassSystem>{}),
+SpringMassSystem<T>::SpringMassSystem(
+    SystemScalarConverter converter,
+    double spring_constant_N_per_m,
+    double mass_kg,
+    bool system_is_forced)
+    : LeafSystem<T>(std::move(converter)),
       spring_constant_N_per_m_(spring_constant_N_per_m),
       mass_kg_(mass_kg),
       system_is_forced_(system_is_forced) {
@@ -81,6 +81,17 @@ SpringMassSystem<T>::SpringMassSystem(double spring_constant_N_per_m,
   this->DeclareContinuousState(SpringMassStateVector<T>(),
       1 /* num_q */, 1 /* num_v */, 1 /* num_z */);
 }
+
+template <typename T>
+SpringMassSystem<T>::SpringMassSystem(
+    double spring_constant_N_per_m,
+    double mass_kg,
+    bool system_is_forced)
+    : SpringMassSystem(
+          SystemTypeTag<systems::SpringMassSystem>{},
+          spring_constant_N_per_m,
+          mass_kg,
+          system_is_forced) {}
 
 template <typename T>
 template <typename U>
@@ -162,10 +173,10 @@ void SpringMassSystem<T>::DoCalcTimeDerivatives(
   // TODO(david-german-tri): Cache the output of this function.
   const SpringMassStateVector<T>& state = get_state(context);
 
-  SpringMassStateVector<T>* derivative_vector = get_mutable_state(derivatives);
+  SpringMassStateVector<T>& derivative_vector = get_mutable_state(derivatives);
 
   // The derivative of position is velocity.
-  derivative_vector->set_position(state.get_velocity());
+  derivative_vector.set_position(state.get_velocity());
 
   const T external_force = get_input_force(context);
 
@@ -173,21 +184,21 @@ void SpringMassSystem<T>::DoCalcTimeDerivatives(
   // f is the force applied to the body by the spring, and m is the mass of the
   // body.
   const T force_applied_to_body = EvalSpringForce(context) + external_force;
-  derivative_vector->set_velocity(force_applied_to_body / mass_kg_);
+  derivative_vector.set_velocity(force_applied_to_body / mass_kg_);
 
   // We are integrating conservative power to get the work done by conservative
   // force elements, that is, the net energy transferred between the spring and
   // the mass over time.
-  derivative_vector->set_conservative_work(
+  derivative_vector.set_conservative_work(
       this->CalcConservativePower(context));
 }
 
-template class SpringMassStateVector<double>;
-template class SpringMassStateVector<AutoDiffXd>;
-template class SpringMassStateVector<symbolic::Expression>;
-template class SpringMassSystem<double>;
-template class SpringMassSystem<AutoDiffXd>;
-template class SpringMassSystem<symbolic::Expression>;
 
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::SpringMassStateVector)
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::SpringMassSystem)

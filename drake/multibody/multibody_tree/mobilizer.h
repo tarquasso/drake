@@ -3,9 +3,9 @@
 #include <memory>
 #include <vector>
 
+#include "drake/common/autodiff.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/eigen_autodiff_types.h"
 #include "drake/multibody/multibody_tree/frame.h"
 #include "drake/multibody/multibody_tree/math/spatial_acceleration.h"
 #include "drake/multibody/multibody_tree/math/spatial_force.h"
@@ -114,7 +114,14 @@ template<typename T> class BodyNode;
 /// - N(q):
 ///     The kinematic coupling matrix describing the relationship between the
 ///     rate of change of generalized coordinates and the generalized velocities
-///     by `q̇ = N(q) * v`, [Seth 2010]. N(q) is an `nq x nv` matrix.
+///     by `q̇ = N(q)⋅v`, [Seth 2010]. N(q) is an `nq x nv` matrix. A
+///     %Mobilizer implements this application in MapVelocityToQDot().
+/// - N⁺(q):
+///     The left pseudo-inverse of `N(q)`. `N⁺(q)` can be used to invert the
+///     relationship `q̇ = N(q)⋅v` without residual error, provided that `q̇` is
+///     in the range space of `N(q)` (that is, if it *could* have been produced
+///     as `q̇ = N(q)⋅v` for some `v`). The application `v = N⁺(q)⋅q̇` is
+///     implemented in MapQDotToVelocity().
 ///
 /// In general, `nv != nq`. As an example, consider a quaternion mobilizer that
 /// would allow frame M to move freely with respect to frame F. For such a
@@ -286,17 +293,19 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
   /// @name Methods that define a %Mobilizer
   /// @{
 
-  /// Sets what will be considered to be the _zero_ configuration for `this`
-  /// mobilizer. For most mobilizers the _zero_ configuration corresponds to the
-  /// value of generalized positions at which the inboard frame F and the
-  /// outboard frame coincide or, in other words, when `X_FM = Id` is the
-  /// identity pose. In the general case however, the zero configuration will
-  /// correspond to a value of the generalized positions for which
-  /// `X_FM = X_FM_ref` where `X_FM_ref` will generally be different from the
-  /// identity transformation.
+  /// Sets the `state` to what will be considered to be the _zero_ configuration
+  /// for `this` mobilizer. For most mobilizers the _zero_ configuration
+  /// corresponds to the value of generalized positions at which the inboard
+  /// frame F and the outboard frame coincide or, in other words, when
+  /// `X_FM = Id` is the identity pose. In the general case however, the zero
+  /// configuration will correspond to a value of the generalized positions for
+  /// which `X_FM = X_FM_ref` where `X_FM_ref` may generally be different from
+  /// the identity transformation.
   /// In other words, `X_FM_ref = CalcAcrossMobilizerTransform(ref_context)`
-  /// where `ref_context` is a Context set to the zero configuration with
-  /// `set_zero_configuration(&ref_context)`.
+  /// where `ref_context` is a Context storing a State set to the zero
+  /// configuration with set_zero_state().
+  /// In addition, all generalized velocities are set to zero in the _zero_
+  /// configuration.
   ///
   /// Most often the _zero_ configuration will correspond to setting
   /// the vector of generalized positions related to this mobilizer to zero.
@@ -305,7 +314,15 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
   /// represent a mathematicaly valid one. Consider for instance a quaternion
   /// mobilizer, for which its _zero_ configuration corresponds to the
   /// quaternion [1, 0, 0, 0].
-  virtual void set_zero_configuration(systems::Context<T>* context) const = 0;
+  virtual void set_zero_state(const systems::Context<T>& context,
+                              systems::State<T>* state) const = 0;
+
+  /// Sets the state stored in `context` to a _zero configuration_ as defined by
+  /// set_zero_state().
+  /// See set_zero_state() for details.
+  void set_zero_configuration(systems::Context<T>* context) const {
+    set_zero_state(*context, &context->get_mutable_state());
+  }
 
   /// Computes the across-mobilizer transform `X_FM(q)` between the inboard
   /// frame F and the outboard frame M as a function of the vector of
@@ -405,11 +422,18 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
       const SpatialForce<T>& F_Mo_F,
       Eigen::Ref<VectorX<T>> tau) const = 0;
 
+  /// Computes the kinematic mapping `q̇ = N(q)⋅v` between generalized
+  /// velocities v and time derivatives of the generalized positions `qdot`.
+  /// The generalized positions vector is stored in `context`.
   virtual void MapVelocityToQDot(
       const MultibodyTreeContext<T>& context,
       const Eigen::Ref<const VectorX<T>>& v,
       EigenPtr<VectorX<T>> qdot) const = 0;
 
+  /// Computes the mapping `v = N⁺(q)⋅q̇` from time derivatives of the
+  /// generalized positions `qdot` to generalized velocities v, where `N⁺(q)` is
+  /// the left pseudo-inverse of `N(q)` defined by MapVelocityToQDot().
+  /// The generalized positions vector is stored in `context`.
   virtual void MapQDotToVelocity(
       const MultibodyTreeContext<T>& context,
       const Eigen::Ref<const VectorX<T>>& qdot,
@@ -419,7 +443,7 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
   /// Returns a const Eigen expression of the vector of generalized positions
   /// for `this` mobilizer from a vector `q_array` of generalized positions for
   /// the entire MultibodyTree model.
-  /// This method aborts if the input array is not of size
+  /// This method aborts if `q_array` is not of size
   /// MultibodyTree::get_num_positions().
   Eigen::VectorBlock<const Eigen::Ref<const VectorX<T>>>
   get_positions_from_array(const Eigen::Ref<const VectorX<T>>& q_array) const {
@@ -459,7 +483,7 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
     DRAKE_DEMAND(
         v_array->size() == this->get_parent_tree().get_num_velocities());
     return v_array->segment(topology_.velocities_start_in_v,
-                           topology_.num_velocities);
+                            topology_.num_velocities);
   }
 
   /// Returns a const Eigen expression of the vector of generalized

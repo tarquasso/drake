@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/manipulation/util/world_sim_tree_builder.h"
 #include "drake/multibody/parsers/urdf_parser.h"
@@ -25,10 +25,11 @@ std::unique_ptr<RigidBodyTree<double>> build_tree(
 
   // Adds models to the simulation builder. Instances of these models can be
   // subsequently added to the world.
-  tree_builder->StoreModel("iiwa",
-                           "drake/manipulation/models/iiwa_description/urdf/"
-                           "iiwa14_polytope_collision.urdf");
-  tree_builder->StoreModel(
+  tree_builder->StoreDrakeModel(
+      "iiwa",
+      "drake/manipulation/models/iiwa_description/urdf/"
+      "iiwa14_polytope_collision.urdf");
+  tree_builder->StoreDrakeModel(
       "wsg",
       "drake/manipulation/models/wsg_50_description/sdf/schunk_wsg_50.sdf");
 
@@ -92,8 +93,8 @@ GTEST_TEST(SimDiagramBuilderTest, TestSimulation) {
   for (const auto& info : iiwa_info) {
     auto single_arm = std::make_unique<RigidBodyTree<double>>();
     parsers::urdf::AddModelInstanceFromUrdfFile(
-        info.model_path, multibody::joints::kFixed, info.world_offset,
-        single_arm.get());
+        info.absolute_model_path, multibody::joints::kFixed,
+        info.world_offset, single_arm.get());
 
     auto controller = builder.template AddController<
         systems::controllers::InverseDynamicsController<double>>(
@@ -113,9 +114,9 @@ GTEST_TEST(SimDiagramBuilderTest, TestSimulation) {
 
   // Simulates.
   systems::Simulator<double> simulator(*diagram);
-  systems::Context<double>* context = simulator.get_mutable_context();
+  systems::Context<double>& context = simulator.get_mutable_context();
   systems::Context<double>& plant_context =
-      diagram->GetMutableSubsystemContext(*plant, context);
+      diagram->GetMutableSubsystemContext(*plant, &context);
   VectorX<double> state0(2 * kNumPos * iiwa_info.size());
   for (size_t i = 0; i < iiwa_info.size(); ++i) {
     state0.segment<kNumPos>(i * kNumPos) = state_d.head<kNumPos>();

@@ -99,7 +99,11 @@ class BallMobilizer final : public MobilizerImpl<T, 4, 3> {
   const BallMobilizer<T>& set_angular_velocity(
       systems::Context<T> *context, const Vector3<T>& w_FM) const;
 
-  void set_zero_configuration(systems::Context<T>* context) const override;
+  //void set_zero_configuration(systems::Context<T>* context) const override;
+  /// Sets `state` to store zero space x-y-z angles θ₁, θ₂, θ₃ and zero across
+  /// mobilizer angular velocity `w_FM`.
+  void set_zero_state(const systems::Context<T>& context,
+                      systems::State<T>* state) const override;
 
   /// Computes the across-mobilizer transform `X_FM(q)` between the inboard
   /// frame F and the outboard frame M as a function of the rotation angle

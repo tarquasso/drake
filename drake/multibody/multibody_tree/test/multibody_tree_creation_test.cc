@@ -10,14 +10,27 @@
 #include <gtest/gtest.h>
 
 #include "drake/common/eigen_types.h"
+#include "drake/multibody/multibody_tree/joints/revolute_joint.h"
 #include "drake/multibody/multibody_tree/revolute_mobilizer.h"
 #include "drake/multibody/multibody_tree/rigid_body.h"
 #include "drake/multibody/multibody_tree/uniform_gravity_field_element.h"
 
 namespace drake {
 namespace multibody {
+
+// Friend class for accessing Joint<T> protected/private internals.
+class JointTester {
+ public:
+  JointTester() = delete;
+  static const RevoluteMobilizer<double>* get_mobilizer(
+      const RevoluteJoint<double>& joint) {
+    return joint.get_mobilizer();
+  }
+};
+
 namespace {
 
+using Eigen::Isometry3d;
 using Eigen::Vector3d;
 using std::make_unique;
 using std::set;
@@ -225,7 +238,7 @@ class TreeTopologyTests : public ::testing::Test {
     ConnectBodies(*bodies_[5], *bodies_[3]);  // mob. 3
     ConnectBodies(*bodies_[0], *bodies_[5]);  // mob. 4
     ConnectBodies(*bodies_[4], *bodies_[1]);  // mob. 5
-    ConnectBodies(*bodies_[0], *bodies_[4]);  // mob. 6
+    ConnectBodies(*bodies_[0], *bodies_[4], true);  // mob. 6
 
     // Adds a force element for a uniform gravity field.
     model_->AddForceElement<UniformGravityFieldElement>(g_);
@@ -240,14 +253,39 @@ class TreeTopologyTests : public ::testing::Test {
     return body;
   }
 
-  const Mobilizer<double>* ConnectBodies(
-      const Body<double>& inboard, const Body<double>& outboard) {
-    const Mobilizer<double>* mobilizer =
-        &model_->AddMobilizer<RevoluteMobilizer>(
-            inboard.get_body_frame(), outboard.get_body_frame(),
-            Vector3d::UnitZ());
-    mobilizers_.push_back(mobilizer);
-    return mobilizer;
+  void ConnectBodies(
+      const RigidBody<double>& inboard, const RigidBody<double>& outboard,
+      bool use_joint = false) {
+    if ( use_joint ) {
+      // Just for fun, here we explicitly state that the frame on body
+      // "inboard" (frame P) IS the joint frame F, done by passing the empty
+      // curly braces {}.
+      // We DO want the model to have a frame M on body "outbaord" (frame B)
+      // with a pose X_BM = Identity. We therefore pass the identity transform.
+      const auto* joint = &model_->AddJoint<RevoluteJoint>(
+          "FooJoint",
+          inboard, {}, /* Model does not create frame F, and makes F = P.  */
+          outboard, Isometry3d::Identity(), /* Model does creates frame M. */
+          Vector3d::UnitZ());
+      joints_.push_back(joint);
+    } else {
+      const Mobilizer<double> *mobilizer =
+          &model_->AddMobilizer<RevoluteMobilizer>(
+              inboard.get_body_frame(), outboard.get_body_frame(),
+              Vector3d::UnitZ());
+      mobilizers_.push_back(mobilizer);
+    }
+  }
+
+  void FinalizeModel() {
+    model_->Finalize();
+
+    // For testing, collect all mobilizer models introduced by Joint objects.
+    // These are only available after Finalize().
+    for (const RevoluteJoint<double>* joint : joints_) {
+      const auto* mobilizer = JointTester::get_mobilizer(*joint);
+      mobilizers_.push_back(mobilizer);
+    }
   }
 
   // Performs a number of tests on the BodyNodeTopology corresponding to the
@@ -356,9 +394,11 @@ class TreeTopologyTests : public ::testing::Test {
  protected:
   std::unique_ptr<MultibodyTree<double>> model_;
   // Bodies:
-  std::vector<const Body<double>*> bodies_;
+  std::vector<const RigidBody<double>*> bodies_;
   // Mobilizers:
   std::vector<const Mobilizer<double>*> mobilizers_;
+  // Joints:
+  std::vector<const RevoluteJoint<double>*> joints_;
   // The acceleration of gravity vector.
   Vector3d g_{0.0, 0.0, -9.81};
 };
@@ -379,9 +419,10 @@ TEST_F(TreeTopologyTests, Finalize) {
 // This unit tests verifies the correct number of generalized positions and
 // velocities as well as the start indexes into the state vector.
 TEST_F(TreeTopologyTests, SizesAndIndexing) {
-  model_->Finalize();
+  FinalizeModel();
   EXPECT_EQ(model_->get_num_bodies(), 8);
   EXPECT_EQ(model_->get_num_mobilizers(), 7);
+  EXPECT_EQ(model_->get_num_joints(), 1);
 
   const MultibodyTreeTopology& topology = model_->get_topology();
   EXPECT_EQ(topology.get_num_body_nodes(), model_->get_num_bodies());
@@ -476,6 +517,46 @@ TEST_F(TreeTopologyTests, ToAutoDiffXd) {
   // Even though the test above confirms the two topologies are exactly equal,
   // we perform a number of additional tests.
   VerifyTopology(autodiff_topology);
+}
+
+// Verifies the correctness of the method
+// MultibodyTreeTopology::GetKinematicPathToWorld() by computing the path from a
+// given body to the world (root) of the tree on a known topology.
+TEST_F(TreeTopologyTests, KinematicPathToWorld) {
+  FinalizeModel();
+  const MultibodyTreeTopology& topology = model_->get_topology();
+
+  const BodyIndex body6_index(6);
+  const BodyNodeIndex body6_node_index =
+      topology.get_body(body6_index).body_node;
+  const BodyNodeTopology& body6_node =
+      topology.get_body_node(body6_node_index);
+
+  // Compute kinematic path from body 6 to the world. See documentation for the
+  // test fixture TreeTopologyTests for details on the topology under test.
+  std::vector<BodyNodeIndex> path_to_world;
+  topology.GetKinematicPathToWorld(body6_node_index, &path_to_world);
+
+  const int expected_path_size = body6_node.level + 1;
+  EXPECT_EQ(static_cast<int>(path_to_world.size()), expected_path_size);
+
+  // These are the expected bodies in the path.
+  const std::vector<BodyIndex> expected_bodies_path =
+      {BodyIndex(0), BodyIndex(4), BodyIndex(1), BodyIndex(6)};
+
+  for (BodyIndex body_index : expected_bodies_path) {
+    // The path is computed in terms of body node indexes. Therefore obtain
+    // the expected value of the node index from the expected value of the
+    // body index.
+    const BodyNodeIndex expected_node_index =
+        topology.get_body(body_index).body_node;
+    const BodyNodeTopology& node = topology.get_body_node(expected_node_index);
+    // Both, expected and computed nodes must be at the same level (depth) in
+    // the tree.
+    const int level = node.level;
+    // Verify the
+    EXPECT_EQ(path_to_world[level], expected_node_index);
+  }
 }
 
 }  // namespace

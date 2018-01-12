@@ -14,7 +14,6 @@
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/diagram_builder.h"
-#include "drake/systems/framework/leaf_context.h"
 #include "drake/systems/framework/leaf_system.h"
 #include "drake/systems/framework/output_port_value.h"
 #include "drake/systems/framework/system.h"
@@ -192,7 +191,7 @@ class SystemWithNStates : public LeafSystem<double> {
  private:
   void ReturnNumContinuous(const Context<double>& context, int* nc) const {
     ASSERT_NE(nc, nullptr);
-    *nc = context.get_state().get_continuous_state()->size();
+    *nc = context.get_state().get_continuous_state().size();
   }
 };
 

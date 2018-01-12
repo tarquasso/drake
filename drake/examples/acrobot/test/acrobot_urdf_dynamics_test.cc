@@ -2,8 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include "drake/common/eigen_matrix_compare.h"
 #include "drake/common/find_resource.h"
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/examples/acrobot/acrobot_plant.h"
 #include "drake/multibody/joints/floating_base_types.h"
 #include "drake/multibody/parsers/urdf_parser.h"
@@ -43,8 +43,8 @@ GTEST_TEST(UrdfDynamicsTest, AllTests) {
     x = Eigen::Vector4d::Random();
     u = Vector1d::Random();
 
-    context_rbp->get_mutable_continuous_state_vector()->SetFromVector(x);
-    context_p->get_mutable_continuous_state_vector()->SetFromVector(x);
+    context_rbp->get_mutable_continuous_state_vector().SetFromVector(x);
+    context_p->get_mutable_continuous_state_vector().SetFromVector(x);
 
     u_rbp.GetMutableVectorData<double>()->SetFromVector(u);
     u_p.GetMutableVectorData<double>()->SetFromVector(u);

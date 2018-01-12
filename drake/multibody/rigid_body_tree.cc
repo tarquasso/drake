@@ -10,8 +10,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "drake/common/autodiff.h"
 #include "drake/common/constants.h"
-#include "drake/common/eigen_autodiff_types.h"
 #include "drake/common/eigen_types.h"
 #include "drake/common/text_logging.h"
 #include "drake/math/autodiff.h"
@@ -21,8 +21,8 @@
 #include "drake/multibody/joints/fixed_joint.h"
 #include "drake/multibody/joints/floating_base_types.h"
 #include "drake/multibody/kinematics_cache-inl.h"
+#include "drake/multibody/resolve_center_of_pressure.h"
 #include "drake/util/drakeGeometryUtil.h"
-#include "drake/util/drakeUtil.h"
 
 using Eigen::AutoDiffScalar;
 using Eigen::Dynamic;
@@ -363,7 +363,8 @@ void RigidBodyTree<T>::compile() {
         }
       }
       if (!hasChild) {
-        cout << "Welding joint " << bodies[i]->getJoint().get_name() << endl;
+        drake::log()->info("Welding joint {}",
+                           bodies[i]->getJoint().get_name());
         std::unique_ptr<DrakeJoint> joint_unique_ptr(new FixedJoint(
             bodies[i]->getJoint().get_name(),
             bodies[i]->getJoint().get_transform_to_parent_body()));

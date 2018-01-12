@@ -1,18 +1,21 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "drake/common/autodiff.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/eigen_autodiff_types.h"
+#include "drake/common/drake_optional.h"
 #include "drake/multibody/multibody_tree/acceleration_kinematics_cache.h"
 #include "drake/multibody/multibody_tree/body.h"
 #include "drake/multibody/multibody_tree/body_node.h"
 #include "drake/multibody/multibody_tree/force_element.h"
 #include "drake/multibody/multibody_tree/frame.h"
+#include "drake/multibody/multibody_tree/joints/joint.h"
 #include "drake/multibody/multibody_tree/mobilizer.h"
 #include "drake/multibody/multibody_tree/multibody_tree_context.h"
 #include "drake/multibody/multibody_tree/multibody_tree_topology.h"
@@ -372,6 +375,13 @@ class MultibodyTree {
         std::make_unique<MobilizerType<T>>(std::forward<Args>(args)...));
   }
 
+  /// Creates and adds to `this` %MultibodyTree (which retains ownership) a new
+  /// `ForceElement` member with the specific type `ForceElementType`. The
+  /// arguments to this method `args` are forwarded to `ForceElementType`'s
+  /// constructor.
+  ///
+  /// The newly created `ForceElementType` object will be specialized on the
+  /// scalar type T of this %MultibodyTree.
   template <template<typename Scalar> class ForceElementType>
   const ForceElementType<T>& AddForceElement(
       std::unique_ptr<ForceElementType<T>> force_element) {
@@ -380,7 +390,7 @@ class MultibodyTree {
         "ForceElementType<T> must be a sub-class of ForceElement<T>.");
     if (topology_is_valid()) {
       throw std::logic_error(
-          "This MultiforceTree is finalized already. Therefore adding more "
+          "This MultibodyTree is finalized already. Therefore adding more "
           "force elements is not allowed. "
           "See documentation for Finalize() for details.");
     }
@@ -405,6 +415,94 @@ class MultibodyTree {
     return AddForceElement(
         std::make_unique<ForceElementType<T>>(std::forward<Args>(args)...));
   }
+
+  /// This method helps to create a Joint of type `JointType` between two
+  /// bodies.
+  /// The two bodies connected by this Joint object are referred to as the
+  /// _parent_ and _child_ bodies. Although the terms _parent_ and _child_ are
+  /// sometimes used synonymously to describe the relationship between inboard
+  /// and outboard bodies in multibody models, this usage is wholly unrelated
+  /// and implies nothing about the inboard-outboard relationship between the
+  /// bodies.
+  /// As explained in the Joint class's documentation, in Drake we define a
+  /// frame F attached to the parent body P with pose `X_PF` and a frame M
+  /// attached to the child body B with pose `X_BM`. This method helps creating
+  /// a joint between two bodies with fixed poses `X_PF` and `X_BM`.
+  /// Refer to the Joint class's documentation for more details.
+  ///
+  /// The arguments to this method `args` are forwarded to `JointType`'s
+  /// constructor. The newly created `JointType` object will be specialized on
+  /// the scalar type T of this %MultibodyTree.
+  ///
+  /// @param name
+  ///   The name of the joint.
+  /// @param[in] parent
+  ///   The parent body connected by the new joint.
+  /// @param[in] X_PF
+  ///   The fixed pose of frame F attached to the parent body, measured in
+  ///   the frame P of that body. `X_PF` is an optional parameter; empty curly
+  ///   braces `{}` imply that frame F **is** the same body frame P. If instead
+  ///   your intention is to make a frame F with pose `X_PF`, provide
+  ///   `Isometry3<double>::Identity()` as your input.
+  /// @param[in] child
+  ///   The child body connected by the new joint.
+  /// @param[in] X_BM
+  ///   The fixed pose of frame M attached to the child body, measured in
+  ///   the frame B of that body. `X_BM` is an optional parameter; empty curly
+  ///   braces `{}` imply that frame M **is** the same body frame B. If instead
+  ///   your intention is to make a frame F with pose `X_PF`, provide
+  ///   `Isometry3<double>::Identity()` as your input.
+  ///
+  /// Example of usage:
+  /// @code
+  ///   MultibodyTree<T> model;
+  ///   // ... Code to define a parent body P and a child body B.
+  ///   const Body<double>& parent_body =
+  ///     model.AddBody<RigidBody>(SpatialInertia<double>(...));
+  ///   const Body<double>& child_body =
+  ///     model.AddBody<RigidBody>(SpatialInertia<double>(...));
+  ///   // Define the pose X_BM of a frame M rigidly atached to child body B.
+  ///   const RevoluteJoint<double>& elbow =
+  ///     model.AddJoint<RevoluteJoint>(
+  ///       "Elbow",                /* joint name */
+  ///       model.get_world_body(), /* parent body */
+  ///       {},                     /* frame F IS the parent body frame P */
+  ///       pendulum,               /* child body, the pendulum */
+  ///       X_BM,                   /* pose of frame M in the body frame B */
+  ///       Vector3d::UnitZ());     /* revolute axis in this case */
+  /// @endcode
+  ///
+  /// @see The Joint class's documentation for further details on how a Joint
+  /// is defined.
+  template<template<typename> class JointType, typename... Args>
+  const JointType<T>& AddJoint(
+      const std::string& name,
+      const Body<T>& parent, const optional<Isometry3<double>>& X_PF,
+      const Body<T>& child, const optional<Isometry3<double>>& X_BM,
+      Args&&... args) {
+    static_assert(std::is_base_of<Joint<T>, JointType<T>>::value,
+                  "JointType<T> must be a sub-class of Joint<T>.");
+
+    const Frame<T>* frame_on_parent;
+    if (X_PF) {
+      frame_on_parent = &this->AddFrame<FixedOffsetFrame>(parent, *X_PF);
+    } else {
+      frame_on_parent = &parent.get_body_frame();
+    }
+
+    const Frame<T>* frame_on_child;
+    if (X_BM) {
+      frame_on_child = &this->AddFrame<FixedOffsetFrame>(child, *X_BM);
+    } else {
+      frame_on_child = &child.get_body_frame();
+    }
+
+    return AddJoint(
+        std::make_unique<JointType<T>>(
+            name,
+            *frame_on_parent, *frame_on_child,
+            std::forward<Args>(args)...));
+  }
   /// @}
   // Closes Doxygen section.
 
@@ -419,6 +517,9 @@ class MultibodyTree {
   /// Returns the number of bodies in the %MultibodyTree including the *world*
   /// body. Therefore the minimum number of bodies in a MultibodyTree is one.
   int get_num_bodies() const { return static_cast<int>(owned_bodies_.size()); }
+
+  /// Returns the number of joints added with AddJoint() to the %MultibodyTree.
+  int get_num_joints() const { return static_cast<int>(owned_joints_.size()); }
 
   /// Returns the number of mobilizers in the %MultibodyTree. Since the world
   /// has no Mobilizer, the number of mobilizers equals the number of bodies
@@ -462,8 +563,11 @@ class MultibodyTree {
   }
 
   /// Returns a constant reference to the *world* body.
-  const Body<T>& get_world_body() const {
-    return *owned_bodies_[world_index()];
+  const RigidBody<T>& get_world_body() const {
+    // world_body_ is set in the constructor. So this assert is here only to
+    // verify future constructors do not mess that up.
+    DRAKE_ASSERT(world_body_ != nullptr);
+    return *world_body_;
   }
 
   /// Returns a constant reference to the *world* frame.
@@ -477,15 +581,6 @@ class MultibodyTree {
   const Body<T>& get_body(BodyIndex body_index) const {
     DRAKE_ASSERT(body_index < get_num_bodies());
     return *owned_bodies_[body_index];
-  }
-
-  /// Returns a constant reference to the body belonging to the body node
-  /// identified with unique index `node_index`.
-  /// This method aborts in Debug builds when `node_index` does not correspond
-  /// to a node in this multibody tree.
-  const Body<T>& get_body(BodyNodeIndex node_index) const {
-    DRAKE_ASSERT(node_index < get_num_bodies());
-    return body_nodes_[node_index]->get_body();
   }
 
   /// Returns a constant reference to the frame with unique index `frame_index`.
@@ -545,18 +640,30 @@ class MultibodyTree {
   ///
   /// @throws std::logic_error If users attempt to call this method on a
   ///         %MultibodyTree with an invalid topology.
-  // TODO(amcastro-tri): Split this method into implementations to be used by
-  // System::AllocateContext() so that MultibodyPlant() can make use of it
-  // within the system's infrastructure. This will require at least the
-  // introduction of system's methods to:
-  //  - Create a context different from LeafContext, in this case MBTContext.
-  //  - Create or request cache entries.
   std::unique_ptr<systems::LeafContext<T>> CreateDefaultContext() const;
 
   /// Sets default values in the context. For mobilizers, this method sets them
   /// to their _zero_ configuration according to
   /// Mobilizer::set_zero_configuration().
-  void SetDefaults(systems::Context<T>* context) const;
+  void SetDefaultContext(systems::Context<T>* context) const;
+
+  /// Sets default values in the `state`. For mobilizers, this method sets them
+  /// to their _zero_ configuration according to
+  /// Mobilizer::set_zero_configuration().
+  void SetDefaultState(const systems::Context<T>& context,
+                       systems::State<T>* state) const;
+
+  /// @name Computational methods
+  /// These methods expose the computational capabilities of MultibodyTree to
+  /// compute kinematics, forward and inverse dynamics, and Jacobian matrices,
+  /// among others.
+  /// These methods follow Drake's naming scheme for methods performing a
+  /// computation and therefore are named `CalcXXX()`, where `XXX` corresponds
+  /// to the quantity or object of interest to be computed. They all take a
+  /// `systems::Context` as an input argument storing the state of the multibody
+  /// system. A `std::bad_cast` exception is thrown if the passed context is not
+  /// a MultibodyTreeContext.
+  /// @{
 
   /// Computes into the position kinematics `pc` all the kinematic quantities
   /// that depend on the generalized positions only. These include:
@@ -567,8 +674,7 @@ class MultibodyTree {
   /// - Across-mobilizer Jacobian matrices `H_FM` and `H_PB_W`.
   /// - Body specific quantities such as `com_W` and `M_Bo_W`.
   ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
-  /// Aborts if `pc` is the nullptr.
+  /// Aborts if `pc` is nullptr.
   void CalcPositionKinematicsCache(
       const systems::Context<T>& context,
       PositionKinematicsCache<T>* pc) const;
@@ -584,8 +690,7 @@ class MultibodyTree {
   /// @pre The position kinematics `pc` must have been previously updated with a
   /// call to CalcPositionKinematicsCache().
   ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
-  /// Aborts if `vc` is the nullptr.
+  /// Aborts if `vc` is nullptr.
   void CalcVelocityKinematicsCache(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
@@ -611,14 +716,12 @@ class MultibodyTree {
   ///   model.
   /// @param[out] ac
   ///   A pointer to a valid, non nullptr, acceleration kinematics cache. This
-  ///   method aborts if `ac` is the nullptr.
+  ///   method aborts if `ac` is nullptr.
   ///
   /// @pre The position kinematics `pc` must have been previously updated with a
   /// call to CalcPositionKinematicsCache().
   /// @pre The velocity kinematics `vc` must have been previously updated with a
   /// call to CalcVelocityKinematicsCache().
-  ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
   void CalcAccelerationKinematicsCache(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
@@ -655,8 +758,6 @@ class MultibodyTree {
   /// call to CalcPositionKinematicsCache().
   /// @pre The velocity kinematics `vc` must have been previously updated with a
   /// call to CalcVelocityKinematicsCache().
-  ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
   void CalcSpatialAccelerationsFromVdot(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
@@ -745,7 +846,7 @@ class MultibodyTree {
   /// @param[out] tau_array
   ///   On output this array will contain the generalized forces that must be
   ///   applied in order to achieve the desired generalized accelerations given
-  ///   by the input argument `known_vdot`. It must not be the nullptr and it
+  ///   by the input argument `known_vdot`. It must not be nullptr and it
   ///   must be of size MultibodyTree::get_num_velocities(). Generalized forces
   ///   for each Mobilizer can be accessed with
   ///   Mobilizer::get_generalized_forces_from_array().
@@ -769,8 +870,6 @@ class MultibodyTree {
   /// call to CalcPositionKinematicsCache().
   /// @pre The velocity kinematics `vc` must have been previously updated with a
   /// call to CalcVelocityKinematicsCache().
-  ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
   void CalcInverseDynamics(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
@@ -782,24 +881,12 @@ class MultibodyTree {
       std::vector<SpatialForce<T>>* F_BMo_W_array,
       EigenPtr<VectorX<T>> tau_array) const;
 
-  void CalcMassMatrixViaInverseDynamics(
-      const systems::Context<T>& context,
-      const PositionKinematicsCache<T>& pc,
-      EigenPtr<MatrixX<T>> H) const;
-
-  void CalcBiasTerm(
-      const systems::Context<T>& context,
-      const PositionKinematicsCache<T>& pc,
-      const VelocityKinematicsCache<T>& vc,
-      const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array,
-      EigenPtr<VectorX<T>> C) const;
-
   /// Computes the combined force contribution of ForceElement objects in the
   /// model. A ForceElement can apply forcing as a spatial force per body or as
   /// generalized forces, depending on the ForceElement model. Therefore this
   /// method provides outputs for both spatial forces per body (with
   /// `F_Bo_W_array`) and generalized forces (with `tau_array`).
-  /// ForceElement contributions are a function of the state only.
+  /// ForceElement contributions are a function of the state and time only.
   /// The output from this method can immediately be used as input to
   /// CalcInverseDynamics() to include the effect of applied forces by force
   /// elements.
@@ -824,8 +911,9 @@ class MultibodyTree {
   ///   use the index returned by Body::get_node_index().
   /// @param[out] tau_array
   ///   On output this array will contain the generalized forces contribution
-  ///   applied by the force elements in `this` model. It must be of size
-  ///   MultibodyTree::get_num_velocities() or this method will abort.
+  ///   applied by the force elements in `this` model. It must not be nullptr
+  ///   and it must be of size MultibodyTree::get_num_velocities() or this
+  ///   method will abort.
   ///   Generalized forces for each Mobilizer can be accessed with
   ///   Mobilizer::get_generalized_forces_from_array().
   ///
@@ -833,8 +921,6 @@ class MultibodyTree {
   /// call to CalcPositionKinematicsCache().
   /// @pre The velocity kinematics `vc` must have been previously updated with a
   /// call to CalcVelocityKinematicsCache().
-  ///
-  /// @throws std::bad_cast if `context` is not a `MultibodyTreeContext`.
   void CalcForceElementsContribution(
       const systems::Context<T>& context,
       const PositionKinematicsCache<T>& pc,
@@ -842,15 +928,256 @@ class MultibodyTree {
       std::vector<SpatialForce<T>>* F_Bo_W_array,
       EigenPtr<VectorX<T>> tau_array) const;
 
+  /// Computes and returns the total potential energy stored in `this` multibody
+  /// model for the configuration given by `context`.
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model.
+  /// @returns The total potential energy stored in `this` multibody model.
+  T CalcPotentialEnergy(const systems::Context<T>& context) const;
+
+  /// Computes and returns the power generated by conservative forces in the
+  /// multibody model. This quantity is defined to be positive when the
+  /// potential energy is decreasing. In other words, if `U(q)` is the potential
+  /// energy as defined by CalcPotentialEnergy(), then the conservative power,
+  /// `Pc`, is `Pc = -U̇(q)`.
+  ///
+  /// @see CalcPotentialEnergy()
+  T CalcConservativePower(const systems::Context<T>& context) const;
+
+  /// Performs the computation of the mass matrix `M(q)` of the model using
+  /// inverse dynamics, where the generalized positions q are stored in
+  /// `context`. See CalcInverseDynamics().
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model.
+  /// @param[out] H
+  ///   A valid (non-null) pointer to a squared matrix in `ℛⁿˣⁿ` with n the
+  ///   number of generalized velocities (get_num_velocities()) of the model.
+  ///   This method aborts if H is nullptr or if it does not have the proper
+  ///   size.
+  ///
+  /// The algorithm used to build `M(q)` consists in computing one column of
+  /// `M(q)` at a time using inverse dynamics. The result from inverse dynamics,
+  /// with no applied forces, is the vector of generalized forces: <pre>
+  ///   tau = M(q)v̇ + C(q, v)v
+  /// </pre>
+  /// where q and v are the generalized positions and velocities, respectively.
+  /// When `v = 0` the Coriolis and gyroscopic forces term `C(q, v)v` is zero.
+  /// Therefore the `i-th` column of `M(q)` can be obtained performing inverse
+  /// dynamics with an acceleration vector `v̇ = eᵢ`, with `eᵢ` the standard
+  /// (or natural) basis of `ℛⁿ` with n the number of generalized velocities.
+  /// We write this as: <pre>
+  ///   H.ᵢ(q) = M(q) * e_i
+  /// </pre>
+  /// where `H.ᵢ(q)` (notice the dot for the rows index) denotes the `i-th`
+  /// column in M(q).
+  ///
+  /// @warning This is an O(n²) algorithm. Avoid the explicit computation of the
+  /// mass matrix whenever possible.
+  void CalcMassMatrixViaInverseDynamics(
+      const systems::Context<T>& context, EigenPtr<MatrixX<T>> H) const;
+
+  //void CalcMassMatrixViaInverseDynamics(
+  //    const systems::Context<T>& context,
+  //    const PositionKinematicsCache<T>& pc,
+  //    EigenPtr<MatrixX<T>> H) const;
+
+  /// Computes the bias term `C(q, v)v` containing Coriolis and gyroscopic
+  /// effects of the multibody equations of motion: <pre>
+  ///   M(q)v̇ + C(q, v)v = tau_app + ∑ J_WBᵀ(q) Fapp_Bo_W
+  /// </pre>
+  /// where `M(q)` is the multibody model's mass matrix and `tau_app` consists
+  /// of a vector applied generalized forces. The last term is a summation over
+  /// all bodies in the model where `Fapp_Bo_W` is an applied spatial force on
+  /// body B at `Bo` which gets projected into the space of generalized forces
+  /// with the geometric Jacobian `J_WB(q)` which maps generalized velocities
+  /// into body B spatial velocity as `V_WB = J_WB(q)v`.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model. It stores
+  ///   the generalized positions q and the generalized velocities v.
+  /// @param[out] Cv
+  ///   On output, `Cv` will contain the product `C(q, v)v`. It must be a valid
+  ///   (non-null) pointer to a column vector in `ℛⁿ` with n the number of
+  ///   generalized velocities (get_num_velocities()) of the model.
+  ///   This method aborts if Cv is nullptr or if it does not have the
+  ///   proper size.
+  void CalcBiasTerm(
+      const systems::Context<T>& context, EigenPtr<VectorX<T>> Cv) const;
+
+ //void CalcBiasTerm(
+ //     const systems::Context<T>& context,
+ //     const PositionKinematicsCache<T>& pc,
+ //     const VelocityKinematicsCache<T>& vc,
+ //     const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array,
+ //     EigenPtr<VectorX<T>> C) const;
+
+  /// Computes the relative transform `X_AB(q)` from a frame B to a frame A, as
+  /// a function of the generalized positions q of the model.
+  /// That is, the position `p_AQ` of a point Q measured and expressed in
+  /// frame A can be computed from the position `p_BQ` of this point measured
+  /// and expressed in frame B using the transformation `p_AQ = X_AB⋅p_BQ`.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model. It stores
+  ///   the generalized positions q of the model.
+  /// @param[in] to_frame_A
+  ///   The target frame A in the computed relative transform `X_AB`.
+  /// @param[in] from_frame_B
+  ///   The source frame B in the computed relative transform `X_AB`.
+  /// @retval X_AB
+  ///   The relative transform from frame B to frame A, such that
+  ///   `p_AQ = X_AB⋅p_BQ`.
+  Isometry3<T> CalcRelativeTransform(
+      const systems::Context<T>& context,
+      const Frame<T>& to_frame_A, const Frame<T>& from_frame_B) const;
+
+  ///  Given the positions `p_BQi` for a set of points `Qi` measured and
+  ///  expressed in a frame B, this method computes the positions `p_AQi(q)` of
+  ///  each point `Qi` in the set as measured and expressed in another frame A,
+  ///  as a function of the generalized positions q of the model.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model. It stores
+  ///   the generalized positions q of the model.
+  /// @param[in] from_frame_B
+  ///   The frame B in which the positions `p_BQi` of a set of points `Qi` are
+  ///   given.
+  /// @param[in] p_BQi
+  ///   The input positions of each point `Qi` in frame B. `p_BQi ∈ ℝ³ˣⁿᵖ` with
+  ///   `np` the number of points in the set. Each column of `p_BQi` corresponds
+  ///   to a vector in ℝ³ holding the position of one of the points in the set
+  ///   as measured and expressed in frame B.
+  /// @param[in] to_frame_A
+  ///   The frame A in which it is desired to compute the positions `p_AQi` of
+  ///   each point `Qi` in the set.
+  /// @param[out] p_AQi
+  ///   The output positions of each point `Qi` now computed as measured and
+  ///   expressed in frame A. The output `p_AQi` **must** have the same size as
+  ///   the input `p_BQi` or otherwise this method aborts. That is `p_AQi`
+  ///   **must** be in `ℝ³ˣⁿᵖ`.
+  ///
+  /// @note Both `p_BQi` and `p_AQi` must have three rows. Otherwise this
+  /// method will throw a std::runtime_error exception. This method also throws
+  /// a std::runtime_error exception if `p_BQi` and `p_AQi` differ in the number
+  /// of columns.
+  void CalcPointsPositions(
+      const systems::Context<T>& context,
+      const Frame<T>& from_frame_B,
+      const Eigen::Ref<const MatrixX<T>>& p_BQi,
+      const Frame<T>& to_frame_A,
+      EigenPtr<MatrixX<T>> p_AQi) const;
+
+  /// @name Methods to compute multibody Jacobians.
+  /// @{
+
+  /// Given a set of points `Qi` with fixed position vectors `p_BQi` in a frame
+  /// B, (that is, their time derivative `ᴮd/dt(p_BQi)` in frame B is zero),
+  /// this method computes the geometric Jacobian `J_WQi` defined by:
+  /// <pre>
+  ///   J_WQi(q) = d(v_WQi(q, v))/dv
+  /// </pre>
+  /// where `p_WQi` is the position vector in the world frame for each point
+  /// `Qi` in the input set, `v_WQi` is the translational velocity of point `Qi`
+  /// in the world frame W and v is the vector of generalized velocities. Since
+  /// the spatial velocity of each point `Qi` is linear in the generalized
+  /// velocities, the geometric Jacobian `J_WQi` is a function of the
+  /// generalized coordinates q only.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model. It stores
+  ///   the generalized positions q.
+  /// @param[in] frame_B
+  ///   The positions `p_BQi` of each point in the input set are measured and
+  ///   expressed in this frame B and are constant (fixed) in this frame.
+  /// @param[in] p_BQi_set
+  ///   A matrix with the fixed position of a set of points `Qi` measured and
+  ///   expressed in `frame_B`.
+  ///   Each column of this matrix contains the position vector `p_BQi` for a
+  ///   point `Qi` measured and expressed in frame B. Therefore this input
+  ///   matrix lives in ℝ³ˣⁿᵖ with `np` the number of points in the set.
+  /// @param[out] p_WQi_set
+  ///   The output positions of each point `Qi` now computed as measured and
+  ///   expressed in frame W. These positions are computed in the process of
+  ///   computing the geometric Jacobian `J_WQi` and therefore external storage
+  ///   must be provided.
+  ///   The output `p_WQi_set` **must** have the same size
+  ///   as the input set `p_BQi_set` or otherwise this method throws a
+  ///   std::runtime_error exception. That is `p_WQi_set` **must** be in
+  ///   `ℝ³ˣⁿᵖ`.
+  /// @param[out] J_WQi
+  ///   The geometric Jacobian `J_WQi(q)`, function of the generalized positions
+  ///   q only. This Jacobian relates the translational velocity `v_WQi` of
+  ///   each point `Qi` in the input set by: <pre>
+  ///     `v_WQi(q, v) = J_WQi(q)⋅v`
+  ///   </pre>
+  ///   so that `v_WQi` is a column vector of size `3⋅np` concatenating the
+  ///   velocity of all points `Qi` in the same order they were given in the
+  ///   input set. Therefore `J_WQi` is a matrix of size `3⋅np x nv`, with `nv`
+  ///   the number of generalized velocities. On input, matrix `J_WQi` **must**
+  ///   have size `3⋅np x nv` or this method throws a std::runtime_error
+  ///   exception.
+  void CalcPointsGeometricJacobianExpressedInWorld(
+      const systems::Context<T>& context,
+      const Frame<T>& frame_B, const Eigen::Ref<const MatrixX<T>>& p_BQi_set,
+      EigenPtr<MatrixX<T>> p_WQi_set, EigenPtr<MatrixX<T>> J_WQi) const;
+
+  /// @}
+  // End of multibody Jacobian methods section.
+
+  /// Transforms generalized velocities v to time derivatives `qdot` of the
+  /// generalized positions vector `q` (stored in `context`). `v` and `qdot`
+  /// are related linearly by `q̇ = N(q)⋅v`.
+  /// Using the configuration `q` stored in the given `context` this method
+  /// calculates `q̇ = N(q)⋅v`.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model.
+  /// @param[in] v
+  ///   A vector of of generalized velocities for `this` %MultibodyTree model.
+  ///   This method aborts if v is not of size get_num_velocities().
+  /// @param[out] qdot
+  ///   A valid (non-null) pointer to a vector in `ℝⁿ` with n being the number
+  ///   of generalized positions in `this` %MultibodyTree model,
+  ///   given by `get_num_positions()`. This method aborts if `qdot` is nullptr
+  ///   or if it is not of size get_num_positions().
+  ///
+  /// @see MapQDotToVelocity()
+  /// @see Mobilizer::MapVelocityToQDot()
+  void MapVelocityToQDot(
+      const systems::Context<T>& context,
+      const Eigen::Ref<const VectorX<T>>& v,
+      EigenPtr<VectorX<T>> qdot) const;
+
+  /// Transforms the time derivative `qdot` of the generalized positions vector
+  /// `q` (stored in `context`) to generalized velocities `v`. `v` and `q̇`
+  /// are related linearly by `q̇ = N(q)⋅v`. Although `N(q)` is not
+  /// necessarily square, its left pseudo-inverse `N⁺(q)` can be used to
+  /// invert that relationship without residual error, provided that `qdot` is
+  /// in the range space of `N(q)` (that is, if it *could* have been produced as
+  /// `q̇ = N(q)⋅v` for some `v`).
+  /// Using the configuration `q` stored in the given `context` this method
+  /// calculates `v = N⁺(q)⋅q̇`.
+  ///
+  /// @param[in] context
+  ///   The context containing the state of the %MultibodyTree model.
+  /// @param[in] qdot
+  ///   A vector containing the time derivatives of the generalized positions.
+  ///   This method aborts if `qdot` is not of size get_num_positions().
+  /// @param[out] v
+  ///   A valid (non-null) pointer to a vector in `ℛⁿ` with n the number of
+  ///   generalized velocities. This method aborts if v is nullptr or if it
+  ///   is not of size get_num_velocities().
+  ///
+  /// @see MapVelocityToQDot()
+  /// @see Mobilizer::MapQDotToVelocity()
   void MapQDotToVelocity(
       const systems::Context<T>& context,
       const Eigen::Ref<const VectorX<T>>& qdot,
       EigenPtr<VectorX<T>> v) const;
 
-  void MapVelocityToQDot(
-      const systems::Context<T>& context,
-      const Eigen::Ref<const VectorX<T>>& v,
-      EigenPtr<VectorX<T>> qdot) const;
+  /// @}
+  // Closes "Computational methods" Doxygen section.
 
   /// @name Methods to retrieve multibody element variants
   ///
@@ -909,6 +1236,14 @@ class MultibodyTree {
       const MultibodyElement<Scalar>& element) const {
     return get_mobilizer_variant(element);
   }
+
+  /// SFINAE overload for Joint<T> elements.
+  template <template <typename> class MultibodyElement, typename Scalar>
+  std::enable_if_t<std::is_base_of<Joint<T>, MultibodyElement<T>>::value,
+                   const MultibodyElement<T>&> get_variant(
+      const MultibodyElement<Scalar>& element) const {
+    return get_joint_variant(element);
+  }
   /// @}
 
   /// Creates a deep copy of `this` %MultibodyTree templated on the same
@@ -934,6 +1269,29 @@ class MultibodyTree {
   ///   - Mobilizer objects are created last and therefore clones of the
   ///     original Frame objects are guaranteed to already be part of the cloned
   ///     tree.
+  ///
+  /// Consider the following code example:
+  /// @code
+  ///   // The user creates a model.
+  ///   MultibodyTree<double> model;
+  ///   // User adds a body and keeps a reference to it.
+  ///   const RigidBody<double>& body = model.AddBody<RigidBody>(...);
+  ///   // User creates an AutoDiffXd variant, where ToScalar = AutoDiffXd.
+  ///   std::unique_ptr<MultibodyTree<AutoDiffXd>> model_autodiff =
+  ///       model.CloneToScalar<AutoDiffXd>();
+  ///   // User retrieves the AutoDiffXd variant corresponding to the original
+  ///   // body added above.
+  ///   const RigidBody<AutoDiffXd>&
+  ///       body_autodiff = model_autodiff.get_variant(body);
+  /// @endcode
+  ///
+  /// MultibodyTree::get_variant() is templated on the multibody element
+  /// type which is deduced from its only input argument. The returned element
+  /// is templated on the scalar type T of the %MultibodyTree on which this
+  /// method is invoked.
+  /// In the example above, the user could have also invoked the method
+  /// ToAutoDiffXd().
+  ///
   /// @pre Finalize() must have already been called on this %MultibodyTree.
   template <typename ToScalar>
   std::unique_ptr<MultibodyTree<ToScalar>> CloneToScalar() const {
@@ -970,6 +1328,14 @@ class MultibodyTree {
       tree_clone->CloneForceElementAndAdd(*force_element);
     }
 
+    // Since Joint<T> objects are implemented from basic element objects like
+    // Body, Mobilizer, ForceElement and Constraint, they are cloned last so
+    // that the clones of their dependencies are guaranteed to be available.
+    // DO NOT change this order!!!
+    for (const auto& joint : owned_joints_) {
+      tree_clone->CloneJointAndAdd(*joint);
+    }
+
     // We can safely make a deep copy here since the original multibody tree is
     // required to be finalized.
     tree_clone->topology_ = this->topology_;
@@ -985,6 +1351,26 @@ class MultibodyTree {
   // private methods from MultibodyTree<T>.
   template <typename> friend class MultibodyTree;
 
+  template <template<typename Scalar> class JointType>
+  const JointType<T>& AddJoint(
+      std::unique_ptr<JointType<T>> joint) {
+    static_assert(std::is_convertible<JointType<T>*, Joint<T>*>::value,
+                  "JointType must be a sub-class of Joint<T>.");
+    if (topology_is_valid()) {
+      throw std::logic_error("This MultibodyTree is finalized already. "
+                             "Therefore adding more joints is not allowed. "
+                             "See documentation for Finalize() for details.");
+    }
+    if (joint == nullptr) {
+      throw std::logic_error("Input joint is a nullptr.");
+    }
+    const JointIndex joint_index(owned_joints_.size());
+    joint->set_parent_tree(this, joint_index);
+    JointType<T>* raw_joint_ptr = joint.get();
+    owned_joints_.push_back(std::move(joint));
+    return *raw_joint_ptr;
+  }
+
   // Finalizes the MultibodyTreeTopology of this tree.
   void FinalizeTopology();
 
@@ -994,6 +1380,58 @@ class MultibodyTree {
   // This method will throw a std::logic_error if FinalizeTopology() was not
   // previously called on this tree.
   void FinalizeInternals();
+
+  // Computes the cache entry associated with the geometric Jacobian H_PB_W for
+  // each node.
+  // The geometric Jacobian `H_PB_W` relates to the spatial velocity of B in P
+  // by `V_PB_W = H_PB_W(q)⋅v_B`, where `v_B` corresponds to the generalized
+  // velocities associated to body B. `H_PB_W` has size `6 x nm` with `nm` the
+  // number of mobilities associated with body B.
+  // `H_PB_W_cache` stores the Jacobian matrices for all nodes in the tree as a
+  // vector of the columns of these matrices. Therefore `H_PB_W_cache` has as
+  // many entries as number of generalized velocities in the tree.
+  void CalcAcrossNodeGeometricJacobianExpressedInWorld(
+      const systems::Context<T>& context,
+      const PositionKinematicsCache<T>& pc,
+      std::vector<Vector6<T>>* H_PB_W_cache) const;
+
+  // Implementation for CalcMassMatrixViaInverseDynamics().
+  // It assumes:
+  //  - The position kinematics cache object is already updated to be in sync
+  //    with `context`.
+  //  - H is not nullptr.
+  //  - H has storage for a square matrix of size get_num_velocities().
+  void DoCalcMassMatrixViaInverseDynamics(
+      const systems::Context<T>& context,
+      const PositionKinematicsCache<T>& pc,
+      EigenPtr<MatrixX<T>> H) const;
+
+  // Implementation of CalcBiasTerm().
+  // It assumes:
+  //  - The position kinematics cache object is already updated to be in sync
+  //    with `context`.
+  //  - The velocity kinematics cache object is already updated to be in sync
+  //    with `context`.
+  //  - Cv is not nullptr.
+  //  - Cv has storage for a vector of size get_num_velocities().
+  void DoCalcBiasTerm(
+      const systems::Context<T>& context,
+      const PositionKinematicsCache<T>& pc,
+      const VelocityKinematicsCache<T>& vc,
+      EigenPtr<VectorX<T>> Cv) const;
+
+  // Implementation of CalcPotentialEnergy().
+  // It is assumed that the position kinematics cache pc is in sync with
+  // context.
+  T DoCalcPotentialEnergy(const systems::Context<T>& context,
+                          const PositionKinematicsCache<T>& pc) const;
+
+  // Implementation of CalcConservativePower().
+  // It is assumed that the position kinematics cache pc and the velocity
+  // kinematics cache vc are in sync with context.
+  T DoCalcConservativePower(const systems::Context<T>& context,
+                            const PositionKinematicsCache<T>& pc,
+                            const VelocityKinematicsCache<T>& vc) const;
 
   void CreateBodyNode(BodyNodeIndex body_node_index);
 
@@ -1060,23 +1498,32 @@ class MultibodyTree {
   // Helper method to create a clone of `force_element` and add it to `this`
   // tree.
   template <typename FromScalar>
-  ForceElement<T>* CloneForceElementAndAdd(
+  void CloneForceElementAndAdd(
       const ForceElement<FromScalar>& force_element) {
     ForceElementIndex force_element_index = force_element.get_index();
     auto force_element_clone = force_element.CloneToScalar(*this);
     force_element_clone->set_parent_tree(this, force_element_index);
-
-    ForceElement<T>* raw_force_element_clone_ptr = force_element_clone.get();
+    //ForceElement<T>* raw_force_element_clone_ptr = force_element_clone.get();
     owned_force_elements_.push_back(std::move(force_element_clone));
-    return raw_force_element_clone_ptr;
+    //return raw_force_element_clone_ptr;
+  }
+
+  // Helper method to create a clone of `joint` and add it to `this` tree.
+  template <typename FromScalar>
+  Joint<T>* CloneJointAndAdd(const Joint<FromScalar>& joint) {
+    JointIndex joint_index = joint.get_index();
+    auto joint_clone = joint.CloneToScalar(*this);
+    joint_clone->set_parent_tree(this, joint_index);
+    owned_joints_.push_back(std::move(joint_clone));
+    return owned_joints_.back().get();
   }
 
   // Helper method to retrieve the corresponding Frame<T> variant to a Frame in
   // a MultibodyTree variant templated on Scalar.
   template <template <typename> class FrameType, typename Scalar>
   const FrameType<T>& get_frame_variant(const FrameType<Scalar>& frame) const {
-    static_assert(std::is_convertible<FrameType<T>*, Frame<T>*>::value,
-                  "FrameType must be a sub-class of Frame<T>.");
+    static_assert(std::is_base_of<Frame<T>, FrameType<T>>::value,
+                  "FrameType<T> must be a sub-class of Frame<T>.");
     // TODO(amcastro-tri):
     //   DRAKE_DEMAND the parent tree of the variant is indeed a variant of this
     //   MultibodyTree. That will require the tree to have some sort of id.
@@ -1092,8 +1539,8 @@ class MultibodyTree {
   // MultibodyTree variant templated on Scalar.
   template <template <typename> class BodyType, typename Scalar>
   const BodyType<T>& get_body_variant(const BodyType<Scalar>& body) const {
-    static_assert(std::is_convertible<BodyType<T>*, Body<T>*>::value,
-                  "BodyType must be a sub-class of Body<T>.");
+    static_assert(std::is_base_of<Body<T>, BodyType<T>>::value,
+                  "BodyType<T> must be a sub-class of Body<T>.");
     // TODO(amcastro-tri):
     //   DRAKE_DEMAND the parent tree of the variant is indeed a variant of this
     //   MultibodyTree. That will require the tree to have some sort of id.
@@ -1111,8 +1558,8 @@ class MultibodyTree {
   template <template <typename> class MobilizerType, typename Scalar>
   const MobilizerType<T>& get_mobilizer_variant(
       const MobilizerType<Scalar>& mobilizer) const {
-    static_assert(std::is_convertible<MobilizerType<T>*, Mobilizer<T>*>::value,
-                  "MobilizerType must be a sub-class of Mobilizer<T>.");
+    static_assert(std::is_base_of<Mobilizer<T>, MobilizerType<T>>::value,
+                  "MobilizerType<T> must be a sub-class of Mobilizer<T>.");
     // TODO(amcastro-tri):
     //   DRAKE_DEMAND the parent tree of the variant is indeed a variant of this
     //   MultibodyTree. That will require the tree to have some sort of id.
@@ -1125,15 +1572,36 @@ class MultibodyTree {
     return *mobilizer_variant;
   }
 
+  // Helper method to retrieve the corresponding Joint<T> variant to a Joint
+  // in a MultibodyTree variant templated on Scalar.
+  template <template <typename> class JointType, typename Scalar>
+  const JointType<T>& get_joint_variant(const JointType<Scalar>& joint) const {
+    static_assert(std::is_base_of<Joint<T>, JointType<T>>::value,
+                  "JointType<T> must be a sub-class of Joint<T>.");
+    // TODO(amcastro-tri):
+    //   DRAKE_DEMAND the parent tree of the variant is indeed a variant of this
+    //   MultibodyTree. That will require the tree to have some sort of id.
+    JointIndex joint_index = joint.get_index();
+    DRAKE_DEMAND(joint_index < get_num_joints());
+    const JointType<T>* joint_variant =
+        dynamic_cast<const JointType<T>*>(
+            owned_joints_[joint_index].get());
+    DRAKE_DEMAND(joint_variant != nullptr);
+    return *joint_variant;
+  }
+
   // TODO(amcastro-tri): In future PR's adding MBT computational methods, write
   // a method that verifies the state of the topology with a signature similar
   // to RoadGeometry::CheckInvariants().
 
+  const RigidBody<T>* world_body_{nullptr};
   std::vector<std::unique_ptr<Body<T>>> owned_bodies_;
   std::vector<std::unique_ptr<Frame<T>>> owned_frames_;
   std::vector<std::unique_ptr<Mobilizer<T>>> owned_mobilizers_;
   std::vector<std::unique_ptr<ForceElement<T>>> owned_force_elements_;
   std::vector<std::unique_ptr<internal::BodyNode<T>>> body_nodes_;
+
+  std::vector<std::unique_ptr<Joint<T>>> owned_joints_;
 
   // List of all frames in the system ordered by their FrameIndex.
   // This vector contains a pointer to all frames in owned_frames_ as well as a

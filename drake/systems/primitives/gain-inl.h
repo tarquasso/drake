@@ -5,11 +5,12 @@
 /// Most users should only include that file, not this one.
 /// For background, see http://drake.mit.edu/cxx_inl.html.
 
+/* clang-format off to disable clang-format-includes */
 #include "drake/systems/primitives/gain.h"
+/* clang-format on */
 
 #include <sstream>
 
-#include "drake/common/drake_assert.h"
 #include "drake/common/unused.h"
 
 namespace drake {
@@ -22,7 +23,13 @@ Gain<T>::Gain(double k, int size) : Gain(Eigen::VectorXd::Ones(size) * k) {}
 
 template <typename T>
 Gain<T>::Gain(const Eigen::VectorXd& k)
-    : VectorSystem<T>(k.size(), k.size()), k_(k) {}
+    : VectorSystem<T>(SystemTypeTag<systems::Gain>{}, k.size(), k.size()),
+      k_(k) {}
+
+template <typename T>
+template <typename U>
+Gain<T>::Gain(const Gain<U>& other)
+    : Gain<T>(other.get_gain_vector()) {}
 
 template <typename T>
 double Gain<T>::get_gain() const {
@@ -48,11 +55,6 @@ void Gain<T>::DoCalcVectorOutput(
     Eigen::VectorBlock<VectorX<T>>* output) const {
   unused(state);
   *output = k_.array() * input.array();
-}
-
-template <typename T>
-Gain<symbolic::Expression>* Gain<T>::DoToSymbolic() const {
-  return new Gain<symbolic::Expression>(k_);
 }
 
 }  // namespace systems

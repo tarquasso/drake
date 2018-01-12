@@ -2,13 +2,12 @@
 
 #include <utility>
 
+#include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
-#include "drake/common/eigen_autodiff_types.h"
 #include "drake/common/eigen_types.h"
 #include "drake/common/symbolic.h"
 #include "drake/common/symbolic_decompose.h"
 #include "drake/systems/framework/basic_vector.h"
-#include "drake/systems/framework/leaf_context.h"
 
 namespace drake {
 namespace systems {
@@ -76,7 +75,7 @@ void TimeVaryingAffineSystem<T>::CalcOutputY(
     const VectorX<T>& x = (this->time_period() == 0.)
         ? dynamic_cast<const BasicVector<T>&>(
             context.get_continuous_state_vector()).get_value()
-        : context.get_discrete_state()->get_vector()->get_value();
+        : context.get_discrete_state().get_vector().get_value();
     y += Ct * x;
   }
 
@@ -136,7 +135,7 @@ void TimeVaryingAffineSystem<T>::DoCalcDiscreteVariableUpdates(
   VectorX<T> xn = f0(t);
   DRAKE_DEMAND(xn.rows() == num_states_);
 
-  const auto& x = context.get_discrete_state(0)->get_value();
+  const auto& x = context.get_discrete_state(0).get_value();
 
   const MatrixX<T> At = A(t);
   DRAKE_DEMAND(At.rows() == num_states_ && At.cols() == num_states_);
@@ -151,11 +150,8 @@ void TimeVaryingAffineSystem<T>::DoCalcDiscreteVariableUpdates(
     DRAKE_DEMAND(Bt.rows() == num_states_ && Bt.cols() == num_inputs_);
     xn += Bt * u;
   }
-  updates->get_mutable_vector()->SetFromVector(xn);
+  updates->get_mutable_vector().SetFromVector(xn);
 }
-
-template class TimeVaryingAffineSystem<double>;
-template class TimeVaryingAffineSystem<AutoDiffXd>;
 
 // Our public constructor declares that our most specific subclass is
 // AffineSystem, and then delegates to our protected constructor.
@@ -249,7 +245,7 @@ void AffineSystem<T>::CalcOutputY(const Context<T>& context,
   const VectorX<T>& x = (this->time_period() == 0.)
       ? dynamic_cast<const BasicVector<T>&>(
           context.get_continuous_state_vector()).get_value()
-      : context.get_discrete_state()->get_vector()->get_value();
+      : context.get_discrete_state().get_vector().get_value();
 
   auto y = output_vector->get_mutable_value();
   y = C_ * x + y0_;
@@ -290,7 +286,7 @@ void AffineSystem<T>::DoCalcDiscreteVariableUpdates(
     drake::systems::DiscreteValues<T>* updates) const {
   if (this->num_states() == 0 || this->time_period() == 0.0) return;
 
-  const auto& x = context.get_discrete_state(0)->get_value();
+  const auto& x = context.get_discrete_state(0).get_value();
 
   VectorX<T> xnext = A_ * x + f0_;
 
@@ -301,11 +297,15 @@ void AffineSystem<T>::DoCalcDiscreteVariableUpdates(
 
     xnext += B_ * u;
   }
-  updates->get_mutable_vector()->SetFromVector(xnext);
+  updates->get_mutable_vector().SetFromVector(xnext);
 }
 
-template class AffineSystem<double>;
-template class AffineSystem<AutoDiffXd>;
 
 }  // namespace systems
 }  // namespace drake
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::TimeVaryingAffineSystem)
+
+DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::systems::AffineSystem)

@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "drake/common/autodiff.h"
 #include "drake/common/drake_copyable.h"
 #include "drake/common/drake_optional.h"
 #include "drake/geometry/frame_id_vector.h"
@@ -39,14 +40,43 @@ using FrameIdSet = std::unordered_set<FrameId>;
  GeometryWorld's context-dependent state includes values and structure -- the
  topology of the world.
 
- @tparam T The underlying scalar type. Must be a valid Eigen scalar. */
+ @tparam T The scalar type. Must be a valid Eigen scalar.
+
+ Instantiated templates for the following kinds of T's are provided:
+ - double
+ - AutoDiffXd
+
+ They are already available to link against in the containing library.
+ No other values for T are currently supported. */
 template <typename T>
 class GeometryState {
  public:
   DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(GeometryState)
 
+ private:
+  template <typename K, typename V> class MapKeyRange;
+
+ public:
+  /** An object that represents the range of FrameId values in the state. It
+   is used in range-based for loops to iterate through registered frames. */
+  using FrameIdRange = MapKeyRange<FrameId, internal::InternalFrame>;
+
   /** Default constructor. */
   GeometryState();
+
+  /** Allow assignment from a %GeometryState<double> to a %GeometryState<T>.
+   @internal The SFINAE is required to prevent collision with the default
+   defined assignment operator where T is double. */
+  template <class T1 = T>
+  typename std::enable_if<!std::is_same<T1, double>::value,
+                          GeometryState<T>&>::type
+  operator=(const GeometryState<double>& other) {
+    // This reuses the private copy *conversion* constructor. It is *not*
+    // intended to be performant -- but no one should be copying geometry
+    // world's state frequently anyways.
+    GeometryState<T> temp{other};
+    return *this = temp;
+  }
 
   /** @name        State introspection
 
@@ -74,6 +104,59 @@ class GeometryState {
 
   /** Reports true if the given `source_id` references a registered source. */
   bool source_is_registered(SourceId source_id) const;
+
+  /** The set of all dynamic geometries registered to the world. The order is
+   _not_ guaranteed to have any particular semantic meaning. But the order is
+   guaranteed to remain fixed between topological changes (e.g., removal or
+   addition of geometry/frames). */
+  const std::vector<GeometryId>& get_geometry_ids() const {
+    return geometry_index_id_map_;
+  }
+
+  /** Provides a range object for all of the frame ids in the world. The
+   order is not generally guaranteed; but it will be consistent as long as there
+   are no changes to the topology. This is intended to be used as:
+   @code
+   for (FrameId id : state.get_frame_ids()) {
+    ...
+   }
+   @endcode  */
+  FrameIdRange get_frame_ids() const {
+    return FrameIdRange(&frames_);
+  }
+
+  /** Reports the frame group for the given frame.
+   @param frame_id  The identifier of the queried frame.
+   @returns The frame group of the identified frame.
+   @throws std::logic_error if the frame id is not valid.
+   @internal This is equivalent to the old "model instance id". */
+  int get_frame_group(FrameId frame_id) const;
+
+  /** Reports the name of the frame.
+   @param frame_id  The identifier of the queried frame.
+   @returns The name of the identified frame.
+   @throws std::logic_error if the frame id is not valid. */
+  const std::string& get_frame_name(FrameId frame_id) const;
+
+  /** Reports the pose of the frame with the given id.
+   @param frame_id  The identifier of the queried frame.
+   @returns The pose in the world (X_WF) of the identified frame.
+   @throws std::logic_error if the frame id is not valid. */
+  const Isometry3<T>& get_pose_in_world(FrameId frame_id) const;
+
+  /** Reports the pose of the geometry with the given id.
+   @param geometry_id  The identifier of the queried geometry.
+   @returns The pose in the world (X_WG) of the identified geometry.
+   @throws std::logic_error if the geometry id is not valid. */
+  const Isometry3<T>& get_pose_in_world(GeometryId geometry_id) const;
+
+  /** Reports the pose of the frame with the given id relative to its parent
+   frame. If the frame's parent is the world, the value should be the same as
+   a call to get_pose_in_world().
+   @param frame_id  The identifier of the queried frame.
+   @returns The pose in the _parent_ frame (X_PF) of the identified frame.
+   @throws std::logic_error if the frame id is not valid. */
+  const Isometry3<T>& get_pose_in_parent(FrameId frame_id) const;
 
   /** Reports the source name for the given source id.
    @param id  The identifier of the source.
@@ -119,7 +202,8 @@ class GeometryState {
    @param frame        The frame to register.
    @returns  A newly allocated frame id.
    @throws std::logic_error  If the `source_id` does _not_ map to a registered
-                             source. */
+                             source, or `frame` has an id that has already
+                             been registered. */
   FrameId RegisterFrame(SourceId source_id, const GeometryFrame& frame);
 
   /** Registers a new frame for the given source as a child of a previously
@@ -129,9 +213,11 @@ class GeometryState {
    @param frame        The frame to register.
    @returns  A newly allocated frame id.
    @throws std::logic_error  1. If the `source_id` does _not_ map to a
-                             registered source, or
+                             registered source,
                              2. If the `parent_id` does _not_ map to a known
-                             frame or does not belong to the source. */
+                             frame or does not belong to the source, or
+                             3. `frame` has an id that has already been
+                             registered */
   FrameId RegisterFrame(SourceId source_id, FrameId parent_id,
                         const GeometryFrame& frame);
 
@@ -146,8 +232,9 @@ class GeometryState {
    @returns  A newly allocated geometry id.
    @throws std::logic_error  1. the `source_id` does _not_ map to a registered
                              source, or
-                             2. the `frame_id` doesn't belong to the source, or
-                             3. The `geometry` is equal to `nullptr`. */
+                             2. the `frame_id` doesn't belong to the source,
+                             3. The `geometry` is equal to `nullptr`, or
+                             4. `geometry` has a previously registered id. */
   GeometryId RegisterGeometry(SourceId source_id, FrameId frame_id,
                               std::unique_ptr<GeometryInstance> geometry);
 
@@ -167,8 +254,8 @@ class GeometryState {
    @throws std::logic_error 1. the `source_id` does _not_ map to a registered
                             source, or
                             2. the `geometry_id` doesn't belong to the source,
-                            or
-                            3. the `geometry` is equal to `nullptr`. */
+                            3. the `geometry` is equal to `nullptr`, or
+                            4. `geometry` has a previously registered id. */
   GeometryId RegisterGeometryWithParent(
       SourceId source_id, GeometryId geometry_id,
       std::unique_ptr<GeometryInstance> geometry);
@@ -184,10 +271,12 @@ class GeometryState {
                        ownership of the geometry.
    @returns  A newly allocated geometry id.
    @throws std::logic_error  If the `source_id` does _not_ map to a registered
-                             source. */
+                             source, or
+                             `geometry` has a previously registered id. */
   GeometryId RegisterAnchoredGeometry(
       SourceId source_id,
       std::unique_ptr<GeometryInstance> geometry);
+
   /** Removes all frames and geometry registered from the identified source.
    The source remains registered and further frames and geometry can be
    registered on it.
@@ -263,7 +352,56 @@ class GeometryState {
 
   //@}
 
+  /** Scalar conversion */
+  //@{
+
+  /** Returns a deep copy of this state using the AutoDiffXd scalar with all
+   scalar values initialized from the current values. If this is invoked on an
+   instance already instantiated on AutoDiffXd, it is equivalent to cloning
+   the instance. */
+  std::unique_ptr<GeometryState<AutoDiffXd>> ToAutoDiffXd() const;
+
+  //@}
+
  private:
+  // GeometryState of one scalar type is friends with all other scalar types.
+  template <typename>
+  friend class GeometryState;
+
+  // Conversion constructor. In the initial implementation, this is only
+  // intended to be used to clone an AutoDiff instance from a double instance.
+  template <typename U>
+  GeometryState(const GeometryState<U>& source)
+      : source_frame_id_map_(source.source_frame_id_map_),
+        source_root_frame_map_(source.source_root_frame_map_),
+        source_names_(source.source_names_),
+        source_anchored_geometry_map_(source.source_anchored_geometry_map_),
+        frames_(source.frames_),
+        geometries_(source.geometries_),
+        anchored_geometries_(source.anchored_geometries_),
+        geometry_index_id_map_(source.geometry_index_id_map_),
+        anchored_geometry_index_id_map_(source.anchored_geometry_index_id_map_),
+        X_FG_(source.X_FG_),
+        pose_index_to_frame_map_(source.pose_index_to_frame_map_) {
+    // NOTE: Can't assign Isometry3<double> to Isometry3<AutoDiff>. But we *can*
+    // assign Matrix<double> to Matrix<AutoDiff>, so that's what we're doing.
+    auto convert = [](const std::vector<Isometry3<U>>& s,
+                      std::vector<Isometry3<T>>* d) {
+      std::vector<Isometry3<T>>& dest = *d;
+      dest.resize(s.size());
+      for (size_t i = 0; i < s.size(); ++i) {
+        dest[i].matrix() = s[i].matrix();
+      }
+    };
+
+    convert(source.X_PF_, &X_PF_);
+    convert(source.X_WG_, &X_WG_);
+    convert(source.X_WF_, &X_WF_);
+  }
+
+  // Allow geometry dispatch to peek into GeometryState.
+  friend void DispatchLoadMessage(const GeometryState<double>&);
+
   // Allow GeometrySystem unique access to the state members to perform queries.
   friend class GeometrySystem<T>;
 
@@ -292,6 +430,44 @@ class GeometryState {
   //                           ids or matching size.
   void ValidateFramePoses(const FrameIdVector& ids,
                           const FramePoseVector<T>& poses) const;
+
+  // A const range iterator through the keys of an unordered map.
+  template <typename K, typename V>
+  class MapKeyRange {
+   public:
+    DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(MapKeyRange)
+
+    class ConstIterator {
+     public:
+      DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(ConstIterator)
+
+      const K& operator*() const { return itr_->first; }
+      const ConstIterator& operator++() {
+        ++itr_;
+        return *this;
+      }
+      bool operator!=(const ConstIterator& other) { return itr_ != other.itr_; }
+
+     private:
+      explicit ConstIterator(
+          typename std::unordered_map<K, V>::const_iterator itr)
+          : itr_(itr) {}
+
+     private:
+      typename std::unordered_map<K, V>::const_iterator itr_;
+      friend class MapKeyRange;
+    };
+
+    explicit MapKeyRange(const std::unordered_map<K, V>* map)
+        : map_(map) {
+      DRAKE_DEMAND(map);
+    }
+    ConstIterator begin() const { return ConstIterator(map_->cbegin()); }
+    ConstIterator end() const { return ConstIterator(map_->cend()); }
+
+   private:
+    const std::unordered_map<K, V>* map_;
+  };
 
   // Gets the source id for the given frame id. Throws std::logic_error if the
   // frame belongs to no registered source.
@@ -458,6 +634,16 @@ class GeometryState {
   // In other words, it is the full evaluation of the kinematic chain from the
   // geometry to the world frame.
   std::vector<Isometry3<T>> X_WG_;
+
+  // The pose of each frame relative to the *world* frame.
+  // frames_.size() == X_WF_.size() is an invariant. Furthermore, after a
+  // complete state update from input poses,
+  //   X_WF_[i] == X_WFₙ X_FₙFₙ₋₁ ... X_Fᵢ₊₂Fᵢ₊₁ X_PF_[i]
+  // Where Fᵢ₊₁ is the parent frame of frame i, Fₖ₊₁ is the parent frame of
+  // frame Fₖ, and the world frame W is the parent of frame Fₙ.
+  // In other words, it is the full evaluation of the kinematic chain from
+  // frame i to the world frame.
+  std::vector<Isometry3<T>> X_WF_;
 };
 }  // namespace geometry
 }  // namespace drake
