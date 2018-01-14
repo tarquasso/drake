@@ -25,13 +25,23 @@ DoublePendulum3DPlant<T>::DoublePendulum3DPlant(
 }
 
 template<typename T>
-void DoublePendulum3DPlant<T>::SetState(
-    systems::Context<T>* context, const Vector6<T> position,
-    const Vector6<T> velocity) {
+void DoublePendulum3DPlant<T>::SetState(Context<T>* context,
+                                        const Vector6<T> position,
+                                        const Vector6<T> velocity) {
   shoulder_mobilizer_->set_angles(context, position.topRows(3));
   elbow_mobilizer_->set_angles(context, position.bottomRows(3));
   shoulder_mobilizer_->set_angular_velocity(context, velocity.topRows(3));
   elbow_mobilizer_->set_angular_velocity(context, velocity.bottomRows(3));
+}
+
+template<typename T>
+void DoublePendulum3DPlant<T>::GetState(const Context<T>* context,
+                                       EigenPtr<VectorX<T>> position,
+                                       EigenPtr<VectorX<T>> velocity) {
+  position->topRows(3) = shoulder_mobilizer_->get_angles(*context);
+  position->bottomRows(3) = elbow_mobilizer_->get_angles(*context);
+  velocity->topRows(3) = shoulder_mobilizer_->get_angular_velocity(*context);
+  velocity->bottomRows(3) = elbow_mobilizer_->get_angular_velocity(*context);
 }
 
 template<typename T>
@@ -79,69 +89,13 @@ void DoublePendulum3DPlant<T>::DoCalcTimeDerivatives(
 
     qddot << M.llt().solve(-C);
   } else {
-    VectorX<T> vdot(nv);
-
     model_->CalcForwardDynamicsViaArticulatedBody(
-        context, pc, vc, Fapplied_Bo_W_array, tau_applied_array, &vdot);
-
-    const MultibodyTreeContext<T>* mbt_context =
-        dynamic_cast<const MultibodyTreeContext<T>*>(&context);
-    VectorX<T> q = mbt_context->get_positions();
-
-    Vector3<T> qddot_shoulder;
-    MapBallVDotToQDDot(q.head(3), qdot.head(3), vdot.head(3), &qddot_shoulder);
-    Vector3<T> qddot_elbow;
-    MapBallVDotToQDDot(q.tail(3), qdot.tail(3), vdot.tail(3), &qddot_elbow);
-
-    qddot << qddot_shoulder, qddot_elbow;
+        context, pc, vc, Fapplied_Bo_W_array, tau_applied_array, &qddot);
   }
 
   VectorX<T> xdot(model_->get_num_states());
   xdot << qdot, qddot;
   derivatives->SetFromVector(xdot);
-}
-
-template<typename T>
-void DoublePendulum3DPlant<T>::MapBallVDotToQDDot(
-    const Eigen::Ref<const VectorX<T>>& q,
-    const Eigen::Ref<const VectorX<T>>& qdot,
-    const Eigen::Ref<const VectorX<T>>& vdot,
-    EigenPtr<VectorX<T>> qddot) const {
-  using std::cos;
-  using std::sin;
-  using std::abs;
-
-  const T cp = cos(q[1]);
-  DRAKE_DEMAND(abs(cp) > 1.0e-3);
-
-  const T sp = sin(q[1]);
-  const T cy = cos(q[2]);
-  const T sy = sin(q[2]);
-  const T cpi = 1.0 / cp;
-
-  const T r_dot = qdot[0];
-  const T p_dot = qdot[1];
-  const T y_dot = qdot[2];
-
-  const T b0 = vdot[0];
-  const T b1 = vdot[1];
-  const T b2 = vdot[2];
-
-  // Compute E⁻¹(q) * v̇.
-  const T t = (cy * b0 + sy * b1) * cpi;
-  Vector3<T> rhs = Vector3<T>(
-      t,
-      -sy * b0 + cy * b1,
-      sp * t + b2);
-
-  // Compute Ė⁻¹(q, q̇) * v.
-  const T u = p_dot * cpi;
-  Vector3<T> lhs = Vector3<T>(
-      (r_dot * sp + y_dot) * u,
-      -r_dot * y_dot * cp,
-      (r_dot + y_dot * sp) * u);
-
-  *qddot = lhs + rhs;
 }
 
 template<typename T>
@@ -183,19 +137,26 @@ void DoublePendulum3DPlant<T>::BuildMultibodyTreeModel() {
   model_ = std::make_unique<MultibodyTree<T>>();
   DRAKE_DEMAND(model_ != nullptr);
 
-  UnitInertia<double> G_Ucm =
-      UnitInertia<double>::ThinRod(l1_, Vector3d::UnitY());
+  const double r = 0.015;
+  const double L = l1_;
+  const double J = r * r / 2;
+  const double K = (3 * r * r + L * L) / 12;
+  const UnitInertia<double> G =
+      UnitInertia<double>::AxiallySymmetric(J, K, Vector3d::UnitY());
+
+  UnitInertia<double> G_Ucm = G;
   SpatialInertia<double> M_Ucm(m1_, Vector3d::Zero(), G_Ucm);
   const RigidBody<T>& upper_link = model_->template AddBody<RigidBody>(M_Ucm);
 
-  UnitInertia<double> G_Lcm =
-      UnitInertia<double>::ThinRod(l2_, Vector3d::UnitY());
-  SpatialInertia<double> M_Lcm(l2_, Vector3d::Zero(), G_Lcm);
+  UnitInertia<double> G_Lcm = G;
+  SpatialInertia<double> M_Lcm(m2_, Vector3d::Zero(), G_Lcm);
   const RigidBody<T>& lower_link = model_->template AddBody<RigidBody>(M_Lcm);
 
+  // Shoulder inboard frame.
   const Frame<T>& U_inboard_frame =
       model_->template AddFrame<FixedOffsetFrame>(
           model_->get_world_body(), Isometry3d::Identity());
+  // Shoulder outboard frame.
   const Frame<T>& U_outboard_frame =
       model_->template AddFrame<FixedOffsetFrame>(
           upper_link, Isometry3d{Eigen::Translation3d(0.0, l1_ / 2, 0.0)});
