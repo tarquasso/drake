@@ -27,14 +27,6 @@ drake_cc_library(
     ],
 )
 
-#drake_cc_googletest(
-#    name = "acrobot_multibody_plant_test",
-#    deps = [
-#        ":acrobot_multibody_plant",
-#        "//drake/multibody/benchmarks/acrobot",
-#    ],
-#)
-
 install_data()
 
 add_lint_tests()
