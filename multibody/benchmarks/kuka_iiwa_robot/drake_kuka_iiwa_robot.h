@@ -360,22 +360,25 @@ class DrakeKukaIIwaRobot {
     model_->CalcPositionKinematicsCache(*context_, &pc);
     model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
 
+    // Get model parameters.
+    const int nv = model_->get_num_velocities();
+    const int nb = model_->get_num_bodies();
+
     // Compute force element contributions.
-    const int num_bodies = model_->get_num_bodies();
-    std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
-    const int num_velocities = model_->get_num_velocities();
-    VectorX<T> tau_applied_array(num_velocities);
-    model_->CalcForceElementsContribution(
-        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied_array);
+    MultibodyForces<T> forces(*model_);
+    model_->CalcForceElementsContribution(*context_, pc, vc, &forces);
 
     // Construct M explicity.
-    const int nv = model_->get_num_velocities();
     MatrixX<T> M(nv, nv);
     model_->CalcMassMatrixViaInverseDynamics(*context_, &M);
 
     // Construct C explicitly under zero acceleration.
-    std::vector<SpatialAcceleration<T>> A_WB_array(num_bodies);
-    std::vector<SpatialForce<T>> F_BMo_W_array(num_bodies);
+    const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array =
+        forces.body_forces();
+    const VectorX<T>& tau_applied_array = forces.generalized_forces();
+    std::vector<SpatialAcceleration<T>> A_WB_array(nb);
+    std::vector<SpatialForce<T>> F_BMo_W_array(nb);
+
     VectorX<T> C(nv);
     model_->CalcInverseDynamics(
         *context_, pc, vc, VectorX<T>::Zero(nv), Fapplied_Bo_W_array,
@@ -399,16 +402,12 @@ class DrakeKukaIIwaRobot {
     model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
 
     // Compute force element contributions.
-    const int num_bodies = model_->get_num_bodies();
-    std::vector<SpatialForce<T>> Fapplied_Bo_W_array(num_bodies);
-    const int num_velocities = model_->get_num_velocities();
-    VectorX<T> tau_applied_array(num_velocities);
-    model_->CalcForceElementsContribution(
-        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied_array);
+    MultibodyForces<T> forces(*model_);
+    model_->CalcForceElementsContribution(*context_, pc, vc, &forces);
 
     // Compute forward dynamics using ABA.
     model_->CalcForwardDynamicsViaArticulatedBody(
-        *context_, pc, vc, Fapplied_Bo_W_array, tau_applied_array, qddot);
+        *context_, pc, vc, forces, qddot);
   }
 
  private:

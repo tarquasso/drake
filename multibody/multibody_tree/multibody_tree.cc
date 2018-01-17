@@ -394,18 +394,18 @@ void MultibodyTree<T>::CalcForwardDynamicsViaArticulatedBody(
     const systems::Context<T>& context,
     const PositionKinematicsCache<T>& pc,
     const VelocityKinematicsCache<T>& vc,
-    const std::vector<SpatialForce<T>>& Fapplied_Bo_W_array,
-    const Eigen::Ref<const VectorX<T>>& tau_applied_array,
+    const MultibodyForces<T>& forces,
     EigenPtr<VectorX<T>> vdot
 ) const {
   DRAKE_DEMAND(vdot != nullptr);
   DRAKE_DEMAND(vdot->size() == get_num_velocities());
 
-  const int Fapplied_size = static_cast<int>(Fapplied_Bo_W_array.size());
-  const int tau_array_size = static_cast<int>(tau_applied_array.size());
+  const Eigen::Ref<const VectorX<T>>& generalized_forces =
+      forces.generalized_forces();
+  const std::vector<SpatialForce<T>>& body_forces = forces.body_forces();
 
-  VectorX<T> tau_applied_mobilizer(0);
-  SpatialForce<T> Fapplied_Bo_W = SpatialForce<T>::Zero();
+  VectorX<T> tau_applied_mobilizer;
+  SpatialForce<T> Fapplied_Bo_W;
 
   const auto& mbt_context =
       dynamic_cast<const MultibodyTreeContext<T>&>(context);
@@ -420,13 +420,9 @@ void MultibodyTree<T>::CalcForwardDynamicsViaArticulatedBody(
     for (BodyNodeIndex body_node_index : body_node_levels_[depth]) {
       const BodyNode<T>& node = *body_nodes_[body_node_index];
 
-      if (tau_array_size != 0) {
-        tau_applied_mobilizer = node.get_mobilizer()
-            .get_generalized_forces_from_array(tau_applied_array);
-      }
-      if (Fapplied_size != 0) {
-        Fapplied_Bo_W = Fapplied_Bo_W_array[body_node_index];
-      }
+      tau_applied_mobilizer = node.get_mobilizer()
+            .get_generalized_forces_from_array(generalized_forces);
+      Fapplied_Bo_W = body_forces[body_node_index];
 
       Eigen::Map<const MatrixUpTo6<T>> H_PB_W =
           node.GetJacobianFromArray(H_PB_W_cache);

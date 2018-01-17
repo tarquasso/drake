@@ -638,15 +638,18 @@ class PendulumKinematicTests : public PendulumTests {
     M = acrobot_benchmark_.CalcMassMatrix(elbow_angle);
     model_->CalcPositionKinematicsCache(*context_, &pc);
     model_->CalcVelocityKinematicsCache(*context_, pc, &vc);
-    model_->CalcForceElementsContribution(
-        *context_, pc, vc, &Fapplied_Bo_W_array, &tau_applied);
+
+    MultibodyForces<double> forces(*model_);
+    model_->CalcForceElementsContribution(*context_, pc, vc, &forces);
 
     // Compute qddot via ABA.
     model_->CalcForwardDynamicsViaArticulatedBody(
-        *context_, pc, vc, Fapplied_Bo_W_array, tau_applied, &qddot);
+        *context_, pc, vc, forces, &qddot);
 
     //Compute qddot_expected via explicit inversion.
     Vector2d vdot = Vector2d::Zero();
+    Fapplied_Bo_W_array = forces.body_forces();
+    tau_applied = forces.generalized_forces();
     model_->CalcInverseDynamics(
         *context_, pc, vc, vdot, Fapplied_Bo_W_array, tau_applied,
         &A_WB_array, &Fapplied_Bo_W_array, &C);
