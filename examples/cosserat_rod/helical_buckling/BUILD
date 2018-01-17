@@ -26,7 +26,6 @@ drake_cc_library(
         "//drake/systems/framework",
         "//drake/systems/rendering:drake_visualizer_client",
         "//drake/systems/rendering:pose_bundle",
-        "@libbot//:bot2_lcmgl_client",
     ],
 )
 
