@@ -30,13 +30,19 @@ class CosseratRodPlant : public systems::LeafSystem<T> {
                                      double rho, double young_modulus);
   static double EstimateTau(double timeConstant, double zeta);
 
+  enum Solver {
+    MassMatrix,
+    ArticulatedBody
+  };
+
   /// Constructs a Cosserat model for a rod of circular cross section.
   CosseratRodPlant(double length, double radius1, double radius2,
                    double rho,
                    double young_modulus, double shear_modulus,
                    double tau_bending, double tau_twisting,
                    int num_links,
-                   int dimension = 2);
+                   int dimension = 2,
+                   Solver solver = Solver::ArticulatedBody);
 
   /// Scalar-converting copy constructor.
   template <typename U>
@@ -156,6 +162,8 @@ class CosseratRodPlant : public systems::LeafSystem<T> {
   std::vector<const multibody::Mobilizer<T>*> mobilizers_;
   const multibody::RigidBody<T>* first_element_{nullptr};
   const multibody::RigidBody<T>* last_element_{nullptr};
+
+  Solver solver_;
 };
 
 }  // namespace cosserat_rod

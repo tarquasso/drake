@@ -52,6 +52,19 @@ drake_cc_binary(
     ],
 )
 
+drake_cc_googletest(
+    name = "forward_dynamics_test",
+    srcs = ["forward_dynamics_test.cc"],
+    deps = [
+        ":cosserat_rod_plant",
+        "//drake/common/test_utilities:eigen_matrix_compare",
+        "//drake/systems/analysis:implicit_euler_integrator",
+        "//drake/systems/analysis:simulator",
+        "//drake/systems/framework:diagram",
+        "//drake/systems/primitives:signal_logger",
+    ],
+)
+
 install_data()
 
 add_lint_tests()

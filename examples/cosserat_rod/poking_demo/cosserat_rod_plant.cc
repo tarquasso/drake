@@ -48,12 +48,13 @@ CosseratRodPlant<T>::CosseratRodPlant(
     double rho,
     double young_modulus, double shear_modulus,
     double tau_bending, double tau_twisting,
-    int num_links, int dimension) :
+    int num_links, int dimension, Solver solver) :
       dimension_(dimension),
       length_(length),
       rho_(rho),
       tau_bending_(tau_bending), tau_twisting_(tau_twisting),
-      num_elements_(num_links) {
+      num_elements_(num_links),
+      solver_(solver) {
 
   // Geometric parameters for a circular cross section:
   // I = A * A / (4 * M_PI)
@@ -459,15 +460,6 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
 
   PRINT_VAR(last_element_->get_node_index());
 
-  MatrixX<T> M(nv, nv);
-  model_.CalcMassMatrixViaInverseDynamics(context, &M);
-  // Check if M is symmetric.
-  const T err_sym = (M - M.transpose()).norm();
-  PRINT_VAR(err_sym);
-  //DRAKE_DEMAND(err_sym < 1.0e-6);
-
-  PRINT_VARn(M);
-
   // Applied forces:
   MultibodyForces<T> forces(model_);
 
@@ -576,21 +568,42 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
     PRINT_VAR(F);
   }
 
-  VectorX<T> C(nv);
-  //model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
+  // Forward dynamics based on desired method.
+  VectorX<T> vdot_output(nv);
 
-  const VectorX<T> vdot = VectorX<T>::Zero(model_.get_num_velocities());
-  std::vector<SpatialAcceleration<T>> A_WB_array(model_.get_num_bodies());
+  if (solver_ == Solver::MassMatrix) {
+    MatrixX<T> M(nv, nv);
+    model_.CalcMassMatrixViaInverseDynamics(context, &M);
+    // Check if M is symmetric.
+    const T err_sym = (M - M.transpose()).norm();
+    PRINT_VAR(err_sym);
+    //DRAKE_DEMAND(err_sym < 1.0e-6);
 
-  // Output vector of spatial forces for joint reaction force/torques for
-  // each body B at their inboard frame Mo, expressed in the world W.
-  std::vector<SpatialForce<T>> F_BMo_W_array(model_.get_num_bodies());
+    PRINT_VARn(M);
 
-  model_.CalcInverseDynamics(
-      context, pc, vc, vdot, Fapplied_Bo_W_array, generalized_force_applied,
-      &A_WB_array, &F_BMo_W_array, &C);
+    //VectorX<T> C(nv);
+    //model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
 
-  PRINT_VAR(C.transpose());
+    const VectorX<T> vdot = VectorX<T>::Zero(model_.get_num_velocities());
+    std::vector<SpatialAcceleration<T>> A_WB_array(model_.get_num_bodies());
+
+    // Output vector of spatial forces for joint reaction force/torques for
+    // each body B at their inboard frame Mo, expressed in the world W.
+    std::vector<SpatialForce<T>> F_BMo_W_array(model_.get_num_bodies());
+
+    model_.CalcInverseDynamics(
+        context, pc, vc, vdot, Fapplied_Bo_W_array, generalized_force_applied,
+        &A_WB_array, &F_BMo_W_array, &generalized_force_applied);
+
+    PRINT_VAR(generalized_force_applied.transpose());
+
+
+
+    vdot_output << M.llt().solve(-generalized_force_applied);
+  } else {
+    model_.CalcForwardDynamicsViaArticulatedBody(
+        context, pc, vc, forces, &vdot_output);
+  }
 
   auto v = x.bottomRows(nv);
 
@@ -599,12 +612,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
 
   VectorX<T> xdot(model_.get_num_states());
 
-  // TODO: this solve M.llt().solve() does not seem to throw an error when M is
-  // not symmetric. Apparently my M is not symmetric when I add those ball
-  // mobilizers.
-  //Eigen::LLT<MatrixX<T>> solver(M);
-
-  xdot << qdot, M.llt().solve(- C);
+  xdot << qdot, vdot_output;
   derivatives->SetFromVector(xdot);
 }
 

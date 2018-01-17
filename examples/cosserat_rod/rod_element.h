@@ -86,7 +86,7 @@ class RodElement : public ForceElement<T> {
       const MultibodyTreeContext<T>& context,
       const PositionKinematicsCache<T>& pc,
       const VelocityKinematicsCache<T>& vc,
-      MultibodyForces<T>* forces) const final;
+      MultibodyForces<T>* forces) const override;
 
   std::unique_ptr<ForceElement<double>> DoCloneToScalar(
       const MultibodyTree<double>& tree_clone) const override;
