@@ -33,14 +33,17 @@ void RodElement<T>::DoCalcAndAddForceContribution(
     const MultibodyTreeContext<T>& context,
     const PositionKinematicsCache<T>& pc,
     const VelocityKinematicsCache<T>& vc,
-    std::vector<SpatialForce<T>>* F_Bo_W_array,
-    EigenPtr<VectorX<T>> tau) const {
+    MultibodyForces<T>* forces) const {
   using std::abs;
   using std::sin;
   using std::cos;
   using std::min;
   using std::max;
   using std::acos;
+
+  // Alias to the array of applied body forces:
+  std::vector<SpatialForce<T>>& F_Bo_W_array = forces->mutable_body_forces();
+
   const double kEpsilon = 10 * std::numeric_limits<double>::epsilon();
 
   const MultibodyTree<T>& model = this->get_parent_tree();
@@ -160,10 +163,10 @@ void RodElement<T>::DoCalcAndAddForceContribution(
 
   // Spatial force on Bi.
   const SpatialForce<T> F_Bi_W(M_W + Md_W, Vector3<T>::Zero());
-  F_Bo_W_array->at(node_i) += F_Bi_W;
+  F_Bo_W_array[node_i] += F_Bi_W;
 
   // Action/reaction on Bip.
-  F_Bo_W_array->at(node_ip) -= F_Bi_W;
+  F_Bo_W_array[node_ip] -= F_Bi_W;
 }
 
 template <typename T>
