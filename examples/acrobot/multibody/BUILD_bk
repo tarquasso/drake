@@ -40,7 +40,7 @@ drake_cc_binary(
         "//drake/systems/analysis:simulator",
         "//drake/systems/framework:diagram",
         "//drake/systems/primitives:signal_logger",
-        "@com_github_gflags_gflags//:gflags",
+        "@gflags",
     ],
 )
 
