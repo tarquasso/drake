@@ -581,7 +581,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
     PRINT_VAR(F);
   }
 
-  //VectorX<T> C(nv);
+  VectorX<T> C(nv);
   //model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
 
   const VectorX<T> vdot = VectorX<T>::Zero(model_.get_num_velocities());
@@ -589,9 +589,9 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   std::vector<SpatialForce<T>> F_BMo_W_array(model_.get_num_bodies());
   model_.CalcInverseDynamics(
       context, pc, vc, vdot, Fapplied_Bo_W_array, generalized_force_applied,
-      &A_WB_array, &F_BMo_W_array, &generalized_force_applied);
+      &A_WB_array, &F_BMo_W_array, &C);
 
-  PRINT_VAR(generalized_force_applied.transpose());
+  PRINT_VAR(C.transpose());
 
   auto v = x.bottomRows(nv);
 
@@ -605,7 +605,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   // mobilizers.
   //Eigen::LLT<MatrixX<T>> solver(M);
 
-  xdot << qdot, M.llt().solve(- generalized_force_applied);
+  xdot << qdot, M.llt().solve(- C);
   derivatives->SetFromVector(xdot);
 }
 

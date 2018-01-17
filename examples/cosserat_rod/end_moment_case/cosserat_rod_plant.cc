@@ -13,6 +13,7 @@
 #include "drake/multibody/multibody_tree/ball_mobilizer.h"
 #include "drake/multibody/multibody_tree/rpy_mobilizer.h"
 #include "drake/multibody/multibody_tree/fixed_offset_frame.h"
+#include "drake/multibody/multibody_tree/multibody_forces.h"
 #include "drake/multibody/multibody_tree/revolute_mobilizer.h"
 #include "drake/multibody/multibody_tree/uniform_gravity_field_element.h"
 #include "drake/systems/framework/diagram.h"
@@ -30,6 +31,7 @@ namespace cosserat_rod {
 using Eigen::Isometry3d;
 using Eigen::Translation3d;
 using Eigen::Vector3d;
+using multibody::MultibodyForces;
 using multibody::SpatialForce;
 
 #include <iostream>
@@ -484,11 +486,6 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   model_.CalcPositionKinematicsCache(context, &pc);
   model_.CalcVelocityKinematicsCache(context, pc, &vc);
 
-  // Add a constant moment at the end link.
-  const int nb = model_.get_num_bodies();
-  std::vector<SpatialForce<T>> Fapplied_Bo_W_array((unsigned long) nb);
-  for (auto& F : Fapplied_Bo_W_array) F.SetZero();
-
   PRINT_VAR(last_element_->get_node_index());
 
   MatrixX<T> M(nv, nv);
@@ -500,10 +497,18 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
 
   PRINT_VARn(M);
 
-  VectorX<T> tau = VectorX<T>::Zero(nv);
-  model_.CalcForceElementsContribution(
-      context, pc, vc,
-      &Fapplied_Bo_W_array, &tau);
+  // Applied forces:
+  MultibodyForces<T> forces(model_);
+
+  // Adds the previously included effect of gravity into forces.
+  model_.CalcForceElementsContribution(context, pc, vc, &forces);
+
+  // Aliases to the arrays of applied forces:
+  std::vector<SpatialForce<T>>& Fapplied_Bo_W_array =
+      forces.mutable_body_forces();
+
+  VectorX<T>& generalized_force_applied =
+      forces.mutable_generalized_forces();
 
   // Add a constant moment at the end link.
   // const T F0 = 0.5;  // Force in N
@@ -542,7 +547,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   //Fapplied_Bo_W_array[last_element_->get_node_index()] += F_W;
 #endif
 
-  PRINT_VAR(tau.transpose());
+  PRINT_VAR(generalized_force_applied.transpose());
   for (auto& F : Fapplied_Bo_W_array) {
     PRINT_VAR(F);
   }
@@ -554,7 +559,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
   std::vector<SpatialAcceleration<T>> A_WB_array(model_.get_num_bodies());
   std::vector<SpatialForce<T>> F_BMo_W_array(model_.get_num_bodies());
   model_.CalcInverseDynamics(
-      context, pc, vc, vdot, Fapplied_Bo_W_array, tau,
+      context, pc, vc, vdot, Fapplied_Bo_W_array, generalized_force_applied,
       &A_WB_array, &F_BMo_W_array, &C);
 
   PRINT_VAR(C.transpose());

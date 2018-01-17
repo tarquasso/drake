@@ -534,7 +534,7 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
     PRINT_VAR(F);
   }
 
-  //VectorX<T> C(nv);
+  VectorX<T> C(nv);
   //model_.CalcBiasTerm(context, pc, vc, Fapplied_Bo_W_array, &C);
 
   const VectorX<T> vdot = VectorX<T>::Zero(model_.get_num_velocities());
