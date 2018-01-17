@@ -169,7 +169,7 @@ MultibodyTree<T>::CreateDefaultContext() const {
 }
 
 template <typename T>
-void MultibodyTree<T>::SetDefaultContext(systems::Context<T>* context) const {
+void MultibodyTree<T>::SetDefaultContext(systems::Context<T> *context) const {
   for (const auto& mobilizer : owned_mobilizers_) {
     mobilizer->set_zero_configuration(context);
   }

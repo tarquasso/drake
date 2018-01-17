@@ -52,7 +52,7 @@ int do_main(int argc, char* argv[]) {
   auto energy_logger = builder.AddSystem<systems::SignalLogger<double>>(2);
   energy_logger->set_name("Energy Logger");
   builder.Connect(acrobot->get_energy_port(),
-                  energy_logger->get_input_port(0));
+                  energy_logger->get_input_port());
   auto diagram = builder.Build();
 
   systems::Simulator<double> simulator(*diagram);
