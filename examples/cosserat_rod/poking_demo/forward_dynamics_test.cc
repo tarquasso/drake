@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <fstream>
+#include <memory>
+
 #include "drake/examples/cosserat_rod/poking_demo/cosserat_rod_plant.h"
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
@@ -31,17 +34,21 @@ GTEST_TEST(PokingDemoForwardDynamicsTest, Trajectory) {
   const double rho = 1000;  // [Kgr/m^3]
   const double E = 5.0e5;  // [Pa]
   const double nu = 0.5;  // Poission ratio [-]
-  const double G = E / (2*(1+nu));  // Shear modulus. E = 2G(1+ν)
+  const double G = E / (2 * (1 + nu));  // Shear modulus. E = 2G(1+ν)
   //const double tau_d = 0.04469 / 10;  // [sec]
-  double averageRadius = (radius1+radius2)/2;
-  const double T1 = CosseratRodPlant<double>::EstimateTimeConstant(length,averageRadius,rho,E); //12.38;  // First period of oscillation.
+  double averageRadius = (radius1 + radius2) / 2;
+  const double T1 = CosseratRodPlant<double>::EstimateTimeConstant(length,
+                                                                   averageRadius,
+                                                                   rho,
+                                                                   E); //12.38;  // First period of oscillation.
   double zeta = 0.1;
-  const double tau_d = CosseratRodPlant<double>::EstimateTau(T1,zeta); //T1 / 100;  // [sec]
+  const double tau_d =
+      CosseratRodPlant<double>::EstimateTau(T1, zeta); //T1 / 100;  // [sec]
 
   // Numerical parameters:
   const int num_elements = 20;
-  const double dt = T1/1000;  // [sec]
-  const double end_time = 5*T1;
+  const double dt = T1 / 1000;  // [sec]
+  const double end_time = 5 * T1;
 
   // Other derived numbers.
   const int num_spatial_dimensions = 3;
@@ -60,7 +67,7 @@ GTEST_TEST(PokingDemoForwardDynamicsTest, Trajectory) {
           MM_rod_plant->get_num_states());
   MM_state_logger->set_name("MM State Logger");
   MM_builder.Connect(MM_rod_plant->get_state_output_port(),
-                  MM_state_logger->get_input_port());
+                     MM_state_logger->get_input_port());
 
   auto MM_diagram = MM_builder.Build();
   systems::Simulator<double> MM_simulator(*MM_diagram);
@@ -76,10 +83,10 @@ GTEST_TEST(PokingDemoForwardDynamicsTest, Trajectory) {
   ImplicitEulerIntegrator<double>* MM_integrator =
       MM_simulator.reset_integrator<ImplicitEulerIntegrator<double>>(
           *MM_diagram, &MM_simulator.get_mutable_context());
-  MM_integrator->set_fixed_step_mode(false);  // Good for steady state calculations.
+  MM_integrator->set_fixed_step_mode(true);
   MM_integrator->set_maximum_step_size(dt);
   MM_integrator->set_target_accuracy(1.0e-3);
-  
+
   MM_simulator.StepTo(end_time);
 
   // Articulated body plant.
@@ -112,7 +119,7 @@ GTEST_TEST(PokingDemoForwardDynamicsTest, Trajectory) {
   ImplicitEulerIntegrator<double>* AB_integrator =
       AB_simulator.reset_integrator<ImplicitEulerIntegrator<double>>(
           *AB_diagram, &AB_simulator.get_mutable_context());
-  AB_integrator->set_fixed_step_mode(false);  // Good for steady state calculations.
+  AB_integrator->set_fixed_step_mode(true);
   AB_integrator->set_maximum_step_size(dt);
   AB_integrator->set_target_accuracy(1.0e-3);
 
@@ -120,20 +127,51 @@ GTEST_TEST(PokingDemoForwardDynamicsTest, Trajectory) {
 
   // Compare state logging results.
   MatrixX<double> MM_time_data(MM_state_logger->data().cols(),
-                               MM_state_logger->data().rows());
-  MatrixX<double> AB_time_data(AB_state_logger->data().cols(),
-                               AB_state_logger->data().rows());
-
+                               MM_state_logger->data().rows() + 1);
   const int MM_nsteps = MM_state_logger->sample_times().size();
+  const int MM_num_states = MM_rod_plant->get_num_states();
+  MM_time_data.block(0, 0, MM_nsteps, 1) = MM_state_logger->sample_times();
+  MM_time_data.block(0, 1, MM_nsteps, MM_num_states) =
+      MM_state_logger->data().transpose();
+
+  MatrixX<double> AB_time_data(AB_state_logger->data().cols(),
+                               AB_state_logger->data().rows() + 1);
   const int AB_nsteps = AB_state_logger->sample_times().size();
+  const int AB_num_states = AB_rod_plant->get_num_states();
+  AB_time_data.block(0, 0, AB_nsteps, 1) = AB_state_logger->sample_times();
+  AB_time_data.block(0, 1, AB_nsteps, AB_num_states) =
+      AB_state_logger->data().transpose();
 
-  MM_time_data = MM_state_logger->data().transpose();
-  AB_time_data = AB_state_logger->data().transpose();
+  // Number of states must be equal.
+  ASSERT_EQ(MM_num_states, AB_num_states);
 
-  const double kTolerance = 1.0e-3;
-  ASSERT_TRUE(CompareMatrices(MM_time_data.row(MM_nsteps - 1),
-                              AB_time_data.row(AB_nsteps - 1),
-                              kTolerance, MatrixCompareType::relative));
+  // We are using fixed size steps for the integrator, so the number of steps
+  // must be equal.
+  ASSERT_EQ(MM_nsteps, AB_nsteps);
+
+  // Compare state at each time point.
+  const double kTolerance = 1.0e-5;
+  for (int i = 0; i < MM_nsteps; i++) {
+    ASSERT_TRUE(CompareMatrices(
+        MM_time_data.block(i, 1, 1, MM_num_states),
+        AB_time_data.block(i, 1, 1, AB_num_states),
+        kTolerance, MatrixCompareType::relative));
+  }
+
+  // Verbose output.
+  std::ofstream MM_file("MM_state.dat");
+  MM_file << MM_time_data;
+  MM_file.close();
+
+  std::ofstream AB_file("AB_state.dat");
+  AB_file << AB_time_data;
+  AB_file.close();
+
+  // Print out verbose output.
+  // std::cout << "MM State Data" << std::endl;
+  // std::cout << MM_time_data << std::endl;
+  // std::cout << "AB State Data" << std::endl;
+  // std::cout << AB_time_data << std::endl;
 }
 
 }  // namespace
