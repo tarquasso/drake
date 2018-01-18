@@ -42,7 +42,7 @@ class CosseratRodPlant : public systems::LeafSystem<T> {
                    double tau_bending, double tau_twisting,
                    int num_links,
                    int dimension = 2,
-                   Solver solver = Solver::ArticulatedBody);
+                   Solver solver = Solver::MassMatrix);
 
   /// Scalar-converting copy constructor.
   template <typename U>

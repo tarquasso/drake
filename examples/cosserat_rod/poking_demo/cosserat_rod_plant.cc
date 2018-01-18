@@ -598,7 +598,10 @@ void CosseratRodPlant<T>::DoCalcTimeDerivatives(
     PRINT_VAR(generalized_force_applied.transpose());
 
 
-
+    // TODO: this solve M.llt().solve() does not seem to throw an error when M is
+    // not symmetric. Apparently my M is not symmetric when I add those ball
+    // mobilizers.
+    //Eigen::LLT<MatrixX<T>> solver(M);
     vdot_output << M.llt().solve(-generalized_force_applied);
   } else {
     model_.CalcForwardDynamicsViaArticulatedBody(

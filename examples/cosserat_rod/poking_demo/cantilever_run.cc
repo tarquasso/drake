@@ -112,7 +112,7 @@ int do_main(int argc, char* argv[]) {
   const int num_spatial_dimensions = 3;
   auto rod_plant = builder.AddSystem<CosseratRodPlant>(
       length, radius1, radius2, rho,
-      E, G, tau_d, tau_d, num_elements, num_spatial_dimensions);
+      E, G, tau_d, tau_d, num_elements, num_spatial_dimensions, CosseratRodPlant<double>::Solver::MassMatrix);
   rod_plant->set_name("Cosserat rod");
   //rod_plant->InitLCMGL(&lcm);
   //rod_plant->set_publish_period(end_time / 1000);
