@@ -16,7 +16,7 @@ All \textsl{SingleTimeKinematicConstraint} objects share four methods: \text{get
 \item \textsl{WorldQuatConstraint} Constraining the orientation of a given body by putting a constraint on the quaternion
 \item \textsl{WorldEulerConstraint} A box constraint on the Euler angles of a given body, in the intrinsic z-y'-x'' order
 \item \textsl{WorldGazeTargetConstraint} Constraining the orientation of a given body that a given axis of the body must gaze at a target. Support `cone threshold'
-\item \textsl{WorldGazeDirConstraint} Constraining the orientation of a given body, that a given axis of the body must in a certain direction. Support `cone threshold'
+\item \textsl{WorldGazeDirConstraint} Constraining the orientation of a given body, that a given axis of the body must gaze in a certain direction. Support `cone threshold'
 \item \textsl{WorldGazeOrientConstraint} Constraining the orientation of a given body. Refer to the documentation in the implementation. Support `threshold' and `cone threshold'
 \item \textsl{Point2PointDistanceConstraint} Constraining the distance between points on bodyA/world to points on bodyB/world to be within a range.
 \item \textsl{WorldPositionInFrameConstraint} Constraining the point on bodyA in within a bounding box in a given frame.
@@ -56,7 +56,7 @@ This method solves the inverse kinematics problem as
 [q,info,infeasible_constraint] = ...
   inverseKin(obj,q_seed,q_nom,constraint1,constraint2,constraint3,...,options)
 \end{lstlisting}
-Each constraint is a \textsl{Constraint} object. \textsl{options} is an \textsl{IKoptions} object. If the problem is infeasible, and the debug flag is on by calling
+Each constraint is a \textsl{Constraint} object. \textsl{options} is an \textsl{InverseKinematicsOptions} object. If the problem is infeasible, and the debug flag is on by calling
 \begin{lstlisting}[language=MATLAB]
 options = options.setDebug(true);
 \end{lstlisting}
@@ -83,7 +83,7 @@ The problem it solves is
 \end{align}
 The assumption is that $q$ is a cubic polynomial, with the initial value $q_0$ and initial time derivative $qd0$ at time $t(1)$.
 
-Further samples can be added in between knot points to check if those samples satisfy the constraints. Check \textsl{setAddtionaltSamples} method in IKoptions.
+Further samples can be added in between knot points to check if those samples satisfy the constraints. Check \textsl{setAddtionaltSamples} method in InverseKinematicsOptions.
 \subsection{Wrap deprecated IK}
 The method \textsl{inverseKinWrapup} would wrap the old IK input arguments to the new IK input arguments
 \begin{lstlisting}[language=MATLAB]
