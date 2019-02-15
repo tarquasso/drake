@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
 #include "drake/common/drake_throw.h"
@@ -492,13 +493,8 @@ expansion of `fₙ` with an order of approximation consistent with the
 first order scheme as needed. Therefore, it propagates into a `O(δt²)`
 term exactly as needed in Eq. (16).
 
-@tparam T The type of mathematical object being added.
-Instantiated templates for the following kinds of T's are provided:
-- double
-- AutoDiffXd
-
-They are already available to link against in the containing library.
-No other values for T are currently supported. */
+@tparam T Must be one of drake's default scalar types.
+*/
 template <typename T>
 class ImplicitStribeckSolver {
  public:
@@ -1155,3 +1151,9 @@ class ImplicitStribeckSolver {
 
 }  // namespace multibody
 }  // namespace drake
+
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    struct ::drake::multibody::internal::DirectionChangeLimiter)
+
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class ::drake::multibody::ImplicitStribeckSolver)

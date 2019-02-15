@@ -625,6 +625,23 @@ TEST_F(GeometryStateTest, GeometryStatistics) {
   EXPECT_FALSE(geometry_state_.source_is_registered(false_id));
 }
 
+TEST_F(GeometryStateTest, GetOwningSourceName) {
+  SetUpSingleSourceTree();
+
+  EXPECT_EQ(kSourceName, geometry_state_.GetOwningSourceName(frames_[0]));
+  EXPECT_EQ(kSourceName, geometry_state_.GetOwningSourceName(geometries_[0]));
+  EXPECT_EQ(kSourceName,
+            geometry_state_.GetOwningSourceName(anchored_geometry_));
+
+  DRAKE_EXPECT_THROWS_MESSAGE(
+      geometry_state_.GetOwningSourceName(FrameId::get_new_id()),
+      std::logic_error, "Referenced frame .* has not been registered.");
+
+  DRAKE_EXPECT_THROWS_MESSAGE(
+      geometry_state_.GetOwningSourceName(GeometryId::get_new_id()),
+      std::logic_error, "Geometry id .* does not map to a registered geometry");
+}
+
 // Compares the autodiff geometry state (embedded in its tester) against the
 // double state to confirm they have the same values/topology.
 void ExpectSuccessfulTransmogrification(
@@ -1241,6 +1258,21 @@ TEST_F(GeometryStateTest, RemoveGeometry) {
   // should shrink appropriately.
   geometry_state_.RemoveGeometry(s_id, added_id);
   // Confirm that, post removal, updating poses still works.
+  EXPECT_NO_THROW(gs_tester_.FinalizePoseUpdate());
+
+  // Test the case where a geometry gets re-ordered, but it has no roles. To
+  // make sure the geometry moves, it needs to _not_ be the last added geometry.
+  // So, we add the geometry we're going to remove _and_ an additional geometry
+  // after it.
+  GeometryId no_role_id = geometry_state_.RegisterGeometry(
+      source_id_, frames_[0],
+      make_unique<GeometryInstance>(
+          Isometry3d::Identity(), make_unique<Sphere>(1), "no_role_geometry"));
+  geometry_state_.RegisterGeometry(
+      source_id_, frames_[0],
+      make_unique<GeometryInstance>(
+          Isometry3d::Identity(), make_unique<Sphere>(1), "no_role_geometry2"));
+  EXPECT_NO_THROW(geometry_state_.RemoveGeometry(s_id, no_role_id));
   EXPECT_NO_THROW(gs_tester_.FinalizePoseUpdate());
 }
 
@@ -2384,6 +2416,24 @@ TEST_F(GeometryStateTest, RoleAssignExceptions) {
       std::logic_error,
       "The name .* has already been used by a geometry with the 'illustration' "
       "role.");
+}
+
+// Confirms that assigning a proximity role to a mesh is a no-op. If it
+// *weren't* no-op, the ProximityEngine would abort; so not aborting is
+// correlated with its no-op-ness. This test will go away when meshes are fully
+// supported in collision.
+TEST_F(GeometryStateTest, ProximityRoleOnMesh) {
+  SetUpSingleSourceTree();
+
+  // Add a mesh to a frame.
+  GeometryId mesh_id = geometry_state_.RegisterGeometry(
+      source_id_, frames_[0],
+      make_unique<GeometryInstance>(Isometry3d::Identity(),
+                                    make_unique<Mesh>("path", 1.0), "mesh"));
+  const InternalGeometry* mesh = gs_tester_.GetGeometry(mesh_id);
+  ASSERT_FALSE(mesh->has_proximity_role());
+  geometry_state_.AssignRole(source_id_, mesh_id, ProximityProperties());
+  ASSERT_FALSE(mesh->has_proximity_role());
 }
 
 // Tests the functionality that counts the number of children geometry a frame

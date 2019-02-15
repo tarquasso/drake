@@ -1,6 +1,8 @@
 from __future__ import print_function, absolute_import
 
 from pydrake.solvers import mathematicalprogram as mp
+from pydrake.solvers.gurobi import GurobiSolver
+from pydrake.solvers.snopt import SnoptSolver
 from pydrake.solvers.mathematicalprogram import SolverType
 
 import unittest
@@ -12,6 +14,8 @@ import pydrake
 from pydrake.common.deprecation import DrakeDeprecationWarning
 from pydrake.autodiffutils import AutoDiffXd
 import pydrake.symbolic as sym
+
+SNOPT_NO_GUROBI = SnoptSolver().available() and not GurobiSolver().available()
 
 
 class TestQP:
@@ -30,7 +34,7 @@ class TestQP:
             prog.AddLinearConstraint(sym.logical_and(x[1] >= 1, x[1] <= 2.)),
             # Linear inequality
             prog.AddLinearConstraint(3 * x[0] - x[1] <= 2),
-            # Linaer equality
+            # Linear equality
             prog.AddLinearConstraint(x[0] + 2 * x[1] == 3)]
 
         # TODO(eric.cousineau): Add constant terms
@@ -46,6 +50,7 @@ class TestMathematicalProgram(unittest.TestCase):
         vars_all = prog.decision_variables()
         self.assertEqual(vars_all.shape, (5,))
 
+    @unittest.skipUnless(GurobiSolver().available(), "Requires Gurobi")
     def test_mixed_integer_optimization(self):
         prog = mp.MathematicalProgram()
         x = prog.NewBinaryVariables(3, "x")
@@ -259,6 +264,14 @@ class TestMathematicalProgram(unittest.TestCase):
             prog.EvalBindings(prog.GetAllConstraints(), x_expected),
             np.ndarray)
 
+        # Bindings for `Eval`.
+        x_list = (float(1.), AutoDiffXd(1.), sym.Variable("x"))
+        T_y_list = (float, AutoDiffXd, sym.Expression)
+        evaluator = costs[0].evaluator()
+        for x_i, T_y_i in zip(x_list, T_y_list):
+            y_i = evaluator.Eval(x=[x_i, x_i])
+            self.assertIsInstance(y_i[0], T_y_i)
+
     def test_matrix_variables(self):
         prog = mp.MathematicalProgram()
         x = prog.NewContinuousVariables(2, 2, "x")
@@ -415,6 +428,9 @@ class TestMathematicalProgram(unittest.TestCase):
         prog.SetInitialGuessForAllVariables(x0)
         check_and_reset()
 
+    @unittest.skipIf(
+        SNOPT_NO_GUROBI,
+        "SNOPT is unable to solve this problem (#10653).")
     def test_lorentz_cone_constraint(self):
         # Set Up Mathematical Program
         prog = mp.MathematicalProgram()

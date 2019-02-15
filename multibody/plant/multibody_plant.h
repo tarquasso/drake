@@ -4,10 +4,12 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "drake/common/default_scalars.h"
 #include "drake/common/drake_deprecated.h"
 #include "drake/common/drake_optional.h"
 #include "drake/common/nice_type_name.h"
@@ -18,7 +20,7 @@
 #include "drake/multibody/plant/coulomb_friction.h"
 #include "drake/multibody/plant/implicit_stribeck_solver.h"
 #include "drake/multibody/tree/force_element.h"
-#include "drake/multibody/tree/multibody_tree.h"
+#include "drake/multibody/tree/multibody_tree-inl.h"
 #include "drake/multibody/tree/multibody_tree_system.h"
 #include "drake/multibody/tree/rigid_body.h"
 #include "drake/multibody/tree/uniform_gravity_field_element.h"
@@ -186,15 +188,8 @@ namespace multibody {
 ///     Minimal formulation of joint motion for biomechanisms.
 ///     Nonlinear dynamics, 62(1), pp.291-303.
 ///
-/// @tparam T The scalar type. Must be a valid Eigen scalar.
+/// @tparam T Must be one of drake's default scalar types.
 ///
-/// Instantiated templates for the following kinds of T's are provided:
-///
-/// - double
-/// - AutoDiffXd
-///
-/// They are already available to link against in the containing library.
-/// No other values for T are currently supported.
 /// @ingroup systems
 template <typename T>
 class MultibodyPlant : public MultibodyTreeSystem<T> {
@@ -451,6 +446,7 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   /// `q_v` is not equal to `num_positions() + num_velocities()`.
   void SetPositionsAndVelocities(
       systems::Context<T>* context, const VectorX<T>& q_v) const {
+    DRAKE_DEMAND(q_v.size() == (num_positions() + num_velocities()));
     internal_tree().GetMutablePositionsAndVelocities(context) = q_v;
   }
 
@@ -1068,6 +1064,12 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   std::vector<BodyIndex> GetBodyIndices(ModelInstanceIndex model_instance)
   const {
     return internal_tree().GetBodyIndices(model_instance);
+  }
+
+  /// Returns a list of joint indices associated with `model_instance`.
+  std::vector<JointIndex> GetJointIndices(ModelInstanceIndex model_instance)
+  const {
+    return internal_tree().GetJointIndices(model_instance);
   }
 
   /// Returns a constant reference to a frame that is identified by the
@@ -2496,6 +2498,21 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   const systems::InputPort<T>& get_actuation_input_port(
       ModelInstanceIndex model_instance) const;
 
+  /// Returns a constant reference to the vector-valued input port for applied
+  /// generalized forces, and the vector will be added directly into `tau`
+  /// (see @ref equations_of_motion). This vector is ordered using the same
+  /// convention as the plant velocities: you can set the generalized forces
+  /// that will be applied to model instance i using, e.g.,
+  /// `SetVelocitiesInArray(i, model_forces, &force_array)`.
+  /// @throws std::exception if called before Finalize().
+  const systems::InputPort<T>& get_applied_generalized_force_input_port() const;
+
+  /// Returns a constant reference to the input port for applying spatial
+  /// forces to bodies in the plant. The data type for the port is an
+  /// std::vector of ExternallyAppliedSpatialForce; any number of spatial forces
+  /// can be applied to any number of bodies in the plant.
+  const systems::InputPort<T>& get_applied_spatial_force_input_port() const;
+
   /// @}
   // Closes Doxygen section "Actuation input"
 
@@ -2506,7 +2523,7 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   /// @{
 
   /// Returns a constant reference to the output port for the full continuous
-  /// state of the model.
+  /// state `x = [q v]` of the model.
   /// @pre Finalize() was already called on `this` plant.
   const systems::OutputPort<T>& get_continuous_state_output_port() const;
 
@@ -2857,6 +2874,19 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   // MultibodyTree::Finalize() was called.
   void FinalizePlantOnly();
 
+  // MemberSceneGraph is an alias for SceneGraph<T>, except when T = Expression.
+  struct SceneGraphStub;
+  using MemberSceneGraph = typename std::conditional<
+      std::is_same<T, symbolic::Expression>::value,
+      SceneGraphStub, geometry::SceneGraph<T>>::type;
+
+  // Returns the SceneGraph that pre-Finalize geometry operations should
+  // interact with.  In most cases, that will be whatever the user has passed
+  // into RegisterAsSourceForSceneGraph.  However, when T = Expression, the
+  // result will be a stub type instead.  (We can get rid of the stub once
+  // SceneGraph supports symbolic::Expression.)
+  MemberSceneGraph& member_scene_graph();
+
   // Helper to check when a deprecated user-provided `scene_graph` pointer is
   // passed in via public API (aside form `RegisterAsSourceForSceneGraph`).
   // @throws std::logic_error if `scene_graph` is non-null (non-default) and
@@ -2963,6 +2993,9 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
       const Eigen::Ref<const VectorX<T>>& generalized_velocity,
       systems::VectorBase<T>* qdot) const override;
 
+  void AddAppliedExternalSpatialForces(
+      const systems::Context<T>& context, MultibodyForces<T>* forces) const;
+
   // Helper method to register geometry for a given body, either visual or
   // collision. The registration includes:
   // 1. Register a frame for this body if not already done so. The body gets
@@ -2977,8 +3010,7 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   geometry::GeometryId RegisterGeometry(
       const Body<T>& body, const Isometry3<double>& X_BG,
       const geometry::Shape& shape,
-      const std::string& name,
-      geometry::SceneGraph<T>* scene_graph);
+      const std::string& name);
 
   bool body_has_registered_frame(const Body<T>& body) const {
     return body_index_to_frame_id_.find(body.index()) !=
@@ -3271,6 +3303,12 @@ class MultibodyPlant : public MultibodyTreeSystem<T> {
   // multiple instances have actuated dofs, this index will not be valid.
   ModelInstanceIndex actuated_instance_;
 
+  // A port for externally applied generalized forces.
+  systems::InputPortIndex applied_generalized_force_input_port_;
+
+  // Port for externally applied spatial forces.
+  systems::InputPortIndex applied_spatial_force_input_port_;
+
   systems::OutputPortIndex continuous_state_output_port_;
   // A vector containing state output ports for each model instance indexed by
   // ModelInstanceIndex. An invalid value indicates that the model instance has
@@ -3427,17 +3465,22 @@ struct AddMultibodyPlantSceneGraphResult final {
   geometry::SceneGraph<T>* scene_graph_ptr{};
 };
 
+#ifndef DRAKE_DOXYGEN_CXX
+// Forward-declare specializations, prior to DRAKE_DECLARE... below.
+// See the .cc file for an explanation why we specialize these methods.
+template <>
+typename MultibodyPlant<symbolic::Expression>::SceneGraphStub&
+MultibodyPlant<symbolic::Expression>::member_scene_graph();
+template <>
+std::vector<geometry::PenetrationAsPointPair<double>>
+MultibodyPlant<double>::CalcPointPairPenetrations(
+    const systems::Context<double>&) const;
+#endif
+
 }  // namespace multibody
 }  // namespace drake
 
-// Disable support for symbolic evaluation.
-// TODO(amcastro-tri): Allow symbolic evaluation once MultibodyTree supports it.
-namespace drake {
-namespace systems {
-namespace scalar_conversion {
-template <>
-struct Traits<drake::multibody::MultibodyPlant> :
-    public NonSymbolicTraits {};
-}  // namespace scalar_conversion
-}  // namespace systems
-}  // namespace drake
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    class drake::multibody::MultibodyPlant)
+DRAKE_DECLARE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_SCALARS(
+    struct drake::multibody::AddMultibodyPlantSceneGraphResult)
