@@ -85,8 +85,8 @@ class GeometryStateTester {
     return state_->X_PF_;
   }
 
-  void SetFramePoses(const FramePoseVector<T>& poses) {
-    state_->SetFramePoses(poses);
+  void SetFramePoses(SourceId source_id, const FramePoseVector<T>& poses) {
+    state_->SetFramePoses(source_id, poses);
   }
 
   // Returns the internal index for the geometry with the given index; if there
@@ -119,8 +119,9 @@ class GeometryStateTester {
   }
 
   template <typename ValueType>
-  void ValidateFrameIds(const FrameKinematicsVector<ValueType>& data) const {
-    state_->ValidateFrameIds(data);
+  void ValidateFrameIds(SourceId source_id,
+                        const FrameKinematicsVector<ValueType>& data) const {
+    state_->ValidateFrameIds(source_id, data);
   }
 
   int peek_next_clique() const {
@@ -144,15 +145,66 @@ using std::make_unique;
 using std::move;
 using std::unique_ptr;
 
+// A simple dummy render engine implementation to facilitate testing. The
+// methods are mostly no-ops. The single exception is in registering geometry.
+// Every call returns a valid RenderIndex with the value `n` for the `n`th
+// call to `RegisterVisual()`.
+class DummyRenderEngine final : public render::RenderEngine {
+ public:
+  DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(DummyRenderEngine);
+  DummyRenderEngine() = default;
+  void UpdateViewpoint(const Eigen::Isometry3d&) const final {}
+  void RenderColorImage(const render::CameraProperties&,
+                        systems::sensors::ImageRgba8U*, bool) const final {}
+  void RenderDepthImage(const render::DepthCameraProperties&,
+                        systems::sensors::ImageDepth32F*) const final {}
+  void RenderLabelImage(const render::CameraProperties&,
+                        systems::sensors::ImageLabel16I*, bool) const final {}
+  void ImplementGeometry(const Sphere& sphere, void* user_data) final {}
+  void ImplementGeometry(const Cylinder& cylinder, void* user_data) final {}
+  void ImplementGeometry(const HalfSpace& half_space, void* user_data) final {}
+  void ImplementGeometry(const Box& box, void* user_data) final {}
+  void ImplementGeometry(const Mesh& mesh, void* user_data) final {}
+  void ImplementGeometry(const Convex& convex, void* user_data) final {}
+
+  void set_moved_render_index(optional<RenderIndex> index) {
+    moved_render_index_ = index;
+  }
+
+ protected:
+  optional<RenderIndex> DoRegisterVisual(const Shape&,
+                                         const PerceptionProperties&,
+                                         const Isometry3<double>&) final {
+    return RenderIndex(calls_to_register_++);
+  }
+  void DoUpdateVisualPose(const Eigen::Isometry3d&, RenderIndex) final {}
+
+  optional<RenderIndex> DoRemoveGeometry(RenderIndex index) final {
+    return moved_render_index_;
+  }
+
+  unique_ptr<render::RenderEngine> DoClone() const final {
+    return make_unique<DummyRenderEngine>(*this);
+  }
+
+ private:
+  int calls_to_register_{};
+  // The value that `DoRemoveGeometry()` returns. Configurable by test. Defaults
+  // to returning nothing.
+  optional<RenderIndex> moved_render_index_{nullopt};
+};
+
 class GeometryStateTest : public ::testing::Test {
  protected:
   void SetUp() {
-    frame_ = make_unique<GeometryFrame>("ref_frame",
-                                        Isometry3<double>::Identity());
+    frame_ = make_unique<GeometryFrame>("ref_frame");
     instance_pose_.translation() << 10, 20, 30;
     instance_ = make_unique<GeometryInstance>(
         instance_pose_, make_unique<Sphere>(1.0), "instance");
     gs_tester_.set_state(&geometry_state_);
+    auto render_engine = make_unique<DummyRenderEngine>();
+    render_engine_ = render_engine.get();
+    geometry_state_.AddRenderer(dummy_render_name_, move(render_engine));
   }
 
   // Utility method for adding a source to the state.
@@ -211,7 +263,7 @@ class GeometryStateTest : public ::testing::Test {
     pose.translation() << 1, 2, 3;
     pose.linear() << 1, 0, 0, 0, 0, 1, 0, -1, 0;  // 90° around x-axis.
     frames_.push_back(geometry_state_.RegisterFrame(
-        source_id_, GeometryFrame("f0", pose)));
+        source_id_, GeometryFrame("f0")));
     X_WF_.push_back(pose);
     X_PF_.push_back(pose);
 
@@ -219,14 +271,14 @@ class GeometryStateTest : public ::testing::Test {
     pose.translation() << 10, 20, 30;
     pose.linear() << 0, 0, -1, 0, 1, 0, 1, 0, 0;  // 90° around y-axis.
     frames_.push_back(geometry_state_.RegisterFrame(
-        source_id_, GeometryFrame("f1", pose)));
+        source_id_, GeometryFrame("f1")));
     X_WF_.push_back(pose);
     X_PF_.push_back(pose);
 
     // Create f2.
     pose = pose.inverse();
     frames_.push_back(geometry_state_.RegisterFrame(
-        source_id_, frames_[1], GeometryFrame("f2", pose)));
+        source_id_, frames_[1], GeometryFrame("f2")));
     X_WF_.push_back(X_WF_[1] * pose);
     X_PF_.push_back(pose);
 
@@ -344,6 +396,7 @@ class GeometryStateTest : public ::testing::Test {
   Isometry3<double> instance_pose_{Isometry3<double>::Identity()};
   GeometryState<double> geometry_state_;
   GeometryStateTester<double> gs_tester_;
+  DummyRenderEngine* render_engine_{};
 
   // Values for setting up and testing the dummy tree.
   enum Counts {
@@ -371,6 +424,8 @@ class GeometryStateTest : public ::testing::Test {
   vector<Isometry3<double>> X_FG_;
   // The default source name.
   const std::string kSourceName{"default_source"};
+  // The name of the dummy renderer added to the geometry state.
+  const std::string dummy_render_name_{"dummy_renderer"};
 };
 
 // Confirms that a new GeometryState has no data.
@@ -562,6 +617,24 @@ TEST_F(GeometryStateTest, ValidateSingleSourceTree) {
           CompareMatrices(frame_in_parent[frame.internal_index()].matrix(),
                           X_PF_[i].matrix()));
     };
+
+    // When added, all frames' poses w.r.t. their parents are the identity.
+    const auto& frame_in_parent = gs_tester_.get_frame_parent_poses();
+    for (FrameId frame_id : frames_) {
+      const auto& frame = internal_frames.at(frame_id);
+      EXPECT_TRUE(
+          CompareMatrices(frame_in_parent[frame.internal_index()].matrix(),
+                          Isometry3<double>::Identity().matrix()));
+    }
+
+    // Confirm posing positions the frames properly.
+    FramePoseVector<double> poses;
+    for (int f = 0; f < static_cast<int>(frames_.size()); ++f) {
+      poses.set_value(frames_[f], X_PF_[f]);
+    }
+    gs_tester_.SetFramePoses(source_id_, poses);
+    gs_tester_.FinalizePoseUpdate();
+
     test_frame(0, gs_tester_.get_world_frame(), 0);
     test_frame(1, gs_tester_.get_world_frame(), 1);
     test_frame(2, frames_[1], 0);
@@ -582,7 +655,7 @@ TEST_F(GeometryStateTest, ValidateSingleSourceTree) {
       EXPECT_EQ(geometry.internal_index(), i);
       // We automatically assign render labels to any geometry with non-zero
       // alpha value in its diffuse color.
-      EXPECT_TRUE(geometry.render_index().is_valid());
+      EXPECT_TRUE(geometry.render_index(dummy_render_name_));
       EXPECT_FALSE(geometry.proximity_index().is_valid());
       EXPECT_EQ(geometry.child_geometry_ids().size(), 0);
 
@@ -756,7 +829,7 @@ TEST_F(GeometryStateTest, RegisterGeometryGoodSource) {
   EXPECT_EQ(geometry_state_.GetFrameId(g_id), f_id);
   EXPECT_TRUE(geometry_state_.BelongsToSource(g_id, s_id));
   Isometry3<double> X_FG = geometry_state_.GetPoseInFrame(g_id);
-  CompareMatrices(X_FG.matrix(), instance_pose_.matrix());
+  EXPECT_TRUE(CompareMatrices(X_FG.matrix(), instance_pose_.matrix()));
 
   EXPECT_TRUE(gs_tester_.get_frames().at(f_id).has_child(g_id));
   const auto& geometry = gs_tester_.get_geometries().at(g_id);
@@ -1049,33 +1122,30 @@ TEST_F(GeometryStateTest, GetFrameIdFromBadId) {
 // Tests the validation of the ids provided in a frame kinematics vector.
 TEST_F(GeometryStateTest, ValidateFrameIds) {
   SourceId s_id = SetUpSingleSourceTree();
-  FramePoseVector<double> frame_set(s_id, frames_);
-  frame_set.clear();
+  FramePoseVector<double> frame_set;
   for (auto frame_id : frames_) {
     frame_set.set_value(frame_id, Isometry3<double>::Identity());
   }
   // Case: frame ids are valid.
-  EXPECT_NO_THROW(gs_tester_.ValidateFrameIds(frame_set));
+  EXPECT_NO_THROW(gs_tester_.ValidateFrameIds(s_id, frame_set));
 
   // Case: Right number, wrong frames.
-  vector<FrameId> bad_frames;
+  FramePoseVector<double> frame_set_2;
   for (int i = 0; i < kFrameCount; ++i) {
-    bad_frames.push_back(FrameId::get_new_id());
+    frame_set_2.set_value(FrameId::get_new_id(), Isometry3d::Identity());
   }
-  FramePoseVector<double> frame_set_2(s_id, bad_frames);
   DRAKE_EXPECT_THROWS_MESSAGE(
-      gs_tester_.ValidateFrameIds(frame_set_2), std::runtime_error,
+      gs_tester_.ValidateFrameIds(s_id, frame_set_2), std::runtime_error,
       "Registered frame id \\(\\d+\\) belonging to source \\d+ was not found "
           "in the provided kinematics data.");
 
   // Case: Too few frames.
-  vector<FrameId> missing_frames;
+  FramePoseVector<double> frame_set_3;
   for (int i = 0; i < kFrameCount - 1; ++i) {
-    missing_frames.push_back(frames_[i]);
+    frame_set.set_value(frames_[i], Isometry3<double>::Identity());
   }
-  FramePoseVector<double> frame_set_3(s_id, missing_frames);
   DRAKE_EXPECT_THROWS_MESSAGE(
-      gs_tester_.ValidateFrameIds(frame_set_3), std::runtime_error,
+      gs_tester_.ValidateFrameIds(s_id, frame_set_3), std::runtime_error,
       "Disagreement in expected number of frames \\(\\d+\\)"
       " and the given number of frames \\(\\d+\\).");
 }
@@ -1096,10 +1166,9 @@ TEST_F(GeometryStateTest, SetFramePoses) {
   }
 
   auto make_pose_vector =
-      [&s_id, &frame_poses, this]() -> FramePoseVector<double> {
+      [&frame_poses, this]() -> FramePoseVector<double> {
     const int count = static_cast<int>(this->frames_.size());
-    FramePoseVector<double> poses(s_id, this->frames_);
-    poses.clear();
+    FramePoseVector<double> poses;
     for (int i = 0; i < count; ++i) {
       poses.set_value(this->frames_[i], frame_poses[i]);
     }
@@ -1112,7 +1181,7 @@ TEST_F(GeometryStateTest, SetFramePoses) {
   // Case 1: Set all frames to identity poses. The world pose of all the
   // geometry should be that of the geometry in its frame.
   FramePoseVector<double> poses1 = make_pose_vector();
-  gs_tester_.SetFramePoses(poses1);
+  gs_tester_.SetFramePoses(s_id, poses1);
   const auto& world_poses = gs_tester_.get_geometry_world_poses();
   for (int i = 0; i < kFrameCount * kGeometryCount; ++i) {
     EXPECT_TRUE(CompareMatrices(world_poses[i].matrix().block<3, 4>(0, 0),
@@ -1127,7 +1196,7 @@ TEST_F(GeometryStateTest, SetFramePoses) {
   frame_poses[0] = offset;
   frame_poses[1] = offset;
   FramePoseVector<double> poses2 = make_pose_vector();
-  gs_tester_.SetFramePoses(poses2);
+  gs_tester_.SetFramePoses(s_id, poses2);
   for (int i = 0; i < kFrameCount * kGeometryCount; ++i) {
     EXPECT_TRUE(
         CompareMatrices(world_poses[i].matrix().block<3, 4>(0, 0),
@@ -1138,7 +1207,7 @@ TEST_F(GeometryStateTest, SetFramePoses) {
   // 0, 1, 2, & 3 moved up 1, and geometries 4 & 5 moved up two.
   frame_poses[2] = offset;
   FramePoseVector<double> poses3 = make_pose_vector();
-  gs_tester_.SetFramePoses(poses3);
+  gs_tester_.SetFramePoses(s_id, poses3);
   for (int i = 0; i < (kFrameCount - 1) * kGeometryCount; ++i) {
     EXPECT_TRUE(
         CompareMatrices(world_poses[i].matrix().block<3, 4>(0, 0),
@@ -1172,10 +1241,9 @@ TEST_F(GeometryStateTest, QueryFrameProperties) {
       "No frame name available for invalid frame id: \\d+");
 
   // Set the frame poses to query geometry and frame poses.
-  FramePoseVector<double> poses(s_id, frames_);
-  poses.clear();
+  FramePoseVector<double> poses;
   for (int i = 0; i < kFrameCount; ++i) poses.set_value(frames_[i], X_PF_[i]);
-  gs_tester_.SetFramePoses(poses);
+  gs_tester_.SetFramePoses(s_id, poses);
 
   EXPECT_TRUE(
       CompareMatrices(geometry_state_.get_pose_in_world(frames_[0]).matrix(),
@@ -1213,12 +1281,11 @@ TEST_F(GeometryStateTest, ExcludeCollisionsWithin) {
   SetUpSingleSourceTree(true /* assign proximity roles */);
 
   // Pose all of the frames to the specified poses in their parent frame.
-  FramePoseVector<double> poses(source_id_, frames_);
-  poses.clear();
+  FramePoseVector<double> poses;
   for (int f = 0; f < static_cast<int>(frames_.size()); ++f) {
     poses.set_value(frames_[f], X_PF_[f]);
   }
-  gs_tester_.SetFramePoses(poses);
+  gs_tester_.SetFramePoses(source_id_, poses);
   gs_tester_.FinalizePoseUpdate();
 
   // This is *non* const; we'll decrement it as we filter more and more
@@ -1269,12 +1336,11 @@ TEST_F(GeometryStateTest, ExcludeCollisionsBetween) {
   SetUpSingleSourceTree(true  /* add proximity roles */);
 
   // Pose all of the frames to the specified poses in their parent frame.
-  FramePoseVector<double> poses(source_id_, frames_);
-  poses.clear();
+  FramePoseVector<double> poses;
   for (int f = 0; f < static_cast<int>(frames_.size()); ++f) {
     poses.set_value(frames_[f], X_PF_[f]);
   }
-  gs_tester_.SetFramePoses(poses);
+  gs_tester_.SetFramePoses(source_id_, poses);
   gs_tester_.FinalizePoseUpdate();
 
   // This is *non* const; we'll decrement it as we filter more and more
@@ -1310,12 +1376,11 @@ TEST_F(GeometryStateTest, NonProximityRoleInCollisionFilter) {
   SetUpSingleSourceTree(true  /* add proximity roles */);
 
   // Pose all of the frames to the specified poses in their parent frame.
-  FramePoseVector<double> poses(source_id_, frames_);
-  poses.clear();
+  FramePoseVector<double> poses;
   for (int f = 0; f < static_cast<int>(frames_.size()); ++f) {
     poses.set_value(frames_[f], X_PF_[f]);
   }
-  gs_tester_.SetFramePoses(poses);
+  gs_tester_.SetFramePoses(source_id_, poses);
   gs_tester_.FinalizePoseUpdate();
 
   // This is *non* const; we'll decrement it as we filter more and more
@@ -1826,17 +1891,24 @@ TEST_F(GeometryStateTest, RemovePerceptionFromGeometry) {
   EXPECT_EQ(geometry_state_.GetNumGeometriesWithRole(Role::kPerception),
             expected_count);
 
-  // Case: Remove perception causes *anchored* geometry to be moved.
+  // Case: Remove perception from first dynamic geometry causes *anchored*
+  // geometry render index to be moved.
   {
     const GeometryId id = geometries_[0];
     const InternalGeometry* geometry = gs_tester_.GetGeometry(id);
     EXPECT_TRUE(geometry->has_perception_role());
-    RenderIndex target_index = geometry->render_index();
+    RenderIndex target_index = *geometry->render_index(dummy_render_name_);
+    // Set the dummy render engine to report that the anchored geometry has
+    // moved.
+    render_engine_->set_moved_render_index(
+        gs_tester_.GetGeometry(anchored_geometry_)
+            ->render_index(dummy_render_name_));
     EXPECT_EQ(geometry_state_.RemoveRole(source_id_, id, Role::kPerception), 1);
     EXPECT_EQ(geometry_state_.GetNumGeometriesWithRole(Role::kPerception),
               --expected_count);
     EXPECT_FALSE(geometry->has_perception_role());
-    EXPECT_EQ(gs_tester_.GetGeometry(anchored_geometry_)->render_index(),
+    EXPECT_EQ(*gs_tester_.GetGeometry(anchored_geometry_)
+                   ->render_index(dummy_render_name_),
               target_index);
   }
 
@@ -1845,7 +1917,7 @@ TEST_F(GeometryStateTest, RemovePerceptionFromGeometry) {
     const GeometryId id = geometries_[1];
     const InternalGeometry* geometry = gs_tester_.GetGeometry(id);
     EXPECT_TRUE(geometry->has_perception_role());
-    RenderIndex target_index = geometry->render_index();
+    RenderIndex target_index = *geometry->render_index(dummy_render_name_);
     // The second to last geometry added was the last dynamic geometry (i.e.,
     // the last id stored in geometries_. It should *now* have the render index
     // of the removed geometry.
@@ -1853,12 +1925,16 @@ TEST_F(GeometryStateTest, RemovePerceptionFromGeometry) {
         gs_tester_.GetGeometry(geometries_.back());
     // These will ultimately be tested for equality; confirm they don't start
     // equal.
-    EXPECT_NE(last_geometry->render_index(), target_index);
+    EXPECT_NE(*last_geometry->render_index(dummy_render_name_), target_index);
+    // Set the dummy render engine to report that the last dynamic geometry has
+    // moved.
+    render_engine_->set_moved_render_index(
+        last_geometry->render_index(dummy_render_name_));
     EXPECT_EQ(geometry_state_.RemoveRole(source_id_, id, Role::kPerception), 1);
     EXPECT_EQ(geometry_state_.GetNumGeometriesWithRole(Role::kPerception),
               --expected_count);
     EXPECT_FALSE(geometry->has_perception_role());
-    EXPECT_EQ(last_geometry->render_index(), target_index);
+    EXPECT_EQ(last_geometry->render_index(dummy_render_name_), target_index);
   }
 
   // Case: Removing role from a geometry that does not have that role has no

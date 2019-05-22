@@ -21,7 +21,6 @@ class MatrixGainTest : public AffineLinearSystemTest {
     dut_->set_name("test_matrix_gain_system");
     context_ = dut_->CreateDefaultContext();
     input_vector_ = make_unique<BasicVector<double>>(2 /* size */);
-    system_output_ = dut_->AllocateOutput();
   }
 
  protected:
@@ -34,7 +33,7 @@ class MatrixGainTest : public AffineLinearSystemTest {
 
 // Tests that the MatrixGain system is correctly setup.
 TEST_F(MatrixGainTest, Construction) {
-  EXPECT_EQ(context_->get_num_input_ports(), 1);
+  EXPECT_EQ(context_->num_input_ports(), 1);
   EXPECT_EQ(dut_->get_name(), "test_matrix_gain_system");
   EXPECT_EQ(dut_->A(), MatrixX<double>::Zero(kNumStates, kNumStates));
   EXPECT_EQ(dut_->B(), MatrixX<double>::Zero(kNumStates, D_.cols()));
@@ -42,8 +41,8 @@ TEST_F(MatrixGainTest, Construction) {
   EXPECT_EQ(dut_->C(), MatrixX<double>::Zero(D_.rows(), kNumStates));
   EXPECT_EQ(dut_->D(), D_);
   EXPECT_EQ(dut_->y0(), Eigen::VectorXd::Zero(2));
-  EXPECT_EQ(dut_->get_num_output_ports(), 1);
-  EXPECT_EQ(dut_->get_num_input_ports(), 1);
+  EXPECT_EQ(dut_->num_output_ports(), 1);
+  EXPECT_EQ(dut_->num_input_ports(), 1);
 }
 
 // Tests that the derivatives are correctly computed.
@@ -69,12 +68,9 @@ TEST_F(MatrixGainTest, Output) {
   Eigen::Vector2d u(2.17, 5.99);
   SetInput(u);
 
-  dut_->CalcOutput(*context_, system_output_.get());
-
   Eigen::VectorXd expected_output(2);
   expected_output = D_ * u;
-
-  EXPECT_EQ(system_output_->get_vector_data(0)->get_value(), expected_output);
+  EXPECT_EQ(dut_->get_output_port().Eval(*context_), expected_output);
 }
 
 // Tests converting to different scalar types.

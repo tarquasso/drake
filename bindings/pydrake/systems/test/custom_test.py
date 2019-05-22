@@ -22,8 +22,11 @@ from pydrake.systems.framework import (
     LeafSystem, LeafSystem_,
     PortDataType,
     PublishEvent,
+    State,
     TriggerType,
+    UnrestrictedUpdateEvent,
     VectorSystem,
+    WitnessFunctionDirection,
     )
 from pydrake.systems.primitives import (
     Adder,
@@ -35,9 +38,7 @@ from pydrake.systems.test.test_util import (
     call_vector_system_overrides,
     )
 
-from pydrake.common.deprecation import (
-    DrakeDeprecationWarning,
-    )
+from pydrake.common.test_utilities.deprecation import catch_drake_warnings
 
 
 def noop(*args, **kwargs):
@@ -50,16 +51,16 @@ class CustomAdder(LeafSystem):
     def __init__(self, num_inputs, size):
         LeafSystem.__init__(self)
         for i in range(num_inputs):
-            self._DeclareVectorInputPort(
+            self.DeclareVectorInputPort(
                 "input{}".format(i), BasicVector(size))
-        self._DeclareVectorOutputPort("sum", BasicVector(size), self._calc_sum)
+        self.DeclareVectorOutputPort("sum", BasicVector(size), self._calc_sum)
 
     def _calc_sum(self, context, sum_data):
         # @note This will NOT work if the scalar type is AutoDiff or symbolic,
         # since they are not stored densely.
         sum = sum_data.get_mutable_value()
         sum[:] = 0
-        for i in range(context.get_num_input_ports()):
+        for i in range(context.num_input_ports()):
             input_vector = self.EvalVectorInput(context, i)
             sum += input_vector.get_value()
 
@@ -78,25 +79,25 @@ class CustomVectorSystem(VectorSystem):
         VectorSystem.__init__(self, 1, 3)
         self._is_discrete = is_discrete
         if self._is_discrete:
-            self._DeclareDiscreteState(2)
+            self.DeclareDiscreteState(2)
         else:
-            self._DeclareContinuousState(2)
+            self.DeclareContinuousState(2)
         # Record calls for testing.
         self.has_called = []
 
-    def _DoCalcVectorOutput(self, context, u, x, y):
+    def DoCalcVectorOutput(self, context, u, x, y):
         y[:] = np.hstack([u, x])
         self.has_called.append("output")
 
-    def _DoCalcVectorTimeDerivatives(self, context, u, x, x_dot):
+    def DoCalcVectorTimeDerivatives(self, context, u, x, x_dot):
         x_dot[:] = x + u
         self.has_called.append("continuous")
 
-    def _DoCalcVectorDiscreteVariableUpdates(self, context, u, x, x_n):
+    def DoCalcVectorDiscreteVariableUpdates(self, context, u, x, x_n):
         x_n[:] = x + 2*u
         self.has_called.append("discrete")
 
-    def _DoHasDirectFeedthrough(self, input_port, output_port):
+    def DoHasDirectFeedthrough(self, input_port, output_port):
         self.has_called.append("feedthrough")
         return True
 
@@ -125,23 +126,30 @@ class TestCustom(unittest.TestCase):
         return system
 
     def _fix_adder_inputs(self, context):
-        self.assertEqual(context.get_num_input_ports(), 2)
+        self.assertEqual(context.num_input_ports(), 2)
+        with catch_drake_warnings(expected_count=1):
+            context.get_num_input_ports()
         context.FixInputPort(0, BasicVector([1, 2, 3]))
         context.FixInputPort(1, BasicVector([4, 5, 6]))
 
     def test_diagram_adder(self):
         system = CustomDiagram(2, 3)
-        self.assertEqual(system.get_num_input_ports(), 2)
+        self.assertEqual(system.num_input_ports(), 2)
+        with catch_drake_warnings(expected_count=1):
+            system.get_num_input_ports()
         self.assertEqual(system.get_input_port(0).size(), 3)
-        self.assertEqual(system.get_num_output_ports(), 1)
+        self.assertEqual(system.num_output_ports(), 1)
+        with catch_drake_warnings(expected_count=1):
+            system.get_num_output_ports()
         self.assertEqual(system.get_output_port(0).size(), 3)
 
     def test_adder_execution(self):
         system = self._create_adder_system()
         context = system.CreateDefaultContext()
+        self.assertEqual(context.num_output_ports(), 1)
         self._fix_adder_inputs(context)
         output = system.AllocateOutput()
-        self.assertEqual(output.get_num_ports(), 1)
+        self.assertEqual(output.num_ports(), 1)
         system.CalcOutput(context, output)
         value = output.get_vector_data(0).get_value()
         self.assertTrue(np.allclose([5, 7, 9], value))
@@ -163,7 +171,7 @@ class TestCustom(unittest.TestCase):
 
         simulator = Simulator(diagram, context)
         simulator.Initialize()
-        simulator.StepTo(1)
+        simulator.AdvanceTo(1)
         # Ensure that we have the outputs we want.
         value = (diagram.GetMutableSubsystemContext(zoh, context)
                  .get_discrete_state_vector().get_value())
@@ -182,39 +190,49 @@ class TestCustom(unittest.TestCase):
                 self.called_initialize = False
                 self.called_per_step = False
                 self.called_periodic = False
+                self.called_getwitness = False
+                self.called_witness = False
+                self.called_guard = False
+                self.called_reset = False
                 # Ensure we have desired overloads.
-                self._DeclarePeriodicPublish(1.0)
-                self._DeclarePeriodicPublish(1.0, 0)
-                self._DeclarePeriodicPublish(period_sec=1.0, offset_sec=0.)
-                self._DeclarePeriodicDiscreteUpdate(
+                self.DeclarePeriodicPublish(1.0)
+                self.DeclarePeriodicPublish(1.0, 0)
+                self.DeclarePeriodicPublish(period_sec=1.0, offset_sec=0.)
+                self.DeclarePeriodicDiscreteUpdate(
                     period_sec=1.0, offset_sec=0.)
-                self._DeclareInitializationEvent(
+                self.DeclareInitializationEvent(
                     event=PublishEvent(
                         trigger_type=TriggerType.kInitialization,
                         callback=self._on_initialize))
-                self._DeclarePerStepEvent(
+                self.DeclarePerStepEvent(
                     event=PublishEvent(
                         trigger_type=TriggerType.kPerStep,
                         callback=self._on_per_step))
-                self._DeclarePeriodicEvent(
+                self.DeclarePeriodicEvent(
                     period_sec=1.0,
                     offset_sec=0.0,
                     event=PublishEvent(
                         trigger_type=TriggerType.kPeriodic,
                         callback=self._on_periodic))
-                self._DeclareContinuousState(2)
-                self._DeclareDiscreteState(1)
+                self.DeclareContinuousState(2)
+                self.DeclareDiscreteState(1)
                 # Ensure that we have inputs / outputs to call direct
                 # feedthrough.
-                self._DeclareInputPort(PortDataType.kVectorValued, 1)
-                self._DeclareVectorInputPort(
+                self.DeclareInputPort(PortDataType.kVectorValued, 1)
+                self.DeclareVectorInputPort(
                     name="test_input", model_vector=BasicVector(1),
                     random_type=None)
-                self._DeclareVectorOutputPort(BasicVector(1), noop)
+                self.DeclareVectorOutputPort(BasicVector(1), noop)
+                self.witness = self.MakeWitnessFunction(
+                    "witness", WitnessFunctionDirection.kCrossesZero,
+                    self._witness)
+                self.reset_witness = self.MakeWitnessFunction(
+                    "reset", WitnessFunctionDirection.kCrossesZero,
+                    self._guard, UnrestrictedUpdateEvent(self._reset))
 
-            def _DoPublish(self, context, events):
+            def DoPublish(self, context, events):
                 # Call base method to ensure we do not get recursion.
-                LeafSystem._DoPublish(self, context, events)
+                LeafSystem.DoPublish(self, context, events)
                 # N.B. We do not test for a singular call to `DoPublish`
                 # (checking `assertFalse(self.called_publish)` first) because
                 # the above `_DeclareInitializationEvent` will call both its
@@ -223,30 +241,35 @@ class TestCustom(unittest.TestCase):
                 # even when we explicitly say not to publish at initialize.
                 self.called_publish = True
 
-            def _DoHasDirectFeedthrough(self, input_port, output_port):
+            def DoHasDirectFeedthrough(self, input_port, output_port):
                 # Test inputs.
                 test.assertIn(input_port, [0, 1])
                 test.assertEqual(output_port, 0)
                 # Call base method to ensure we do not get recursion.
-                base_return = LeafSystem._DoHasDirectFeedthrough(
-                    self, input_port, output_port)
+                with catch_drake_warnings(expected_count=1):
+                    base_return = LeafSystem.DoHasDirectFeedthrough(
+                        self, input_port, output_port)
                 test.assertTrue(base_return is None)
                 # Return custom methods.
                 self.called_feedthrough = True
                 return False
 
-            def _DoCalcTimeDerivatives(self, context, derivatives):
+            def DoCalcTimeDerivatives(self, context, derivatives):
                 # Note:  Don't call base method here; it would abort because
                 # derivatives.size() != 0.
                 test.assertEqual(derivatives.get_vector().size(), 2)
                 self.called_continuous = True
 
-            def _DoCalcDiscreteVariableUpdates(
+            def DoCalcDiscreteVariableUpdates(
                     self, context, events, discrete_state):
                 # Call base method to ensure we do not get recursion.
-                LeafSystem._DoCalcDiscreteVariableUpdates(
+                LeafSystem.DoCalcDiscreteVariableUpdates(
                     self, context, events, discrete_state)
                 self.called_discrete = True
+
+            def DoGetWitnessFunctions(self, context):
+                self.called_getwitness = True
+                return [self.witness, self.reset_witness]
 
             def _on_initialize(self, context, event):
                 test.assertIsInstance(context, Context)
@@ -264,6 +287,22 @@ class TestCustom(unittest.TestCase):
                 test.assertIsInstance(event, PublishEvent)
                 test.assertFalse(self.called_periodic)
                 self.called_periodic = True
+
+            def _witness(self, context):
+                test.assertIsInstance(context, Context)
+                self.called_witness = True
+                return 1.0
+
+            def _guard(self, context):
+                test.assertIsInstance(context, Context)
+                self.called_guard = True
+                return context.get_time() - 0.5
+
+            def _reset(self, context, event, state):
+                test.assertIsInstance(context, Context)
+                test.assertIsInstance(event, UnrestrictedUpdateEvent)
+                test.assertIsInstance(state, State)
+                self.called_reset = True
 
         system = TrivialSystem()
         self.assertFalse(system.called_publish)
@@ -294,14 +333,68 @@ class TestCustom(unittest.TestCase):
         system.CalcTimeDerivatives(
             context, context_update.get_mutable_continuous_state())
         self.assertTrue(system.called_continuous)
+        witnesses = system.GetWitnessFunctions(context)
+        self.assertEqual(len(witnesses), 2)
 
-        # Test per-step and periodic call backs
+        # Test per-step, periodic, and witness call backs
         system = TrivialSystem()
         simulator = Simulator(system)
+        simulator.get_mutable_context().SetAccuracy(0.1)
         # Stepping to 0.99 so that we get exactly one periodic event.
-        simulator.StepTo(0.99)
+        simulator.AdvanceTo(0.99)
         self.assertTrue(system.called_per_step)
         self.assertTrue(system.called_periodic)
+        self.assertTrue(system.called_getwitness)
+        self.assertTrue(system.called_witness)
+        self.assertTrue(system.called_guard)
+        self.assertTrue(system.called_reset)
+
+    def test_deprecated_protected_aliases(self):
+        """Tests a subset of protected aliases, pursuant to #9651."""
+
+        class OldSystem(LeafSystem):
+            def __init__(self):
+                LeafSystem.__init__(self)
+                self.called_publish = False
+                # Check a non-overridable method
+                with catch_drake_warnings(expected_count=1):
+                    self._DeclareVectorInputPort("x", BasicVector(1))
+
+            def _DoPublish(self, context, events):
+                self.called_publish = True
+
+        # Ensure old overrides are still used
+        system = OldSystem()
+        context = system.CreateDefaultContext()
+        with catch_drake_warnings(expected_count=1):
+            system.Publish(context)
+        self.assertTrue(system.called_publish)
+
+        # Ensure documentation includes the deprecation message.
+        self.assertIn("deprecated", LeafSystem._DoPublish.__doc__)
+        # This will warn both on (a) calling the method and (b) on the
+        # invocation of the override.
+        with catch_drake_warnings(expected_count=2):
+            LeafSystem._DoPublish(system, context, [])
+
+        class AccidentallyBothSystem(LeafSystem):
+            def __init__(self):
+                LeafSystem.__init__(self)
+                self.called_old_publish = False
+                self.called_new_publish = False
+
+            def DoPublish(self, context, events):
+                self.called_new_publish = True
+
+            def _DoPublish(self, context, events):
+                self.called_old_publish = True
+
+        system = AccidentallyBothSystem()
+        context = system.CreateDefaultContext()
+        # This will trigger no deprecations, as the newer publish is called.
+        system.Publish(context)
+        self.assertTrue(system.called_new_publish)
+        self.assertFalse(system.called_old_publish)
 
     def test_vector_system_overrides(self):
         dt = 0.5
@@ -341,22 +434,28 @@ class TestCustom(unittest.TestCase):
     def test_context_api(self):
         # Capture miscellaneous functions not yet tested.
         model_value = AbstractValue.Make("Hello")
+        model_vector = BasicVector([1., 2.])
 
         class TrivialSystem(LeafSystem):
             def __init__(self):
                 LeafSystem.__init__(self)
-                self._DeclareContinuousState(1)
-                self._DeclareDiscreteState(2)
-                self._DeclareAbstractState(model_value.Clone())
+                self.DeclareContinuousState(1)
+                self.DeclareDiscreteState(2)
+                self.DeclareAbstractState(model_value.Clone())
+                self.DeclareAbstractParameter(model_value.Clone())
+                self.DeclareNumericParameter(model_vector.Clone())
 
         system = TrivialSystem()
         context = system.CreateDefaultContext()
         self.assertTrue(
             context.get_state() is context.get_mutable_state())
+        self.assertEqual(context.num_continuous_states(), 1)
         self.assertTrue(
             context.get_continuous_state_vector() is
             context.get_mutable_continuous_state_vector())
-        self.assertEqual(context.get_num_discrete_state_groups(), 1)
+        self.assertEqual(context.num_discrete_state_groups(), 1)
+        with catch_drake_warnings(expected_count=1):
+            context.get_num_discrete_state_groups()
         self.assertTrue(
             context.get_discrete_state_vector() is
             context.get_mutable_discrete_state_vector())
@@ -372,7 +471,9 @@ class TestCustom(unittest.TestCase):
         self.assertTrue(
             context.get_mutable_discrete_state(0) is
             context.get_mutable_discrete_state().get_vector(0))
-        self.assertEqual(context.get_num_abstract_states(), 1)
+        self.assertEqual(context.num_abstract_states(), 1)
+        with catch_drake_warnings(expected_count=1):
+            context.get_num_abstract_states()
         self.assertTrue(
             context.get_abstract_state() is
             context.get_mutable_abstract_state())
@@ -382,16 +483,28 @@ class TestCustom(unittest.TestCase):
         self.assertEqual(
             context.get_abstract_state(0).get_value(), model_value.get_value())
 
-        # Check AbstractValues API.
+        # Check abstract state API (also test AbstractValues).
         values = context.get_abstract_state()
         self.assertEqual(values.size(), 1)
         self.assertEqual(
             values.get_value(0).get_value(), model_value.get_value())
         self.assertEqual(
             values.get_mutable_value(0).get_value(), model_value.get_value())
-        values.CopyFrom(values.Clone())
+        values.SetFrom(values.Clone())
+        with catch_drake_warnings(expected_count=1):
+            values.CopyFrom(values.Clone())
 
-        # - Check diagram context accessors.
+        # Check parameter accessors.
+        self.assertEqual(system.num_abstract_parameters(), 1)
+        self.assertEqual(
+            context.get_abstract_parameter(index=0).get_value(),
+            model_value.get_value())
+        self.assertEqual(system.num_numeric_parameter_groups(), 1)
+        np.testing.assert_equal(
+            context.get_numeric_parameter(index=0).get_value(),
+            model_vector.get_value())
+
+        # Check diagram context accessors.
         builder = DiagramBuilder()
         builder.AddSystem(system)
         diagram = builder.Build()
@@ -416,24 +529,29 @@ class TestCustom(unittest.TestCase):
                     num_z = 3
                     num_state = num_q + num_v + num_z
                     if index == 0:
-                        self._DeclareContinuousState(
+                        self.DeclareContinuousState(
                             num_state_variables=num_state)
                     elif index == 1:
-                        self._DeclareContinuousState(
+                        self.DeclareContinuousState(
                             num_q=num_q, num_v=num_v, num_z=num_z)
                     elif index == 2:
-                        self._DeclareContinuousState(
+                        self.DeclareContinuousState(
                             BasicVector_[T](num_state))
                     elif index == 3:
-                        self._DeclareContinuousState(
+                        self.DeclareContinuousState(
                             BasicVector_[T](num_state),
                             num_q=num_q, num_v=num_v, num_z=num_z)
+
+                def DoCalcTimeDerivatives(self, context, derivatives):
+                    derivatives.get_mutable_vector().SetZero()
 
             for index in range(4):
                 system = TrivialSystem(index)
                 context = system.CreateDefaultContext()
                 self.assertEqual(
                     context.get_continuous_state_vector().size(), 6)
+                self.assertEqual(system.AllocateTimeDerivatives().size(), 6)
+                self.assertEqual(system.EvalTimeDerivatives(context).size(), 6)
 
     def test_discrete_state_api(self):
         # N.B. Since this has trivial operations, we can test all scalar types.
@@ -444,12 +562,12 @@ class TestCustom(unittest.TestCase):
                     LeafSystem_[T].__init__(self)
                     num_states = 3
                     if index == 0:
-                        self._DeclareDiscreteState(
+                        self.DeclareDiscreteState(
                             num_state_variables=num_states)
                     elif index == 1:
-                        self._DeclareDiscreteState([1, 2, 3])
+                        self.DeclareDiscreteState([1, 2, 3])
                     elif index == 2:
-                        self._DeclareDiscreteState(
+                        self.DeclareDiscreteState(
                             BasicVector_[T](num_states))
 
             for index in range(3):
@@ -469,14 +587,14 @@ class TestCustom(unittest.TestCase):
             class CustomAbstractSystem(LeafSystem_[T]):
                 def __init__(self):
                     LeafSystem_[T].__init__(self)
-                    self.input_port = self._DeclareAbstractInputPort(
+                    self.input_port = self.DeclareAbstractInputPort(
                         "in", AbstractValue.Make(default_value))
-                    self.output_port = self._DeclareAbstractOutputPort(
+                    self.output_port = self.DeclareAbstractOutputPort(
                         "out",
                         lambda: AbstractValue.Make(default_value),
-                        self._DoCalcAbstractOutput)
+                        self.DoCalcAbstractOutput)
 
-                def _DoCalcAbstractOutput(self, context, y_data):
+                def DoCalcAbstractOutput(self, context, y_data):
                     input_value = self.EvalAbstractInput(
                         context, 0).get_value()
                     # The allocator function will populate the output with
@@ -489,10 +607,12 @@ class TestCustom(unittest.TestCase):
             system = CustomAbstractSystem()
             context = system.CreateDefaultContext()
 
-            self.assertEqual(context.get_num_input_ports(), 1)
+            self.assertEqual(context.num_input_ports(), 1)
             context.FixInputPort(0, AbstractValue.Make(expected_input_value))
             output = system.AllocateOutput()
-            self.assertEqual(output.get_num_ports(), 1)
+            self.assertEqual(output.num_ports(), 1)
+            with catch_drake_warnings(expected_count=1):
+                output.get_num_ports()
             system.CalcOutput(context, output)
             value = output.get_data(0)
             self.assertEqual(value.get_value(), expected_output_value)
@@ -510,11 +630,9 @@ class TestCustom(unittest.TestCase):
         class ParseFloatSystem(LeafSystem_[float]):
             def __init__(self):
                 LeafSystem_[float].__init__(self)
-                with warnings.catch_warnings(record=True) as w:
-                    warnings.simplefilter("default", DrakeDeprecationWarning)
-                    self._DeclareAbstractInputPort("in")
-                    test.assertEqual(len(w), 1)
-                self._DeclareVectorOutputPort("out", BasicVector(1), self._Out)
+                with catch_drake_warnings(expected_count=1):
+                    self.DeclareAbstractInputPort("in")
+                self.DeclareVectorOutputPort("out", BasicVector(1), self._Out)
 
             def _Out(self, context, y_data):
                 py_obj = self.EvalAbstractInput(context, 0).get_value()[0]

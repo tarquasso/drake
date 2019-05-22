@@ -24,30 +24,23 @@ void TestGainSystem(const Gain<T>& gain_system,
   auto context = gain_system.CreateDefaultContext();
 
   // Verifies that Gain allocates no state variables in the context.
-  EXPECT_EQ(0, context->get_continuous_state().size());
-  auto output = gain_system.AllocateOutput();
+  EXPECT_EQ(0, context->num_continuous_states());
   auto input =
       make_unique<BasicVector<double>>(gain_system.get_gain_vector().size());
 
   // Checks that the number of input ports in the Gain system and the Context
   // are consistent.
-  ASSERT_EQ(1, gain_system.get_num_input_ports());
-  ASSERT_EQ(1, context->get_num_input_ports());
+  ASSERT_EQ(1, gain_system.num_input_ports());
+  ASSERT_EQ(1, context->num_input_ports());
 
   input->get_mutable_value() << input_vector;
 
   // Hook input of the expected size.
   context->FixInputPort(0, std::move(input));
 
-  gain_system.CalcOutput(*context, output.get());
-
-  // Checks that the number of output ports in the Gain system and the
-  // SystemOutput are consistent.
-  ASSERT_EQ(1, output->get_num_ports());
-  ASSERT_EQ(1, gain_system.get_num_output_ports());
-  const BasicVector<double>* output_vector = output->get_vector_data(0);
-  ASSERT_NE(nullptr, output_vector);
-  EXPECT_EQ(expected_output, output_vector->get_value());
+  // Checks the output.
+  ASSERT_EQ(1, gain_system.num_output_ports());
+  EXPECT_EQ(expected_output, gain_system.get_output_port().Eval(*context));
 }
 
 // Tests the ability to use a double as the gain.
@@ -103,8 +96,8 @@ GTEST_TEST(GainDeathTest, GainAccessorTest) {
 GTEST_TEST(GainTest, ToAutoDiff) {
   const Gain<double> gain(2.0, 3);
   EXPECT_TRUE(is_autodiffxd_convertible(gain, [&](const auto& converted) {
-    EXPECT_EQ(1, converted.get_num_input_ports());
-    EXPECT_EQ(1, converted.get_num_output_ports());
+    EXPECT_EQ(1, converted.num_input_ports());
+    EXPECT_EQ(1, converted.num_output_ports());
     EXPECT_EQ(Vector3d::Constant(2.0), converted.get_gain_vector());
   }));
 }

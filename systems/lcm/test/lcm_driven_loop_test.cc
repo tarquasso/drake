@@ -28,7 +28,7 @@ class MilliSecTimeStampMessageToSeconds : public LcmMessageToTimeInterface {
   ~MilliSecTimeStampMessageToSeconds() {}
 
   double GetTimeInSeconds(const AbstractValue& abstract_value) const override {
-    const lcmt_drake_signal& msg = abstract_value.GetValue<lcmt_drake_signal>();
+    const auto& msg = abstract_value.get_value<lcmt_drake_signal>();
     return static_cast<double>(msg.timestamp) / 1e3;
   }
 };
@@ -113,7 +113,7 @@ GTEST_TEST(LcmDrivenLoopTest, TestLoop) {
   const AbstractValue& first_msg = dut.WaitForMessage();
   double msg_time =
       dut.get_message_to_time_converter().GetTimeInSeconds(first_msg);
-  dut.get_mutable_context().set_time(msg_time);
+  dut.get_mutable_context().SetTime(msg_time);
 
   // Starts the loop.
   dut.RunToSecondsAssumingInitialized(static_cast<double>(kEnd));

@@ -1,8 +1,14 @@
 # -*- python -*-
 
-# Should include everything any consumer of Drake would ever need.
+# This file governs the contents of libdrake.so.
+
+# Do not update this list by hand; instead, from the drake workspace run
 #
-# Do not update this list by hand; instead, run build_components_refresh.py.
+#   tools/install/libdrake/build_components_refresh.py
+#
+# and it will rewrite this file automatically for you.  If the refresh made any
+# edits, then `git status` will show this file as modified; in that case, you
+# should commit the changes made by the refresh script.
 LIBDRAKE_COMPONENTS = [
     "//attic/manipulation/dev:remote_tree_viewer_wrapper",  # unpackaged
     "//attic/manipulation/planner",
@@ -35,17 +41,16 @@ LIBDRAKE_COMPONENTS = [
     "//attic/util",
     "//automotive",
     "//automotive/maliput/api",
+    "//automotive/maliput/base",
     "//automotive/maliput/dragway",
     "//automotive/maliput/geometry_base",
     "//automotive/maliput/multilane",
     "//automotive/maliput/rndf",
-    "//automotive/maliput/simple_phase_book",
-    "//automotive/maliput/simple_phase_provider",
-    "//automotive/maliput/simplerulebook",
     "//automotive/maliput/utility",
     "//common",
     "//common/proto",
     "//common/trajectories",
+    "//common/yaml",
     "//common:drake_marker_shared_library",  # unpackaged
     "//common:text_logging_gflags_h",  # unpackaged
     "//examples/acrobot:acrobot_input",  # unpackaged
@@ -58,6 +63,7 @@ LIBDRAKE_COMPONENTS = [
     "//examples/manipulation_station:manipulation_station_hardware_interface",  # unpackaged  # noqa
     "//examples/pendulum:pendulum_plant",  # unpackaged
     "//examples/pendulum:pendulum_vector_types",  # unpackaged
+    "//examples/quadrotor:quadrotor_plant",  # unpackaged
     "//examples/rimless_wheel:rimless_wheel",  # unpackaged
     "//examples/rimless_wheel:rimless_wheel_vector_types",  # unpackaged
     "//examples/van_der_pol:van_der_pol",  # unpackaged
@@ -65,7 +71,9 @@ LIBDRAKE_COMPONENTS = [
     "//geometry/dev",
     "//geometry/dev/render",
     "//geometry/dev/render/shaders",
+    "//geometry/proximity",
     "//geometry/query_results",
+    "//geometry/render",
     "//geometry/test_utilities:geometry_set_tester",  # unpackaged
     "//lcm",
     "//manipulation/kuka_iiwa",
@@ -81,13 +89,10 @@ LIBDRAKE_COMPONENTS = [
     "//multibody/benchmarks/mass_damper_spring",
     "//multibody/benchmarks/pendulum",
     "//multibody/constraint",
+    "//multibody/hydroelastic_contact",
     "//multibody/inverse_kinematics",
     "//multibody/math",
-    "//multibody/multibody_tree",
-    "//multibody/multibody_tree/implicit_stribeck",
-    "//multibody/multibody_tree/math",
-    "//multibody/multibody_tree/multibody_plant",
-    "//multibody/multibody_tree/parsing",
+    "//multibody/optimization",
     "//multibody/parsing",
     "//multibody/plant",
     "//multibody/plant:contact_results_to_lcm",  # unpackaged
@@ -108,5 +113,4 @@ LIBDRAKE_COMPONENTS = [
     "//systems/trajectory_optimization",
     # //examples/kuka_iiwa_arm:iiwa_common (indirectly)
     # //examples/kuka_iiwa_arm:iiwa_lcm (indirectly)
-    # //multibody/multibody_tree/joints:forwarding_hdrs (indirectly)
 ]

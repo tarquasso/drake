@@ -184,15 +184,18 @@ class ProximityEngine {
    @param[in] p_WQ            Position of a query point Q in world frame W.
    @param[in] geometry_map    A map from geometry _index_ to the corresponding
                               global geometry identifier.
+   @param[in] X_WGs           The pose of all geometries in world, indexed by
+                              each geometry's GeometryIndex.
    @param[in] threshold       Ignore any object beyond this distance.
    @retval signed_distances   A vector populated with per-object signed
                               distance and gradient vector.
-                              See SignedDistanceFieldValue for details.
+                              See SignedDistanceToPoint for details.
    */
-  std::vector<SignedDistanceToPoint<double>>
+  std::vector<SignedDistanceToPoint<T>>
   ComputeSignedDistanceToPoint(
-      const Vector3<double>& p_WQ,
+      const Vector3<T>& p_WQ,
       const std::vector<GeometryId>& geometry_map,
+      const std::vector<Isometry3<T>>& X_WGs,
       const double threshold = std::numeric_limits<double>::infinity()) const;
   //@}
 
@@ -208,12 +211,20 @@ class ProximityEngine {
   //@{
 
   // NOTE: This maps to Model::ComputeMaximumDepthCollisionPoints().
+  // The definition that touching is not penetrating is due to an FCL issue
+  // described in https://github.com/flexible-collision-library/fcl/issues/375
+  // and drake issue #10577. Once that is resolved, this definition can be
+  // revisited (and ProximityEngineTest::Issue10577Regression_Osculation can
+  // be updated).
   /** Computes the penetrations across all pairs of geometries in the world.
    Only reports results for _penetrating_ geometries; if two geometries are
-   separated, there will be no result for that pair.
+   not penetrating, there will be no result for that pair. Geometries whose
+   surfaces are just touching (osculating) are not considered in penetration.
+   Surfaces whose penetration is within an epsilon of osculation, are likewise
+   not considered penetrating.
 
    The penetrations are characterized by pairs of points (providing some measure
-   of the penetration "depth" of the two objects -- but _not_ the overlapping
+   of the penetration "depth" of the two objects), but _not_ the overlapping
    volume.
 
    This method is affected by collision filtering; geometry pairs that

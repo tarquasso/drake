@@ -1,11 +1,14 @@
 # -*- python -*-
 
 load("@drake//tools/install:install.bzl", "install")
-load("//tools/lint:lint.bzl", "add_lint_tests")
 load(
     "@drake//tools/skylark:test_tags.bzl",
     "gurobi_test_tags",
     "mosek_test_tags",
+)
+load(
+    "@drake//tools/skylark:drake_cc.bzl",
+    "drake_cc_library",
 )
 load(
     "@drake//tools/skylark:pybind.bzl",
@@ -23,6 +26,7 @@ load(
     "@drake//tools/skylark:alias.bzl",
     "drake_py_library_aliases",
 )
+load("//bindings/pydrake:pydrake.bzl", "add_lint_tests_pydrake")
 
 package(default_visibility = [
     "//bindings/pydrake:__subpackages__",
@@ -60,9 +64,19 @@ drake_pybind_library(
     ],
 )
 
+drake_cc_library(
+    name = "solvers_pybind",
+    hdrs = ["solvers_pybind.h"],
+    declare_installed_headers = 0,
+    visibility = ["//visibility:public"],
+)
+
 drake_pybind_library(
     name = "gurobi_py",
-    cc_deps = ["//bindings/pydrake:documentation_pybind"],
+    cc_deps = [
+        ":solvers_pybind",
+        "//bindings/pydrake:documentation_pybind",
+    ],
     cc_srcs = ["gurobi_py.cc"],
     package_info = PACKAGE_INFO,
     py_deps = [":mathematicalprogram_py"],
@@ -78,7 +92,10 @@ drake_pybind_library(
 
 drake_pybind_library(
     name = "mosek_py",
-    cc_deps = ["//bindings/pydrake:documentation_pybind"],
+    cc_deps = [
+        ":solvers_pybind",
+        "//bindings/pydrake:documentation_pybind",
+    ],
     cc_srcs = ["mosek_py.cc"],
     package_info = PACKAGE_INFO,
     py_deps = [":mathematicalprogram_py"],
@@ -86,10 +103,20 @@ drake_pybind_library(
 
 drake_pybind_library(
     name = "osqp_py",
-    cc_deps = ["//bindings/pydrake:documentation_pybind"],
+    cc_deps = [
+        "//bindings/pydrake:documentation_pybind",
+        # TODO(jwnimmer-tri) Only for AbstractValue; we should switch this to
+        # depend on on pydrake/common once the Value bindings have moved there.
+        "//bindings/pydrake/systems:systems_pybind",
+    ],
     cc_srcs = ["osqp_py.cc"],
     package_info = PACKAGE_INFO,
-    py_deps = [":mathematicalprogram_py"],
+    py_deps = [
+        ":mathematicalprogram_py",
+        # TODO(jwnimmer-tri) Only for AbstractValue; we should switch this to
+        # depend on on pydrake/common once the Value bindings have moved there.
+        "//bindings/pydrake/systems:framework_py",
+    ],
 )
 
 drake_pybind_library(
@@ -156,7 +183,10 @@ drake_py_unittest(
         "//tools:no_ipopt": ["TestIpoptSolver.unavailable"],
         "//conditions:default": [],
     }),
-    deps = [":ipopt_py"],
+    deps = [
+        ":ipopt_py",
+        "//bindings/pydrake/common/test_utilities",
+    ],
 )
 
 drake_py_unittest(
@@ -181,10 +211,8 @@ drake_py_unittest(
         ":gurobi_py",
         ":mathematicalprogram_py",
         ":snopt_py",
+        "//bindings/pydrake/common/test_utilities",
     ],
 )
 
-add_lint_tests(
-    cpplint_data = ["//bindings/pydrake:.clang-format"],
-    enable_clang_format_lint = True,
-)
+add_lint_tests_pydrake()

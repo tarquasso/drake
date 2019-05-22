@@ -26,10 +26,12 @@ bool InternalGeometry::has_role(Role role) const {
       return has_proximity_role();
     case Role::kIllustration:
       return has_illustration_role();
+    case Role::kPerception:
+      throw std::logic_error("Unsupported internal geometry role: perception");
     case Role::kUnassigned:
       return !(has_proximity_role() || has_illustration_role());
   }
-  DRAKE_ABORT_MSG("Unreachable code; switch on enum had unexpected value");
+  DRAKE_UNREACHABLE();
 }
 
 }  // namespace internal

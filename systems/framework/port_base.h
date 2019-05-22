@@ -19,16 +19,16 @@ class PortBase {
   /** Get port name. */
   const std::string& get_name() const { return name_; }
 
+  /** Returns a verbose human-readable description of port. This is useful for
+  error messages or debugging. */
+  std::string GetFullDescription() const;
+
   /** Returns the port data type. */
   PortDataType get_data_type() const { return data_type_; }
 
   /** Returns the fixed size expected for a vector-valued port. Not
   meaningful for abstract-valued ports. */
   int size() const { return size_; }
-
-  /** Returns a verbose human-readable description of port. This is useful for
-  error messages or debugging. */
-  std::string GetFullDescription() const;
 
 #ifndef DRAKE_DOXYGEN_CXX
   // Returns a reference to the system that owns this port. Note that for a
@@ -94,7 +94,21 @@ class PortBase {
   template <typename ValueType, typename T>
   const ValueType& PortEvalCast(const BasicVector<T>& basic) const;
 
-  /** Reports that user provided a bad ValueType argument to Eval.  The
+  /** Reports that the user provided a bad ValueType argument to Eval. */
+  template <typename ValueType>
+  [[noreturn]] const ValueType& ThrowBadCast(
+      const AbstractValue& abstract) const {
+    ThrowBadCast(abstract.GetNiceTypeName(), NiceTypeName::Get<ValueType>());
+  }
+
+  /** Reports that the user provided a bad ValueType argument to Eval. */
+  template <typename ValueType, typename T>
+  [[noreturn]] const ValueType& ThrowBadCast(
+      const BasicVector<T>& basic) const {
+    ThrowBadCast(NiceTypeName::Get(basic), NiceTypeName::Get<ValueType>());
+  }
+
+  /** Reports that the user provided a bad ValueType argument to Eval.  The
   value_typename is the type of the port's current value; the eval_typename is
   the type the user asked for. */
   [[noreturn]] void ThrowBadCast(
@@ -116,20 +130,22 @@ class PortBase {
   const std::string name_;
 };
 
+// Keep this inlineable.  Error reporting should happen in a separate method.
 template <typename ValueType>
 const ValueType& PortBase::PortEvalCast(const AbstractValue& abstract) const {
-  const ValueType* const value = abstract.MaybeGetValue<ValueType>();
+  const ValueType* const value = abstract.maybe_get_value<ValueType>();
   if (!value) {
-    ThrowBadCast(abstract.GetNiceTypeName(), NiceTypeName::Get<ValueType>());
+    ThrowBadCast<ValueType>(abstract);
   }
   return *value;
 }
 
+// Keep this inlineable.  Error reporting should happen in a separate method.
 template <typename ValueType, typename T>
 const ValueType& PortBase::PortEvalCast(const BasicVector<T>& basic) const {
   const ValueType* const value = dynamic_cast<const ValueType*>(&basic);
   if (!value) {
-    ThrowBadCast(NiceTypeName::Get(basic), NiceTypeName::Get<ValueType>());
+    ThrowBadCast<ValueType>(basic);
   }
   return *value;
 }

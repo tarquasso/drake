@@ -125,11 +125,17 @@ class TestAutoDiffXd(unittest.TestCase):
         algebra.check_value(2 / a, AD(2, [-2, 0]))
         # Logical
         algebra.check_logical(lambda x, y: x == y, a, a, True)
+        algebra.check_logical(algebra.eq, a, a, True)
         algebra.check_logical(lambda x, y: x != y, a, a, False)
+        algebra.check_logical(algebra.ne, a, a, False)
         algebra.check_logical(lambda x, y: x < y, a, b, True)
+        algebra.check_logical(algebra.lt, a, b, True)
         algebra.check_logical(lambda x, y: x <= y, a, b, True)
+        algebra.check_logical(algebra.le, a, b, True)
         algebra.check_logical(lambda x, y: x > y, a, b, False)
+        algebra.check_logical(algebra.gt, a, b, False)
         algebra.check_logical(lambda x, y: x >= y, a, b, False)
+        algebra.check_logical(algebra.ge, a, b, False)
         # Additional math
         # - See `math_overloads_test` for scalar overloads.
         algebra.check_value(a**2, AD(1, [2., 0]))
@@ -138,6 +144,7 @@ class TestAutoDiffXd(unittest.TestCase):
         algebra.check_value(algebra.exp(a), AD(np.e, [np.e, 0]))
         algebra.check_value(algebra.sqrt(a), AD(1, [0.5, 0]))
         algebra.check_value(algebra.pow(a, 2), AD(1, [2., 0]))
+        algebra.check_value(algebra.pow(a, 0.5), AD(1, [0.5, 0]))
         algebra.check_value(algebra.sin(c), AD(0, [1, 0]))
         algebra.check_value(algebra.cos(c), AD(1, [0, 0]))
         algebra.check_value(algebra.tan(c), AD(0, [1, 0]))
@@ -207,3 +214,10 @@ class TestAutoDiffXd(unittest.TestCase):
         # to do so. See #8116 for alternative.
         with self.assertRaises(TypeError):
             Y = np.linalg.inv(X)
+
+        to_value = np.vectorize(AutoDiffXd.value)
+        # Use workaround for inverse. For now, just check values.
+        X_float = to_value(X)
+        Xinv_float = np.linalg.inv(X_float)
+        Xinv = drake_math.inv(X)
+        np.testing.assert_equal(to_value(Xinv), Xinv_float)

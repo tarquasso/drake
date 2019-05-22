@@ -13,6 +13,16 @@
 #include "drake/bindings/pydrake/pydrake_pybind.h"
 #include "drake/bindings/pydrake/symbolic_types_pybind.h"
 
+#pragma GCC diagnostic push
+// Apple LLVM version 10.0.1 (clang-1001.0.46.3) adds `-Wself-assign-overloaded`
+// to `-Wall`, which generates warnings on Pybind11's operator-overloading idiom
+// that is using py::self (example: `def(py::self + py::self)`).
+// Here, we suppress the warning using `#pragma diagnostic`.
+#if (__APPLE__) && (__clang__) && (__clang_major__ >= 10) && \
+    (__clang_minor__ >= 0) && (__clang_patchlevel__ >= 1)
+#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
+#endif
+
 namespace drake {
 namespace pydrake {
 
@@ -225,6 +235,8 @@ PYBIND11_MODULE(symbolic, m) {
             return self.EvaluatePartial(Environment{env});
           },
           doc.Expression.EvaluatePartial.doc)
+      .def("GetVariables", &Expression::GetVariables,
+          doc.Expression.GetVariables.doc)
       .def("Substitute",
           [](const Expression& self, const Variable& var, const Expression& e) {
             return self.Substitute(var, e);
@@ -335,7 +347,8 @@ PYBIND11_MODULE(symbolic, m) {
       .def("floor", &symbolic::floor, doc.floor.doc);
   DefCopyAndDeepCopy(&expr_cls);
 
-  // TODO(eric.cousineau): Consider deprecating these methods?
+  // TODO(eric.cousineau): Deprecate these methods if/when we support proper
+  // NumPy UFuncs.
   // TODO(m-chaturvedi) Add Pybind11 documentation.
   auto math = py::module::import("pydrake.math");
   MirrorDef<py::module, py::module>(&math, &m)
@@ -358,7 +371,11 @@ PYBIND11_MODULE(symbolic, m) {
       .def("min", &symbolic::min)
       .def("max", &symbolic::max)
       .def("ceil", &symbolic::ceil)
-      .def("floor", &symbolic::floor);
+      .def("floor", &symbolic::floor)
+      // Matrix overloads.
+      .def("inv", [](const MatrixX<Expression>& X) -> MatrixX<Expression> {
+        return X.inverse();
+      });
 
   m.def("if_then_else", &symbolic::if_then_else);
 
@@ -368,6 +385,25 @@ PYBIND11_MODULE(symbolic, m) {
         return Jacobian(f, vars);
       },
       doc.Expression.Jacobian.doc);
+
+  m.def("Evaluate",
+      [](const MatrixX<Expression>& M, const Environment::map& env,
+          RandomGenerator* random_generator) {
+        return Evaluate(M, Environment{env}, random_generator);
+      },
+      py::arg("m"), py::arg("env") = Environment::map{},
+      py::arg("generator") = nullptr, doc.Evaluate.doc);
+
+  m.def("Substitute",
+      [](const MatrixX<Expression>& M, const Substitution& subst) {
+        return Substitute(M, subst);
+      },
+      py::arg("m"), py::arg("subst"), doc.Substitute.doc_2args);
+
+  m.def("Substitute",
+      [](const MatrixX<Expression>& M, const Variable& var,
+          const Expression& e) { return Substitute(M, var, e); },
+      py::arg("m"), py::arg("var"), py::arg("e"), doc.Substitute.doc_3args);
 
   py::class_<Formula> formula_cls(m, "Formula", doc.Formula.doc);
   formula_cls
@@ -523,6 +559,10 @@ PYBIND11_MODULE(symbolic, m) {
       .def("Differentiate", &Polynomial::Differentiate,
           doc.Polynomial.Differentiate.doc)
       .def("AddProduct", &Polynomial::AddProduct, doc.Polynomial.AddProduct.doc)
+      .def("RemoveTermsWithSmallCoefficients",
+          &Polynomial::RemoveTermsWithSmallCoefficients,
+          py::arg("coefficient_tol"),
+          doc.Polynomial.RemoveTermsWithSmallCoefficients.doc)
       .def(py::self + py::self)
       .def(py::self + Monomial())
       .def(Monomial() + py::self)
@@ -575,7 +615,10 @@ PYBIND11_MODULE(symbolic, m) {
       drake::symbolic::Polynomial>();
 
   ExecuteExtraPythonCode(m);
+  // NOLINTNEXTLINE(readability/fn_size)
 }
 
 }  // namespace pydrake
 }  // namespace drake
+
+#pragma GCC diagnostic pop

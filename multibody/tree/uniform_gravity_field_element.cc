@@ -56,7 +56,7 @@ VectorX<T> UniformGravityFieldElement<T>::CalcGravityGeneralizedForces(
   // TODO(amcastro-tri): Replace this inverse dynamics implementation by a JᵀF
   // operator implementation, which would be more efficient.
   model.CalcInverseDynamics(
-      context, pc, vc, /* state */
+      context,
       VectorX<T>::Zero(model.num_velocities()), /* vdot = 0 */
       /* Applied forces. In this case only gravity. */
       forces.body_forces(), forces.generalized_forces(),
@@ -114,7 +114,7 @@ T UniformGravityFieldElement<T>::CalcPotentialEnergy(
     // caching is in place.
     const T mass = body.get_mass(context);
     const Vector3<T> p_BoBcm_B = body.CalcCenterOfMassInBodyFrame(context);
-    const Isometry3<T>& X_WB = pc.get_X_WB(body.node_index());
+    const math::RigidTransform<T>& X_WB = pc.get_X_WB(body.node_index());
     const Matrix3<T> R_WB = X_WB.linear();
     const Vector3<T> p_WBo = X_WB.translation();
     // TODO(amcastro-tri): Consider caching p_BoBcm_W and/or p_WBcm.
@@ -144,7 +144,7 @@ T UniformGravityFieldElement<T>::CalcConservativePower(
     // caching is in place.
     const T mass = body.get_mass(context);
     const Vector3<T> p_BoBcm_B = body.CalcCenterOfMassInBodyFrame(context);
-    const Isometry3<T>& X_WB = pc.get_X_WB(body.node_index());
+    const math::RigidTransform<T>& X_WB = pc.get_X_WB(body.node_index());
     const Matrix3<T> R_WB = X_WB.linear();
     // TODO(amcastro-tri): Consider caching p_BoBcm_W.
     const Vector3<T> p_BoBcm_W = R_WB * p_BoBcm_B;

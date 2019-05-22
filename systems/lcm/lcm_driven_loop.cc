@@ -4,6 +4,8 @@ namespace drake {
 namespace systems {
 namespace lcm {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 LcmDrivenLoop::LcmDrivenLoop(
     const System<double>& system, const LcmSubscriberSystem& driving_subscriber,
     std::unique_ptr<Context<double>> context, drake::lcm::DrakeLcm* lcm,
@@ -33,6 +35,7 @@ LcmDrivenLoop::LcmDrivenLoop(
   // Starts the subscribing thread.
   lcm_->StartReceiveThread();
 }
+#pragma GCC diagnostic push
 
 const AbstractValue& LcmDrivenLoop::WaitForMessage() {
   driving_sub_.WaitForMessage(driving_sub_.GetMessageCount(*sub_context_));
@@ -51,7 +54,7 @@ const AbstractValue& LcmDrivenLoop::WaitForMessage() {
   } else {
     DRAKE_DEMAND(false);
   }
-  sub_context_->get_mutable_state().CopyFrom(*sub_swap_state_);
+  sub_context_->get_mutable_state().SetFrom(*sub_swap_state_);
 
   driving_sub_.CalcOutput(*sub_context_, sub_output_.get());
   return *(sub_output_->get_data(0));
@@ -64,7 +67,7 @@ void LcmDrivenLoop::RunToSecondsAssumingInitialized(double stop_time) {
     msg_time = time_converter_->GetTimeInSeconds(WaitForMessage());
     if (msg_time >= stop_time) break;
 
-    stepper_->StepTo(msg_time);
+    stepper_->AdvanceTo(msg_time);
 
     // Explicitly publish after we are done with all the intermediate
     // computation.

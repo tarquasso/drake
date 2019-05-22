@@ -19,10 +19,8 @@ void CheckOutput(const System<T>& dut,
                  const Eigen::Ref<const VectorX<T>>& input,
                  const Eigen::Ref<const VectorX<T>>& expected_output) {
   auto context = dut.CreateDefaultContext();
-  auto output = dut.AllocateOutput();
   context->FixInputPort(0, input);
-  dut.CalcOutput(*context, output.get());
-  EXPECT_TRUE(CompareMatrices(output->get_vector_data(0)->CopyToVector(),
+  EXPECT_TRUE(CompareMatrices(dut.get_output_port(0).Eval(*context),
                               expected_output, 1e-12));
 }
 
@@ -34,8 +32,8 @@ void SecondElementOnlyTest() {
 
   EXPECT_EQ(dut.get_size(), 2);
 
-  EXPECT_EQ(dut.get_num_input_ports(), 1);
-  EXPECT_EQ(dut.get_num_output_ports(), 1);
+  EXPECT_EQ(dut.num_input_ports(), 1);
+  EXPECT_EQ(dut.num_output_ports(), 1);
 
   CheckOutput<T>(dut, Vector2<T>{.1, .5}, Vector2<T>{.1, 2.5});
   CheckOutput<T>(dut, Vector2<T>{.3, -.2}, Vector2<T>{.3, 2.8});

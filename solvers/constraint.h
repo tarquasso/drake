@@ -296,7 +296,8 @@ class LorentzConeConstraint : public Constraint {
       : Constraint(
             2, A.cols(), Eigen::Vector2d::Constant(0.0),
             Eigen::Vector2d::Constant(std::numeric_limits<double>::infinity())),
-        A_(A),
+        A_(A.sparseView()),
+        A_dense_(A),
         b_(b) {
     DRAKE_DEMAND(A_.rows() >= 2);
     DRAKE_ASSERT(A_.rows() == b_.rows());
@@ -305,7 +306,7 @@ class LorentzConeConstraint : public Constraint {
   ~LorentzConeConstraint() override {}
 
   /** Getter for A. */
-  const Eigen::MatrixXd& A() const { return A_; }
+  const Eigen::SparseMatrix<double>& A() const { return A_; }
 
   /** Getter for b. */
   const Eigen::VectorXd& b() const { return b_; }
@@ -324,7 +325,10 @@ class LorentzConeConstraint : public Constraint {
   void DoEval(const Eigen::Ref<const VectorX<symbolic::Variable>>& x,
               VectorX<symbolic::Expression>* y) const override;
 
-  const Eigen::MatrixXd A_;
+  const Eigen::SparseMatrix<double> A_;
+  // We need to store a dense matrix of A_, so that we can compute the gradient
+  // using AutoDiffXd, and return the gradient as a dense matrix.
+  const Eigen::MatrixXd A_dense_;
   const Eigen::VectorXd b_;
 };
 
@@ -355,14 +359,15 @@ class RotatedLorentzConeConstraint : public Constraint {
       : Constraint(
             3, A.cols(), Eigen::Vector3d::Constant(0.0),
             Eigen::Vector3d::Constant(std::numeric_limits<double>::infinity())),
-        A_(A),
+        A_(A.sparseView()),
+        A_dense_(A),
         b_(b) {
     DRAKE_DEMAND(A_.rows() >= 3);
     DRAKE_ASSERT(A_.rows() == b_.rows());
   }
 
   /** Getter for A. */
-  const Eigen::MatrixXd& A() const { return A_; }
+  const Eigen::SparseMatrix<double>& A() const { return A_; }
 
   /** Getter for b. */
   const Eigen::VectorXd& b() const { return b_; }
@@ -383,7 +388,10 @@ class RotatedLorentzConeConstraint : public Constraint {
   void DoEval(const Eigen::Ref<const VectorX<symbolic::Variable>>& x,
               VectorX<symbolic::Expression>* y) const override;
 
-  const Eigen::MatrixXd A_;
+  const Eigen::SparseMatrix<double> A_;
+  // We need to store a dense matrix of A_, so that we can compute the gradient
+  // using AutoDiffXd, and return the gradient as a dense matrix.
+  const Eigen::MatrixXd A_dense_;
   const Eigen::VectorXd b_;
 };
 
@@ -903,6 +911,65 @@ class ExpressionConstraint : public Constraint {
 
   // Only for caching, does not carrying hidden state.
   mutable symbolic::Environment environment_;
+};
+
+/**
+ * An exponential cone constraint is a special type of convex cone constraint.
+ * We constrain A * x + b to be in the exponential cone, where A has 3 rows, and
+ * b is in ℝ³, x is the decision variable.
+ * A vector z in ℝ³ is in the exponential cone, if
+ * {z₀, z₁, z₂ | z₀ ≥ z₁ * exp(z₂ / z₁), z₁ > 0}.
+ * Equivalently, this constraint can be refomulated with logarithm function
+ * {z₀, z₁, z₂ | z₂ ≤ z₁ * log(z₀ / z₁), z₀ > 0, z₁ > 0}
+ *
+ * The Eval function implemented in this class is
+ * z₀ - z₁ * exp(z₂ / z₁) >= 0,
+ * z₁ > 0
+ * where z = A * x + b.
+ * It is not recommended to solve an exponential cone constraint through
+ * generic nonlinear optimization. It is possible that the nonlinear solver
+ * can accidentally set z₁ = 0, where the constraint is not well defined.
+ * Instead, the user should consider to solve the program through conic solvers
+ * that can exploit exponential cone, such as Mosek and SCS.
+ */
+class ExponentialConeConstraint : public Constraint {
+ public:
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(ExponentialConeConstraint)
+
+  /**
+   * Constructor for exponential cone.
+   * Constrains A * x + b to be in the exponential cone.
+   * @pre A has 3 rows.
+   */
+  ExponentialConeConstraint(
+      const Eigen::Ref<const Eigen::SparseMatrix<double>>& A,
+      const Eigen::Ref<const Eigen::Vector3d>& b);
+
+  ~ExponentialConeConstraint() override{};
+
+  /** Getter for matrix A. */
+  const Eigen::SparseMatrix<double>& A() const { return A_; }
+
+  /** Getter for vector b. */
+  const Eigen::Vector3d& b() const { return b_; }
+
+ protected:
+  template <typename DerivedX, typename ScalarY>
+  void DoEvalGeneric(const Eigen::MatrixBase<DerivedX>& x,
+                     VectorX<ScalarY>* y) const;
+
+  void DoEval(const Eigen::Ref<const Eigen::VectorXd>& x,
+              Eigen::VectorXd* y) const override;
+
+  void DoEval(const Eigen::Ref<const AutoDiffVecXd>& x,
+              AutoDiffVecXd* y) const override;
+
+  void DoEval(const Eigen::Ref<const VectorX<symbolic::Variable>>& x,
+              VectorX<symbolic::Expression>* y) const override;
+
+ private:
+  Eigen::SparseMatrix<double> A_;
+  Eigen::Vector3d b_;
 };
 
 }  // namespace solvers

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -80,20 +81,24 @@ MaliputRailcar<T>::MaliputRailcar(const LaneDirection& initial_lane_direction)
       this->DeclareInputPort(systems::kVectorValued, 1).get_index();
 
   state_output_port_index_ =
-      this->DeclareVectorOutputPort(&MaliputRailcar::CalcStateOutput)
+      this->DeclareVectorOutputPort(&MaliputRailcar::CalcStateOutput,
+                                    {this->all_state_ticket()})
           .get_index();
   lane_state_output_port_index_ =
       this->DeclareAbstractOutputPort(LaneDirection(initial_lane_direction),
-                                      &MaliputRailcar::CalcLaneOutput)
+                                      &MaliputRailcar::CalcLaneOutput,
+                                      {this->all_state_ticket()})
           .get_index();
   pose_output_port_index_ =
-      this->DeclareVectorOutputPort(&MaliputRailcar::CalcPose)
+      this->DeclareVectorOutputPort(&MaliputRailcar::CalcPose,
+                                    {this->configuration_ticket()})
           .get_index();
   velocity_output_port_index_ =
-      this->DeclareVectorOutputPort(&MaliputRailcar::CalcVelocity)
+      this->DeclareVectorOutputPort(&MaliputRailcar::CalcVelocity,
+                                    {this->kinematics_ticket()})
           .get_index();
 
-  this->DeclareContinuousState(MaliputRailcarState<T>());
+  this->DeclareContinuousState(MaliputRailcarState<T>(), 1, 1, 0);
   this->DeclareNumericParameter(MaliputRailcarParams<T>());
 }
 
@@ -296,11 +301,6 @@ MaliputRailcar<T>::AllocateAbstractState() const {
 }
 
 template <typename T>
-optional<bool> MaliputRailcar<T>::DoHasDirectFeedthrough(int, int) const {
-  return false;
-}
-
-template <typename T>
 void MaliputRailcar<T>::SetDefaultState(const Context<T>&,
     State<T>* state) const {
   MaliputRailcarState<T>* railcar_state =
@@ -311,7 +311,7 @@ void MaliputRailcar<T>::SetDefaultState(const Context<T>&,
 
   LaneDirection& lane_direction =
       state->get_mutable_abstract_state().get_mutable_value(0).
-          template GetMutableValue<LaneDirection>();
+          template get_mutable_value<LaneDirection>();
   lane_direction = initial_lane_direction_;
 }
 
@@ -385,7 +385,7 @@ void MaliputRailcar<T>::DoCalcUnrestrictedUpdate(
   const double current_length = current_lane_direction.lane->length();
 
   // Copies the present state into the new one.
-  next_state->CopyFrom(context.get_state());
+  next_state->SetFrom(context.get_state());
 
   ContinuousState<T>& cs = next_state->get_mutable_continuous_state();
   VectorBase<T>& cv = cs.get_mutable_vector();
@@ -449,7 +449,8 @@ void MaliputRailcar<T>::DoCalcUnrestrictedUpdate(
     }
 
     if (!next_branch) {
-      DRAKE_ABORT_MSG("MaliputRailcar::DoCalcUnrestrictedUpdate: ERROR: "
+      throw std::logic_error(
+          "MaliputRailcar::DoCalcUnrestrictedUpdate: ERROR: "
           "Vehicle should switch lanes but no default or ongoing branch "
           "exists.");
     } else {

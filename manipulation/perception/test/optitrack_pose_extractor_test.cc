@@ -30,22 +30,22 @@ class OptitrackPoseTest : public ::testing::Test {
     context_ = dut_->CreateDefaultContext();
     output_ = dut_->AllocateOutput();
 
-    EXPECT_EQ(dut_->get_num_input_ports(), 1);
-    EXPECT_EQ(dut_->get_num_output_ports(), 1);
+    EXPECT_EQ(dut_->num_input_ports(), 1);
+    EXPECT_EQ(dut_->num_output_ports(), 1);
   }
 
   Isometry3<double> UpdateStateCalcOutput(
       const optitrack::optitrack_frame_t& input_frame) {
     std::unique_ptr<AbstractValue> input(
         new Value<optitrack::optitrack_frame_t>());
-    input->SetValue(input_frame);
+    input->set_value(input_frame);
     context_->FixInputPort(0 /* input port ID*/, std::move(input));
 
     dut_->CalcUnrestrictedUpdate(*context_, &context_->get_mutable_state());
     dut_->CalcOutput(*context_, output_.get());
     auto output_value = output_->get_data(0);
 
-    return output_value->GetValue<Isometry3<double>>();
+    return output_value->get_value<Isometry3<double>>();
   }
 
  private:

@@ -36,7 +36,7 @@ class SystemOutput {
 
   /** Returns the number of output ports specified for this %SystemOutput
   during allocation. */
-  int get_num_ports() const { return static_cast<int>(port_values_.size()); }
+  int num_ports() const { return static_cast<int>(port_values_.size()); }
 
   // TODO(sherm1) All of these should return references. We don't need to
   // support missing entries.
@@ -44,7 +44,7 @@ class SystemOutput {
   /** Returns the last-saved value of output port `index` as an AbstractValue.
   This works for any output port regardless of it actual type. */
   const AbstractValue* get_data(int index) const {
-    DRAKE_ASSERT(0 <= index && index < get_num_ports());
+    DRAKE_ASSERT(0 <= index && index < num_ports());
     return port_values_[index].get();
   }
 
@@ -52,8 +52,8 @@ class SystemOutput {
   although the actual concrete type is preserved from the actual output port.
   @throws std::bad_cast if the port is not vector-valued. */
   const BasicVector<T>* get_vector_data(int index) const {
-    DRAKE_ASSERT(0 <= index && index < get_num_ports());
-    return &port_values_[index]->template GetValue<BasicVector<T>>();
+    DRAKE_ASSERT(0 <= index && index < num_ports());
+    return &port_values_[index]->template get_value<BasicVector<T>>();
   }
 
   /** (Advanced) Returns mutable access to an AbstractValue object that is
@@ -62,7 +62,7 @@ class SystemOutput {
   users should just call `System<T>::CalcOutputs()` to get all the output
   port values at once. */
   AbstractValue* GetMutableData(int index) {
-    DRAKE_ASSERT(0 <= index && index < get_num_ports());
+    DRAKE_ASSERT(0 <= index && index < num_ports());
     return port_values_[index].get_mutable();
   }
 
@@ -73,10 +73,14 @@ class SystemOutput {
   port values at once.
   @throws std::bad_cast if the port is not vector-valued. */
   BasicVector<T>* GetMutableVectorData(int index) {
-    DRAKE_ASSERT(0 <= index && index < get_num_ports());
-    return &port_values_[index]
-                ->template GetMutableValueOrThrow<BasicVector<T>>();
+    DRAKE_ASSERT(0 <= index && index < num_ports());
+    return &port_values_[index]->template get_mutable_value<BasicVector<T>>();
   }
+
+#ifndef DRAKE_DOXYGEN_CXX
+  DRAKE_DEPRECATED("2019-07-01", "Use num_ports() instead.")
+  int get_num_ports() const { return num_ports(); }
+#endif
 
  private:
   friend class System<T>;

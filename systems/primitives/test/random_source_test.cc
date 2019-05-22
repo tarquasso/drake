@@ -43,7 +43,7 @@ void CheckStatistics(
   }
 
   simulator.Initialize();
-  simulator.StepTo(20);
+  simulator.AdvanceTo(20);
 
   const auto& x = logger->data();
 
@@ -186,7 +186,7 @@ GTEST_TEST(RandomSourceTest, AddToDiagramBuilderTest) {
       diagram->GetSubsystemContext(*sys2, *context)));
 
   // Check that the exported input remained exported.
-  EXPECT_EQ(diagram->get_num_input_ports(), 1);
+  EXPECT_EQ(diagram->num_input_ports(), 1);
   EXPECT_EQ(diagram->get_input_port(0).size(), 2);
 
   // Check that the previously connected input remained connected.
@@ -214,7 +214,7 @@ GTEST_TEST(RandomSourceTest, CorrelationTest) {
 
   systems::Simulator<double> simulator(*diagram);
   simulator.Initialize();
-  simulator.StepTo(20);
+  simulator.AdvanceTo(20);
 
   const auto& x1 = log1->data();
   const auto& x2 = log2->data();
@@ -235,25 +235,23 @@ GTEST_TEST(RandomSourceTest, CorrelationTest) {
 // SetDefaultContext returns it to the original (default) output.
 GTEST_TEST(RandomSourceTest, SetRandomContextTest) {
   UniformRandomSource random_source(2, 0.0025);
-  auto output = random_source.get_output_port(0).Allocate();
-  const BasicVector<double>& output_values =
-      output->GetValueOrThrow<systems::BasicVector<double>>();
 
   auto context = random_source.CreateDefaultContext();
-
-  random_source.get_output_port(0).Calc(*context, output.get());
-  Eigen::Vector2d default_values = output_values.CopyToVector();
+  const Eigen::Vector2d default_values =
+      random_source.get_output_port(0).Eval(*context);
 
   RandomGenerator generator;
   random_source.SetRandomContext(context.get(), &generator);
-  random_source.get_output_port(0).Calc(*context, output.get());
-  EXPECT_NE(default_values[0], output_values.GetAtIndex(0));
-  EXPECT_NE(default_values[1], output_values.GetAtIndex(1));
+  const Eigen::Vector2d novel_values =
+      random_source.get_output_port(0).Eval(*context);
+  EXPECT_NE(default_values[0], novel_values[0]);
+  EXPECT_NE(default_values[1], novel_values[1]);
 
   random_source.SetDefaultContext(context.get());
-  random_source.get_output_port(0).Calc(*context, output.get());
-  EXPECT_EQ(default_values[0], output_values.GetAtIndex(0));
-  EXPECT_EQ(default_values[1], output_values.GetAtIndex(1));
+  const Eigen::Vector2d default_values_again =
+      random_source.get_output_port(0).Eval(*context);
+  EXPECT_EQ(default_values[0], default_values_again[0]);
+  EXPECT_EQ(default_values[1], default_values_again[1]);
 }
 
 }  // namespace

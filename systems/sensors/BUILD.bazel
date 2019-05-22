@@ -20,21 +20,6 @@ load("//tools/skylark:test_tags.bzl", "vtk_test_tags")
 
 package(default_visibility = ["//visibility:public"])
 
-# TODO(jwnimmer-tri) Remove this deprecation shim on or about 2019-02-01.
-drake_cc_library_aliases(
-    actual_subdir = "attic/systems/sensors",
-    add_deprecation_warning = True,
-    relative_labels = [
-        ":rgbd_camera",
-        ":rgbd_renderer",
-    ],
-    tags = [
-        "exclude_from_libdrake",
-        "exclude_from_package",
-        "manual",
-    ],
-)
-
 drake_cc_package_library(
     name = "sensors",
     deps = [
@@ -157,8 +142,6 @@ drake_cc_binary(
         ":image_to_lcm_image_array_t",
         ":lcm_image_array_to_images",
         "//common:text_logging_gflags",
-        "//common:unused",
-        "//lcm",
         "//systems/analysis:simulator",
         "//systems/lcm:lcm_pubsub_system",
         "@gflags",
@@ -263,8 +246,10 @@ filegroup(
     srcs = [
         "test/models/background.jpg",
         "test/models/box.sdf",
+        "test/models/box_with_mesh.sdf",
         "test/models/meshes/box.json",
         "test/models/meshes/box.obj",
+        "test/models/meshes/box.obj.mtl",
         "test/models/meshes/box.png",
         "test/models/meshes/box2.obj",
         "test/models/nothing.sdf",

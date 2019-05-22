@@ -94,9 +94,10 @@ class QuaternionFloatingMobilizer final : public MobilizerImpl<T, 7, 6> {
       const systems::Context<T>& context,
       const Quaternion<T>& q_FM, systems::State<T>* state) const;
 
-  /// Specifies that random samples for the rotation elements of the state
-  /// should be drawn as uniformly random quaternions.
-  void set_random_quaternion_distribution_to_uniform();
+  /// Sets the distribution governing the random samples of the rotation
+  /// component of the mobilizer state.
+  void set_random_quaternion_distribution(
+      const Eigen::Quaternion<symbolic::Expression>& q_FM);
 
   /// Sets `context` to store the position `p_FM` of frame M's origin `Mo`
   /// measured and expressed in frame F.
@@ -184,7 +185,7 @@ class QuaternionFloatingMobilizer final : public MobilizerImpl<T, 7, 6> {
   /// @name Mobilizer overrides
   /// Refer to the Mobilizer class documentation for details.
   /// @{
-  Isometry3<T> CalcAcrossMobilizerTransform(
+  math::RigidTransform<T> CalcAcrossMobilizerTransform(
       const systems::Context<T>& context) const override;
 
   SpatialVelocity<T> CalcAcrossMobilizerSpatialVelocity(
@@ -267,14 +268,6 @@ class QuaternionFloatingMobilizer final : public MobilizerImpl<T, 7, 6> {
 };
 
 }  // namespace internal
-
-/// WARNING: This will be removed on or around 2019/03/01.
-template <typename T>
-using QuaternionFloatingMobilizer
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-    = internal::QuaternionFloatingMobilizer<T>;
-
 }  // namespace multibody
 }  // namespace drake
 

@@ -19,6 +19,11 @@ using Eigen::Matrix3d;
 
 const double kEpsilon = std::numeric_limits<double>::epsilon();
 
+// This data structure is used in symbolic and automotive code. If a `Matrix3`
+// overload is added to the constructors, then it creates an ambiguous overload
+// for types like this one (and things like `Eigen::Ref<>`).
+using Vector3dUnaligned = Eigen::Matrix<double, 3, 1, Eigen::DontAlign>;
+
 // This tests the RollPitchYaw constructors and IsNearlyEqualTo().
 GTEST_TEST(RollPitchYaw, testConstructorsAndIsNearlyEqualTo) {
   const RollPitchYaw<double> a(0.1, 0.2, -0.3);
@@ -28,6 +33,15 @@ GTEST_TEST(RollPitchYaw, testConstructorsAndIsNearlyEqualTo) {
   EXPECT_TRUE(a.IsNearlyEqualTo(c, kEpsilon));
   EXPECT_FALSE(a.IsNearlyEqualTo(b, 0.1 - 10*kEpsilon));
   EXPECT_TRUE(a.IsNearlyEqualTo(b, 0.1 + 10*kEpsilon));
+
+  // Test additional constructors.
+  const RotationMatrix<double> R = a.ToRotationMatrix();
+  const RollPitchYaw<double> d(R);
+  EXPECT_TRUE(a.IsNearlyEqualTo(d, kEpsilon));
+  const RollPitchYaw<double> e(R.ToQuaternion());
+  EXPECT_TRUE(a.IsNearlyEqualTo(e, kEpsilon));
+  const RollPitchYaw<double> f(Vector3dUnaligned(0.1, 0.2, -0.3));
+  EXPECT_TRUE(a.IsNearlyEqualTo(f, kEpsilon));
 }
 
 // Test typedef (using) RollPitchYawd.
@@ -123,7 +137,6 @@ GTEST_TEST(RollPitchYaw, testToQuaternion) {
   rpy2.SetFromQuaternionAndRotationMatrix(quat, R1);
   EXPECT_TRUE(rpy2.IsNearlySameOrientation(rpy, kEpsilon));
 
-#ifdef DRAKE_ASSERT_IS_ARMED
   // Test SetFromQuaternionAndRotationMatrix throws exception in debug builds
   // if quaternion is not consistent with rotation matrix.
   const char* expected_message =
@@ -132,10 +145,9 @@ GTEST_TEST(RollPitchYaw, testToQuaternion) {
       ".*differs by more than"
       ".*element of the RotationMatrix formed by the Quaternion.*";
   const Eigen::Quaterniond quat_inconsistent(1, 0, 0, 0);
-  DRAKE_EXPECT_THROWS_MESSAGE(
+  DRAKE_EXPECT_THROWS_MESSAGE_IF_ARMED(
       rpy2.SetFromQuaternionAndRotationMatrix(quat_inconsistent, R1),
       std::logic_error, expected_message);
-#endif
 }
 
 // This tests the RollPitchYaw.IsValid() method.

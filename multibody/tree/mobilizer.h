@@ -341,12 +341,6 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
   virtual void set_zero_state(const systems::Context<T>& context,
                               systems::State<T>* state) const = 0;
 
-  DRAKE_DEPRECATED("Call set_zero_state() directly instead.  This method will "
-                   "be deleted after 3/1/19.")
-  void set_zero_configuration(systems::Context<T>* context) const {
-    set_zero_state(*context, &context->get_mutable_state());
-  }
-
   /// Sets the `state` to the _default_ state (position and velocity) for
   /// `this` mobilizer.  For example, the zero state for our standard IIWA
   /// model has the arm pointing directly up; this is the correct definition of
@@ -382,7 +376,7 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
   ///
   /// Additionally, `context` can provide any other parameters the mobilizer
   /// could depend on.
-  virtual Isometry3<T> CalcAcrossMobilizerTransform(
+  virtual math::RigidTransform<T> CalcAcrossMobilizerTransform(
       const systems::Context<T>& context) const = 0;
 
   /// Computes the across-mobilizer spatial velocity `V_FM(q, v)` of the
@@ -674,13 +668,5 @@ class Mobilizer : public MultibodyTreeElement<Mobilizer<T>, MobilizerIndex> {
 };
 
 }  // namespace internal
-
-/// WARNING: This will be removed on or around 2019/03/01.
-template <typename T>
-using Mobilizer
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-    = internal::Mobilizer<T>;
-
 }  // namespace multibody
 }  // namespace drake

@@ -422,7 +422,7 @@ TEST_P(SchunkWsgLiftTest, BoxLiftTest) {
   const double kSimDuration = lift_breaks[lift_breaks.size() - 1] + 1.0;
 
   // Simulation in two pieces -- see notes below on the test for details.
-  simulator.StepTo(kLiftStart);
+  simulator.AdvanceTo(kLiftStart);
 
   // Capture the "initial" positions of the box and the gripper finger as
   // discussed in the test notes below.
@@ -430,7 +430,7 @@ TEST_P(SchunkWsgLiftTest, BoxLiftTest) {
   model->CalcOutput(simulator.get_context(), state_output.get());
   auto& interim_kinematics_results =
       state_output->get_data(kinematrics_results_index)
-          ->GetValue<KinematicsResults<double>>();
+          ->get_value<KinematicsResults<double>>();
   const int box_index = tree.FindBodyIndex("box");
   Vector3d init_box_pos =
       interim_kinematics_results.get_body_position(box_index);
@@ -439,7 +439,7 @@ TEST_P(SchunkWsgLiftTest, BoxLiftTest) {
       interim_kinematics_results.get_body_position(finger_index);
 
   // Now run to the end of the simulation.
-  simulator.StepTo(kSimDuration);
+  simulator.AdvanceTo(kSimDuration);
 
   // Extract and log the state of the robot.
   model->CalcOutput(simulator.get_context(), state_output.get());
@@ -507,7 +507,7 @@ TEST_P(SchunkWsgLiftTest, BoxLiftTest) {
   // Compute expected final position and compare with observed final position.
   auto& final_kinematics_results =
       state_output->get_data(kinematrics_results_index)
-          ->GetValue<KinematicsResults<double>>();
+          ->get_value<KinematicsResults<double>>();
   Vector3d final_finger_pos =
       final_kinematics_results.get_body_position(finger_index);
   Vector3d ideal_final_pos(init_box_pos);

@@ -59,14 +59,14 @@ GTEST_TEST(MyVectorTest, Clone) {
   auto clone = vector3.Clone();
 
   // Changing the original should not affect the clone.
-  vector3.SetAtIndex(1, 20.);
+  vector3[1] = 20.;
   EXPECT_EQ(vector3.get_value(), Vector3d(1., 20., 3.));
 
   EXPECT_EQ(clone->get_value(), Vector3d(1., 2., 3.));
 
   // Value<T> requires that T be copyable or cloneable.
   auto abstract3 = AbstractValue::Make(vector3);
-  auto& casted3 = abstract3->GetValueOrThrow<MyVector3d>();
+  auto& casted3 = abstract3->get_value<MyVector3d>();
   EXPECT_EQ(casted3.get_value(), vector3.get_value());
 
   // copyable_unique_ptr<T> requires that T be copyable or cloneable.

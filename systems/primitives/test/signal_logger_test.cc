@@ -45,12 +45,12 @@ GTEST_TEST(TestSignalLogger, LinearSystemTest) {
   context.get_mutable_continuous_state_vector().SetAtIndex(0, 1.0);
 
   // Make the integrator tolerance sufficiently tight for the test to pass.
-  simulator.get_mutable_integrator()->set_target_accuracy(1e-4);
+  simulator.get_mutable_integrator().set_target_accuracy(1e-4);
 
   simulator.Initialize();
   // The Simulator schedules SignalLogger's default per-step event, which
   // performs data logging.
-  simulator.StepTo(3);
+  simulator.AdvanceTo(3);
 
   // Gets the time stamps when each data point is saved.
   const auto& t = logger->sample_times();
@@ -65,7 +65,8 @@ GTEST_TEST(TestSignalLogger, LinearSystemTest) {
   // Now check the data (against the known solution to the diff eq).
   const Eigen::MatrixXd expected_x = exp(-t.transpose().array());
 
-  double tol = 1e-6;  // Not bad for numerical integration!
+  // Tolerance allows the default RK3 integrator to just squeak by.
+  double tol = 1e-5;
   EXPECT_TRUE(CompareMatrices(expected_x, x, tol));
 
   // Confirm that both loggers acquired the same data.
@@ -78,7 +79,7 @@ GTEST_TEST(TestSignalLogger, LinearSystemTest) {
   EXPECT_EQ(logger->sample_times().size(), 0);
   EXPECT_EQ(logger->data().cols(), 0);
 
-  simulator.StepTo(4.);
+  simulator.AdvanceTo(4.);
   EXPECT_EQ(logger->data().cols(), logger->num_samples());
 }
 
@@ -96,7 +97,7 @@ GTEST_TEST(TestSignalLogger, SetPublishPeriod) {
   Simulator<double> simulator(*diagram);
 
   // Run simulation
-  simulator.StepTo(1);
+  simulator.AdvanceTo(1);
 
   EXPECT_EQ(logger->num_samples(), 11);
 

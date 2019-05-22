@@ -146,6 +146,29 @@ int GeometryState<T>::GetNumAnchoredGeometries() const {
 }
 
 template <typename T>
+std::set<std::pair<GeometryId, GeometryId>>
+GeometryState<T>::GetCollisionCandidates() const {
+  std::set<std::pair<GeometryId, GeometryId>> pairs;
+  for (const auto& pairA : geometries_) {
+    const GeometryId idA = pairA.first;
+    const InternalGeometry& geometryA = pairA.second;
+    if (!geometryA.has_proximity_role()) continue;
+    for (const auto& pairB : geometries_) {
+      const GeometryId idB = pairB.first;
+      if (idB < idA) continue;  // Only consider the pair (A, B) and not (B, A).
+      const InternalGeometry& geometryB = pairB.second;
+      if (!geometryB.has_proximity_role()) continue;
+      // This relies on CollisionFiltered() to handle if A == B, if they
+      // are both anchored, etc.
+      if (!CollisionFiltered(idA, idB)) {
+        pairs.insert({idA, idB});
+      }
+    }
+  }
+  return pairs;
+}
+
+template <typename T>
 bool GeometryState<T>::source_is_registered(SourceId source_id) const {
   return source_frame_id_map_.find(source_id) != source_frame_id_map_.end();
 }
@@ -388,9 +411,6 @@ const Isometry3<T>& GeometryState<T>::get_pose_in_world(
 template <typename T>
 const Isometry3<T>& GeometryState<T>::get_pose_in_world(
     GeometryId geometry_id) const {
-  // TODO(SeanCurtis-TRI): This is a BUG! If you pass in the id of an
-  // anchored geometry, this will throw an exception. See
-  // https://github.com/RobotLocomotion/drake/issues/9145.
   FindOrThrow(geometry_id, geometries_, [geometry_id]() {
     return "No world pose available for invalid geometry id: " +
            to_string(geometry_id);
@@ -459,7 +479,7 @@ FrameId GeometryState<T>::RegisterFrame(SourceId source_id, FrameId parent_id,
 
   DRAKE_ASSERT(X_PF_.size() == frame_index_to_id_map_.size());
   FrameIndex index(X_PF_.size());
-  X_PF_.emplace_back(frame.pose());
+  X_PF_.emplace_back(Isometry3<double>::Identity());
   X_WF_.emplace_back(Isometry3<double>::Identity());
   frame_index_to_id_map_.push_back(frame_id);
   f_set.insert(frame_id);
@@ -517,7 +537,11 @@ GeometryId GeometryState<T>::RegisterGeometry(
   // compactly distributed. Is there a more robust way to do this?
   DRAKE_ASSERT(geometry_index_to_id_map_.size() == X_WG_.size());
   FrameIndex index(static_cast<int>(X_WG_.size()));
-  X_WG_.push_back(Isometry3<T>::Identity());
+  // NOTE: No implicit conversion from Isometry3<double> to Isometry3<AutoDiff>.
+  // However, we can implicitly assign Matrix<double> to Matrix<AutoDiff>.
+  Isometry3<T> X_WG;
+  X_WG.matrix() = geometry->pose().matrix();
+  X_WG_.push_back(X_WG);
   geometry_index_to_id_map_.push_back(geometry_id);
 
   geometries_.emplace(geometry_id,
@@ -737,8 +761,8 @@ void GeometryState<T>::ExcludeCollisionsWithin(const GeometrySet& set) {
   //   1. the set contains a single frame and no geometries -- geometries *on*
   //      that single frame have already been handled, or
   //   2. there are no frames and a single geometry.
-  if ((set.num_frames_internal() == 1 && set.num_geometries_internal() == 0) ||
-      (set.num_frames_internal() == 0 && set.num_geometries_internal() == 1)) {
+  if ((set.num_frames() == 1 && set.num_geometries() == 0) ||
+      (set.num_frames() == 0 && set.num_geometries() == 1)) {
     return;
   }
 
@@ -776,7 +800,7 @@ void GeometryState<T>::CollectIndices(
   // TODO(SeanCurtis-TRI): Consider expanding this to include Role if it proves
   // that collecting indices for *other* role-related tasks prove necessary.
   std::unordered_set<GeometryIndex>* target;
-  for (auto frame_id : geometry_set.frames_internal()) {
+  for (auto frame_id : geometry_set.frames()) {
     const auto& frame = GetValueOrThrow(frame_id, frames_);
     target = frame.is_world() ? anchored : dynamic;
     for (auto geometry_id : frame.child_geometries()) {
@@ -787,7 +811,7 @@ void GeometryState<T>::CollectIndices(
     }
   }
 
-  for (auto geometry_id : geometry_set.geometries_internal()) {
+  for (auto geometry_id : geometry_set.geometries()) {
     const InternalGeometry* geometry = GetGeometry(geometry_id);
     if (geometry == nullptr) {
       throw std::logic_error(
@@ -806,12 +830,13 @@ void GeometryState<T>::CollectIndices(
 }
 
 template <typename T>
-void GeometryState<T>::SetFramePoses(const FramePoseVector<T>& poses) {
+void GeometryState<T>::SetFramePoses(
+    const SourceId source_id, const FramePoseVector<T>& poses) {
   // TODO(SeanCurtis-TRI): Down the road, make this validation depend on
   // ASSERT_ARMED.
-  ValidateFrameIds(poses);
+  ValidateFrameIds(source_id, poses);
   const Isometry3<T> world_pose = Isometry3<T>::Identity();
-  for (auto frame_id : source_root_frame_map_[poses.source_id()]) {
+  for (auto frame_id : source_root_frame_map_[source_id]) {
     UpdatePosesRecursively(frames_[frame_id], world_pose, poses);
   }
 }
@@ -819,8 +844,8 @@ void GeometryState<T>::SetFramePoses(const FramePoseVector<T>& poses) {
 template <typename T>
 template <typename ValueType>
 void GeometryState<T>::ValidateFrameIds(
+    const SourceId source_id,
     const FrameKinematicsVector<ValueType>& kinematics_data) const {
-  SourceId source_id = kinematics_data.source_id();
   auto& frames = GetFramesForSource(source_id);
   const int ref_frame_count = static_cast<int>(frames.size());
   if (ref_frame_count != kinematics_data.size()) {

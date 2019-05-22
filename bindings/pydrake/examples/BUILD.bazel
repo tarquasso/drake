@@ -1,7 +1,6 @@
 # -*- python -*-
 
 load("@drake//tools/install:install.bzl", "install")
-load("//tools/lint:lint.bzl", "add_lint_tests")
 load(
     "@drake//tools/skylark:pybind.bzl",
     "drake_pybind_library",
@@ -13,6 +12,7 @@ load(
     "drake_py_library",
     "drake_py_unittest",
 )
+load("//bindings/pydrake:pydrake.bzl", "add_lint_tests_pydrake")
 
 package(default_visibility = [
     "//bindings/pydrake:__subpackages__",
@@ -62,6 +62,7 @@ drake_pybind_library(
     cc_deps = [
         "//bindings/pydrake:documentation_pybind",
         "//bindings/pydrake/common:deprecation_pybind",
+        "//bindings/pydrake/common:drake_optional_pybind",
     ],
     cc_srcs = ["manipulation_station_py.cc"],
     package_info = PACKAGE_INFO,
@@ -69,6 +70,7 @@ drake_pybind_library(
         ":module_py",
         "//bindings/pydrake/systems",
     ],
+    py_srcs = ["_manipulation_station_extra.py"],
     visibility = ["//visibility:public"],
 )
 
@@ -78,6 +80,19 @@ drake_pybind_library(
         "//bindings/pydrake:documentation_pybind",
     ],
     cc_srcs = ["pendulum_py.cc"],
+    package_info = PACKAGE_INFO,
+    py_deps = [
+        ":module_py",
+        "//bindings/pydrake/systems",
+    ],
+)
+
+drake_pybind_library(
+    name = "quadrotor_py",
+    cc_deps = [
+        "//bindings/pydrake:documentation_pybind",
+    ],
+    cc_srcs = ["quadrotor_py.cc"],
     package_info = PACKAGE_INFO,
     py_deps = [
         ":module_py",
@@ -116,6 +131,7 @@ PY_LIBRARIES_WITH_INSTALL = [
     ":compass_gait_py",
     ":manipulation_station_py",
     ":pendulum_py",
+    ":quadrotor_py",
     ":rimless_wheel_py",
     ":van_der_pol_py",
     "//bindings/pydrake/examples/multibody",
@@ -171,6 +187,13 @@ drake_py_unittest(
 )
 
 drake_py_unittest(
+    name = "quadrotor_test",
+    deps = [
+        ":quadrotor_py",
+    ],
+)
+
+drake_py_unittest(
     name = "rimless_wheel_test",
     deps = [
         ":rimless_wheel_py",
@@ -184,7 +207,4 @@ drake_py_unittest(
     ],
 )
 
-add_lint_tests(
-    cpplint_data = ["//bindings/pydrake:.clang-format"],
-    enable_clang_format_lint = True,
-)
+add_lint_tests_pydrake()

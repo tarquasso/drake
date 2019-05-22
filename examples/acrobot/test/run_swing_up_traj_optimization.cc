@@ -3,6 +3,7 @@
 // pendulum_swing_up.cc.
 
 #include <iostream>
+#include <limits>
 #include <memory>
 
 #include <gflags/gflags.h>
@@ -13,6 +14,7 @@
 #include "drake/multibody/joints/floating_base_types.h"
 #include "drake/multibody/parsers/urdf_parser.h"
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
+#include "drake/solvers/solve.h"
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
@@ -63,17 +65,22 @@ int do_main() {
   dircol.AddRunningCost((R * u) * u);
 
   const double timespan_init = 4;
-  auto traj_init_x =
-      PiecewisePolynomialType::FirstOrderHold({0, timespan_init}, {x0, xG});
+  // Certain solvers (SNOPT) are very sensitive when the initial guess starts
+  // exactly in the straight-down configuration. This term nudges the initial
+  // guess away from that configuration.
+  const Eigen::Vector4d x0_perturbation{std::numeric_limits<double>::epsilon(),
+                                        0, 0, 0};
+  auto traj_init_x = PiecewisePolynomialType::FirstOrderHold(
+      {0, timespan_init}, {x0 + x0_perturbation, xG});
   dircol.SetInitialTrajectory(PiecewisePolynomialType(), traj_init_x);
-  SolutionResult result = dircol.Solve();
-  if (result != SolutionResult::kSolutionFound) {
+  const auto result = solvers::Solve(dircol);
+  if (!result.is_success()) {
     std::cerr << "No solution found.\n";
     return 1;
   }
 
   const trajectories::PiecewisePolynomial<double> pp_xtraj =
-      dircol.ReconstructStateTrajectory();
+      dircol.ReconstructStateTrajectory(result);
   auto state_source = builder.AddSystem<systems::TrajectorySource>(pp_xtraj);
 
   lcm::DrakeLcm lcm;
@@ -100,7 +107,7 @@ int do_main() {
 
   simulator.set_target_realtime_rate(FLAGS_realtime_factor);
   simulator.Initialize();
-  simulator.StepTo(pp_xtraj.end_time());
+  simulator.AdvanceTo(pp_xtraj.end_time());
   return 0;
 }
 

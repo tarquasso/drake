@@ -44,7 +44,7 @@ class GenericQuadrotor: public systems::Diagram<T> {
     plant_ = builder.template AddSystem<QuadrotorPlant<T>>();
     plant_->set_name("plant");
 
-    VectorX<T> hover_input(plant_->get_input_size());
+    VectorX<T> hover_input(plant_->num_total_inputs());
     hover_input.setZero();
     systems::ConstantVectorSource<T>* source =
         builder.template AddSystem<systems::ConstantVectorSource<T>>(
@@ -59,7 +59,7 @@ class GenericQuadrotor: public systems::Diagram<T> {
   void SetState(systems::Context<T>* context, VectorX<T> x) const {
     systems::Context<T>& plant_context =
         this->GetMutableSubsystemContext(*plant_, context);
-    plant_->set_state(&plant_context, x);
+    plant_context.SetContinuousState(x);
   }
 
  private:
@@ -138,8 +138,8 @@ class QuadrotorTest: public ::testing::Test {
     ge_simulator_->Initialize();
     rb_simulator_->Initialize();
 
-    ge_simulator_->StepTo(t);
-    rb_simulator_->StepTo(t);
+    ge_simulator_->AdvanceTo(t);
+    rb_simulator_->AdvanceTo(t);
   }
 
   VectorX<double> GetState(systems::Simulator<double> *simulator) {

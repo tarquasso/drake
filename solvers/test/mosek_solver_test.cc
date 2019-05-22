@@ -35,7 +35,7 @@ TEST_F(UnboundedLinearProgramTest0, Test) {
     EXPECT_FALSE(result.is_success());
     EXPECT_EQ(result.get_solution_result(), SolutionResult::kDualInfeasible);
     const MosekSolverDetails& mosek_solver_details =
-        result.get_solver_details().GetValue<MosekSolverDetails>();
+        result.get_solver_details<MosekSolver>();
     EXPECT_EQ(mosek_solver_details.rescode, 0);
     // This problem status is defined in
     // https://docs.mosek.com/8.1/capi/constants.html#mosek.prosta
@@ -131,6 +131,27 @@ GTEST_TEST(TestSemidefiniteProgram, EigenvalueProblem) {
   }
 }
 
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithSecondOrderConeExample1) {
+  MosekSolver mosek_solver;
+  if (mosek_solver.available()) {
+    SolveSDPwithSecondOrderConeExample1(mosek_solver, 1E-7);
+  }
+}
+
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithSecondOrderConeExample2) {
+  MosekSolver mosek_solver;
+  if (mosek_solver.available()) {
+    SolveSDPwithSecondOrderConeExample2(mosek_solver, 1E-7);
+  }
+}
+
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithOverlappingVariables) {
+  MosekSolver mosek_solver;
+  if (mosek_solver.available()) {
+    SolveSDPwithOverlappingVariables(mosek_solver, 1E-7);
+  }
+}
+
 GTEST_TEST(MosekTest, TestLogFile) {
   // Test if we can print the logging info to a log file.
   MathematicalProgram prog;
@@ -191,8 +212,7 @@ GTEST_TEST(MosekSolver, SolverOptionsErrorTest) {
   SolverOptions solver_options;
   solver_options.SetOption(MosekSolver::id(), "non-existing options", 42);
   mosek_solver.Solve(prog, {}, solver_options, &result);
-  const MosekSolverDetails solver_details =
-      result.get_solver_details().GetValue<MosekSolverDetails>();
+  const auto& solver_details = result.get_solver_details<MosekSolver>();
   // This response code is defined in
   // https://docs.mosek.com/8.1/capi/response-codes.html#mosek.rescode
   const int MSK_RES_ERR_PARAM_NAME_INT = 1207;

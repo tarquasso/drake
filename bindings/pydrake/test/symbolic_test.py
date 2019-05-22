@@ -316,7 +316,7 @@ class TestSymbolicExpression(SymbolicTestCase):
         install_numpy_warning_filters(force=True)
 
     def _check_scalar(self, actual, expected):
-        self.assertIsInstance(actual, sym.Expression)
+        self.assertIsInstance(actual, (sym.Expression, sym.Formula))
         # Chain conversion to ensure equivalent treatment.
         if isinstance(expected, float) or isinstance(expected, int):
             expected = sym.Expression(expected)
@@ -409,6 +409,18 @@ class TestSymbolicExpression(SymbolicTestCase):
         algebra.check_value((+e_xv), "x")
         algebra.check_value((-e_xv), "(-1 * x)")
 
+        # Comparison. For `VectorizedAlgebra`, uses `np.vectorize` workaround
+        # for #8315.
+        # TODO(eric.cousineau): `BaseAlgebra.check_logical` is designed for
+        # AutoDiffXd (float-convertible), not for symbolic (not always
+        # float-convertible).
+        algebra.check_value(algebra.lt(e_xv, e_yv), "(x < y)")
+        algebra.check_value(algebra.le(e_xv, e_yv), "(x <= y)")
+        algebra.check_value(algebra.eq(e_xv, e_yv), "(x == y)")
+        algebra.check_value(algebra.ne(e_xv, e_yv), "(x != y)")
+        algebra.check_value(algebra.ge(e_xv, e_yv), "(x >= y)")
+        algebra.check_value(algebra.gt(e_xv, e_yv), "(x > y)")
+
         # Math functions.
         algebra.check_value((algebra.abs(e_xv)), "abs(x)")
         algebra.check_value((algebra.exp(e_xv)), "exp(x)")
@@ -460,6 +472,11 @@ class TestSymbolicExpression(SymbolicTestCase):
         self.assertTrue((x + y).EqualTo(x + y))
         self.assertFalse((x + y).EqualTo(x - y))
 
+    def test_get_variables(self):
+        vars = e_x.GetVariables()
+        self.assertEqual(len(vars), 1)
+        self.assertTrue(list(vars)[0].EqualTo(x))
+
     def test_relational_operators(self):
         # TODO(eric.cousineau): Use `VectorizedAlgebra` overloads once #8315 is
         # resolved.
@@ -504,7 +521,8 @@ class TestSymbolicExpression(SymbolicTestCase):
         self.assertEqual(str(1 != e_y), "(y != 1)")
 
     def test_relational_operators_nonzero(self):
-        # For issues #8135 and #8491.
+        # For issues #8135 and #8491. See `pydrake.math` for operator overloads
+        # that work around this, which are tested in `_check_algebra`.
         # Ensure that we throw on `__nonzero__`.
         with self.assertRaises(RuntimeError) as cm:
             value = bool(e_x == e_x)
@@ -906,6 +924,12 @@ class TestSymbolicPolynomial(SymbolicTestCase):
         p.AddProduct(sym.Expression(3), m)  # p += 3 * x
         self.assertEqualStructure(p.ToExpression(), 3 * x)
 
+    def test_remove_terms_with_small_coefficients(self):
+        e = 3 * x + 1e-12 * y
+        p = sym.Polynomial(e, [x, y])
+        q = p.RemoveTermsWithSmallCoefficients(1e-6)
+        self.assertEqualStructure(q.ToExpression(), 3 * x)
+
     def test_comparison(self):
         p = sym.Polynomial()
         self.assertEqualStructure(p, p)
@@ -992,6 +1016,49 @@ class TestSymbolicPolynomial(SymbolicTestCase):
         self.assertEqualStructure(J[0], p_dx)
         self.assertEqualStructure(J[1], p_dy)
 
+    def test_matrix_substitute_with_substitution(self):
+        m = np.array([[x + y, x * y]])
+        env = {x: x + 2, y:  y + 3}
+        substituted = sym.Substitute(m, env)
+        self.assertEqualStructure(substituted[0, 0], m[0, 0].Substitute(env))
+        self.assertEqualStructure(substituted[0, 1], m[0, 1].Substitute(env))
+
+    def test_matrix_substitute_with_variable_and_expression(self):
+        m = np.array([[x + y, x * y]])
+        substituted = sym.Substitute(m, x, 3.0)
+        self.assertEqualStructure(substituted[0, 0],
+                                  m[0, 0].Substitute(x, 3.0))
+        self.assertEqualStructure(substituted[0, 1],
+                                  m[0, 1].Substitute(x, 3.0))
+
+    def test_matrix_evaluate_without_env(self):
+        m = np.array([[3, 4]])
+        evaluated1 = sym.Evaluate(m)
+        evaluated2 = sym.Evaluate(m=m)
+        self.assertTrue(np.array_equal(evaluated1, m))
+        self.assertTrue(np.array_equal(evaluated2, m))
+
+    def test_matrix_evaluate_with_env(self):
+        m = np.array([[x + y, x * y]])
+        env = {x: 3.0,
+               y: 4.0}
+        expected = np.array([[m[0, 0].Evaluate(env),
+                              m[0, 1].Evaluate(env)]])
+        evaluated1 = sym.Evaluate(m, env)
+        evaluated2 = sym.Evaluate(m=m, env=env)
+        self.assertTrue(np.array_equal(evaluated1, expected))
+        self.assertTrue(np.array_equal(evaluated2, expected))
+
+    def test_matrix_evaluate_with_random_generator(self):
+        u = sym.Variable("uni", sym.Variable.Type.RANDOM_UNIFORM)
+        m = np.array([[x + u, x - u]])
+        env = {x: 3.0}
+        g = pydrake.common.RandomGenerator()
+        evaluated1 = sym.Evaluate(m, env, g)
+        evaluated2 = sym.Evaluate(m=m, env=env, generator=g)
+        self.assertEqual(evaluated1[0, 0] + evaluated1[0, 1], 2 * env[x])
+        self.assertEqual(evaluated2[0, 0] + evaluated2[0, 1], 2 * env[x])
+
     def test_hash(self):
         p1 = sym.Polynomial(x * x, [x])
         p2 = sym.Polynomial(x * x, [x])
@@ -1001,7 +1068,7 @@ class TestSymbolicPolynomial(SymbolicTestCase):
         self.assertNotEqualStructure(p1, p2)
         self.assertNotEqual(hash(p1), hash(p2))
 
-    def test_evaluate(self):
+    def test_polynomial_evaluate(self):
         p = sym.Polynomial(a * x * x + b * x + c, [x])
         env = {a: 2.0,
                b: 3.0,

@@ -6,7 +6,6 @@
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/tree/frame.h"
 #include "drake/multibody/tree/mobilizer_impl.h"
@@ -111,7 +110,7 @@ class RevoluteMobilizer final : public MobilizerImpl<T, 1, 1> {
   /// The generalized coordinate q for `this` mobilizer (the rotation angle) is
   /// stored in `context`.
   /// This method aborts in Debug builds if `v.size()` is not one.
-  Isometry3<T> CalcAcrossMobilizerTransform(
+  math::RigidTransform<T> CalcAcrossMobilizerTransform(
       const systems::Context<T>& context) const override;
 
   /// Computes the across-mobilizer velocity `V_FM(q, v)` of the outboard frame
@@ -198,14 +197,6 @@ class RevoluteMobilizer final : public MobilizerImpl<T, 1, 1> {
 };
 
 }  // namespace internal
-
-/// WARNING: This will be removed on or around 2019/03/01.
-template <typename T>
-using RevoluteMobilizer
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-    = internal::RevoluteMobilizer<T>;
-
 }  // namespace multibody
 }  // namespace drake
 

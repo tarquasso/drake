@@ -50,9 +50,8 @@ drake_cc_library(
         ":utilities",
         "//common",
         "//common:default_scalars",
-        "//geometry/query_results:penetration_as_point_pair",
-        "//geometry/query_results:signed_distance_pair",
-        "//geometry/query_results:signed_distance_to_point",
+        "//geometry/proximity",
+        "//geometry/query_results",
         "//math",
         "@fcl",
         "@tinyobjloader",
@@ -209,7 +208,7 @@ drake_cc_library(
         "//lcmtypes:viewer",
         "//math:geometric_transform",
         "//systems/framework:diagram_builder",
-        "//systems/lcm",
+        "//systems/lcm:lcm_pubsub_system",
         "//systems/rendering:pose_bundle_to_draw_message",
     ],
 )
@@ -258,7 +257,10 @@ drake_cc_library(
     name = "utilities",
     srcs = ["utilities.cc"],
     hdrs = ["utilities.h"],
-    deps = ["//common"],
+    deps = [
+        "//common",
+        "//math:geometric_transform",
+    ],
 )
 
 # -----------------------------------------------------
@@ -283,6 +285,8 @@ drake_cc_googletest(
     deps = [
         ":frame_kinematics",
         "//common/test_utilities",
+        "//common/test_utilities:limit_malloc",
+        "//math:geometric_transform",
     ],
 )
 

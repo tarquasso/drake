@@ -89,6 +89,7 @@ std::unique_ptr<MathematicalProgram> MathematicalProgram::Clone() const {
       positive_semidefinite_constraint_;
   new_prog->linear_matrix_inequality_constraint_ =
       linear_matrix_inequality_constraint_;
+  new_prog->exponential_cone_constraints_ = exponential_cone_constraints_;
   new_prog->linear_complementarity_constraints_ =
       linear_complementarity_constraints_;
 
@@ -378,6 +379,41 @@ Binding<PolynomialCost> MathematicalProgram::AddPolynomialCost(
 
 Binding<Cost> MathematicalProgram::AddCost(const Expression& e) {
   return AddCost(internal::ParseCost(e));
+}
+
+void MathematicalProgram::AddMaximizeLogDeterminantSymmetricMatrixCost(
+    const Eigen::Ref<const MatrixX<symbolic::Expression>>& X) {
+  DRAKE_DEMAND(X.rows() == X.cols());
+  const int X_rows = X.rows();
+  auto Z_lower = NewContinuousVariables(X_rows * (X_rows + 1) / 2);
+  MatrixX<symbolic::Expression> Z(X_rows, X_rows);
+  Z.setZero();
+  // diag_Z is the diagonal matrix that only contains the diagonal entries of Z.
+  MatrixX<symbolic::Expression> diag_Z(X_rows, X_rows);
+  diag_Z.setZero();
+  int Z_lower_index = 0;
+  for (int j = 0; j < X_rows; ++j) {
+    for (int i = j; i < X_rows; ++i) {
+      Z(i, j) = Z_lower(Z_lower_index++);
+    }
+    diag_Z(j, j) = Z(j, j);
+  }
+
+  MatrixX<symbolic::Expression> psd_mat(2 * X_rows, 2 * X_rows);
+  // clang-format off
+  psd_mat << X,             Z,
+             Z.transpose(), diag_Z;
+  // clang-format on
+  AddPositiveSemidefiniteConstraint(psd_mat);
+  // Now introduce the slack variable t.
+  auto t = NewContinuousVariables(X_rows);
+  // Introduce the constraint log(Z(i, i)) >= t(i).
+  for (int i = 0; i < X_rows; ++i) {
+    AddExponentialConeConstraint(
+        Vector3<symbolic::Expression>(Z(i, i), 1, t(i)));
+  }
+
+  AddLinearCost(-t.cast<symbolic::Expression>().sum());
 }
 
 Binding<Constraint> MathematicalProgram::AddConstraint(
@@ -880,6 +916,32 @@ MathematicalProgram::AddScaledDiagonallyDominantMatrixConstraint(
   return M;
 }
 
+Binding<ExponentialConeConstraint> MathematicalProgram::AddConstraint(
+    const Binding<ExponentialConeConstraint>& binding) {
+  CheckBinding(binding);
+  required_capabilities_.insert(ProgramAttribute::kExponentialConeConstraint);
+  exponential_cone_constraints_.push_back(binding);
+  return exponential_cone_constraints_.back();
+}
+
+Binding<ExponentialConeConstraint>
+MathematicalProgram::AddExponentialConeConstraint(
+    const Eigen::Ref<const Eigen::SparseMatrix<double>>& A,
+    const Eigen::Ref<const Eigen::Vector3d>& b,
+    const Eigen::Ref<const VectorXDecisionVariable>& vars) {
+  auto constraint = std::make_shared<ExponentialConeConstraint>(A, b);
+  return AddConstraint(constraint, vars);
+}
+
+Binding<ExponentialConeConstraint>
+MathematicalProgram::AddExponentialConeConstraint(
+    const Eigen::Ref<const Vector3<symbolic::Expression>>& z) {
+  Eigen::MatrixXd A{};
+  Eigen::VectorXd b(3);
+  VectorXDecisionVariable vars{};
+  internal::DecomposeLinearExpression(z, &A, &b, &vars);
+  return AddExponentialConeConstraint(A.sparseView(), Eigen::Vector3d(b), vars);
+}
 
 int MathematicalProgram::FindDecisionVariableIndex(const Variable& var) const {
   auto it = decision_variable_index_.find(var.get_id());
@@ -914,25 +976,27 @@ size_t MathematicalProgram::FindIndeterminateIndex(const Variable& var) const {
   return it->second;
 }
 
-pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
-MathematicalProgram::AddSosConstraint(
+MatrixXDecisionVariable MathematicalProgram::AddSosConstraint(
     const symbolic::Polynomial& p,
     const Eigen::Ref<const VectorX<symbolic::Monomial>>& monomial_basis) {
   const auto pair = NewSosPolynomial(monomial_basis);
   const symbolic::Polynomial& sos_poly{pair.first};
   const MatrixXDecisionVariable& Q{pair.second};
-  const auto leq_binding = AddLinearEqualityConstraint(sos_poly == p);
-  return make_pair(Q, leq_binding);
+  const symbolic::Polynomial poly_diff = sos_poly - p;
+  for (const auto& term : poly_diff.monomial_to_coefficient_map()) {
+    AddLinearEqualityConstraint(term.second, 0);
+  }
+  return Q;
 }
 
-pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
+pair<MatrixXDecisionVariable, VectorX<symbolic::Monomial>>
 MathematicalProgram::AddSosConstraint(const symbolic::Polynomial& p) {
-  return AddSosConstraint(
-      p, ConstructMonomialBasis(p));
+  const VectorX<symbolic::Monomial> m = ConstructMonomialBasis(p);
+  const MatrixXDecisionVariable Q = AddSosConstraint(p, m);
+  return std::make_pair(Q, m);
 }
 
-pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
-MathematicalProgram::AddSosConstraint(
+MatrixXDecisionVariable MathematicalProgram::AddSosConstraint(
     const symbolic::Expression& e,
     const Eigen::Ref<const VectorX<symbolic::Monomial>>& monomial_basis) {
   return AddSosConstraint(
@@ -940,56 +1004,10 @@ MathematicalProgram::AddSosConstraint(
       monomial_basis);
 }
 
-pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
+pair<MatrixXDecisionVariable, VectorX<symbolic::Monomial>>
 MathematicalProgram::AddSosConstraint(const symbolic::Expression& e) {
   return AddSosConstraint(
       symbolic::Polynomial{e, symbolic::Variables{indeterminates_}});
-}
-
-double MathematicalProgram::GetSolution(const Variable& var) const {
-  return x_values_[FindDecisionVariableIndex(var)];
-}
-
-namespace {
-template <typename T>
-T GetSolutionForExpressionOrPolynomial(const MathematicalProgram& prog,
-                                       const T& p,
-                                       const symbolic::Variables vars) {
-  symbolic::Environment::map map_decision_vars;
-  for (const auto& var : vars) {
-    map_decision_vars.emplace(var, prog.GetSolution(var));
-  }
-  return p.EvaluatePartial(symbolic::Environment(map_decision_vars));
-}
-}  // namespace
-
-symbolic::Expression MathematicalProgram::SubstituteSolution(
-    const symbolic::Expression& e) const {
-  symbolic::Environment::map map_decision_vars;
-  for (const auto& var : e.GetVariables()) {
-    const auto it = decision_variable_index_.find(var.get_id());
-    if (it != decision_variable_index_.end()) {
-      map_decision_vars.emplace(var, x_values_[it->second]);
-    } else if (indeterminates_index_.find(var.get_id()) ==
-               indeterminates_index_.end()) {
-      // var is not a decision variable or an indeterminate in the optimization
-      // program.
-      std::ostringstream oss;
-      oss << var << " is not a decision variable or an indeterminate of the "
-                    "optimization program.\n";
-      throw std::runtime_error(oss.str());
-    }
-  }
-  return e.EvaluatePartial(symbolic::Environment(map_decision_vars));
-}
-
-symbolic::Polynomial MathematicalProgram::SubstituteSolution(
-    const symbolic::Polynomial& p) const {
-  symbolic::Environment::map map_decision_vars;
-  for (const auto& var : p.decision_variables()) {
-    map_decision_vars.emplace(var, GetSolution(var));
-  }
-  return p.EvaluatePartial(symbolic::Environment(map_decision_vars));
 }
 
 double MathematicalProgram::GetInitialGuess(
@@ -1003,7 +1021,38 @@ void MathematicalProgram::SetInitialGuess(
       variable_guess_value;
 }
 
-void MathematicalProgram::SetSolverResult(const SolverResult& solver_result) {
+void MathematicalProgram::SetDecisionVariableValueInVector(
+    const symbolic::Variable& decision_variable,
+    double decision_variable_new_value,
+    EigenPtr<Eigen::VectorXd> values) const {
+  DRAKE_THROW_UNLESS(values != nullptr);
+  DRAKE_THROW_UNLESS(values->size() == num_vars());
+  const int index = FindDecisionVariableIndex(decision_variable);
+  (*values)(index) = decision_variable_new_value;
+}
+
+void MathematicalProgram::SetDecisionVariableValueInVector(
+    const Eigen::Ref<const MatrixXDecisionVariable>& decision_variables,
+    const Eigen::Ref<const Eigen::MatrixXd>& decision_variables_new_values,
+    EigenPtr<Eigen::VectorXd> values) const {
+  DRAKE_THROW_UNLESS(values != nullptr);
+  DRAKE_THROW_UNLESS(values->size() == num_vars());
+  DRAKE_THROW_UNLESS(
+      decision_variables.rows() == decision_variables_new_values.rows());
+  DRAKE_THROW_UNLESS(
+      decision_variables.cols() == decision_variables_new_values.cols());
+  for (int i = 0; i < decision_variables.rows(); ++i) {
+    for (int j = 0; j < decision_variables.cols(); ++j) {
+      const int index = FindDecisionVariableIndex(decision_variables(i, j));
+      (*values)(index) = decision_variables_new_values(i, j);
+    }
+  }
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+void MathematicalProgram::SetSolverResult(
+    const internal::SolverResult& solver_result) {
   this->solver_id_ = solver_result.solver_id();
   if (solver_result.decision_variable_values()) {
     DRAKE_DEMAND(solver_result.decision_variable_values()->rows() ==
@@ -1024,6 +1073,7 @@ void MathematicalProgram::SetSolverResult(const SolverResult& solver_result) {
     lower_bound_cost_ = optimal_cost_;
   }
 }
+#pragma GCC diagnostic pop
 
 void MathematicalProgram::AppendNanToEnd(int new_var_size, Eigen::VectorXd* v) {
   v->conservativeResize(v->rows() + new_var_size);

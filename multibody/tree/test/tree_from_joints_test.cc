@@ -143,7 +143,7 @@ class DoublePendulumModel {
         *world_body_,
         {},      /* Default to Identity; frame Si IS the world frame W. */
         *link1_,
-        X_L1So.GetAsIsometry3(),  /* Pose of So in link 1's frame L1. */
+        X_L1So,  /* Pose of So in link 1's frame L1. */
         Vector3d::UnitZ()  /* revolute axis */);
 
     // The elbow is the joint that connects links 1 and 2.
@@ -159,7 +159,7 @@ class DoublePendulumModel {
     elbow_ = &model->template AddJoint<RevoluteJoint>(
         "ElbowJoint",
         *link1_,
-        X_L1Ei.GetAsIsometry3(),  /* Pose of Ei in L1. */
+        X_L1Ei,  /* Pose of Ei in L1. */
         *link2_,
         {},      /* Default to Identity; frame Eo IS frame L2. */
         Vector3d::UnitZ() /* revolute axis */);
@@ -340,7 +340,7 @@ class PendulumTests : public ::testing::Test {
     // With vdot = 0, this computes:
     //   rhs = C(q, v)v - tau_app - ∑ J_WBᵀ(q) Fapp_Bo_W.
     tree().CalcInverseDynamics(
-        *context_, pc, vc, vdot,
+        *context_, vdot,
         F_BBo_W_array, tau_array,
         &A_WB_array,
         &F_BMo_W, &tau  /* Output forces */);

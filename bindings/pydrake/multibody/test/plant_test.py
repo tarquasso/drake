@@ -16,16 +16,19 @@ from pydrake.multibody.tree import (
     ModelInstanceIndex,
     MultibodyForces,
     RevoluteJoint,
+    SpatialInertia,
     UniformGravityFieldElement,
+    UnitInertia,
     WeldJoint,
     world_index,
 )
-from pydrake.multibody.math import SpatialVelocity
+from pydrake.multibody.math import SpatialForce, SpatialVelocity
 from pydrake.multibody.plant import (
     AddMultibodyPlantSceneGraph,
     ContactResults,
     ContactResultsToLcmSystem,
     ConnectContactResultsToDrakeVisualizer,
+    CoulombFriction,
     MultibodyPlant,
     PointPairContactInfo,
 )
@@ -37,9 +40,11 @@ from pydrake.multibody.benchmarks.acrobot import (
 
 from pydrake.common.eigen_geometry import Isometry3
 from pydrake.geometry import (
+    Box,
     GeometryId,
     PenetrationAsPointPair,
     SignedDistancePair,
+    SignedDistanceToPoint,
     SceneGraph,
 )
 from pydrake.systems.framework import AbstractValue, DiagramBuilder
@@ -53,28 +58,11 @@ from six import text_type as unicode
 import numpy as np
 
 from pydrake.common import FindResourceOrThrow
-from pydrake.common.deprecation import (
-    DrakeDeprecationWarning,
-)
 from pydrake.common.eigen_geometry import Isometry3
+from pydrake.common.test_utilities.deprecation import catch_drake_warnings
 from pydrake.systems.framework import InputPort, OutputPort
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.systems.lcm import LcmPublisherSystem
-
-# Deprecated modules.
-# N.B. Place `with` afterwards to avoid needing to place `#noqa` on other
-# modules. Additionally, assert length of warnings here rather than in the test
-# so that we do not have to worry about whether a module has already been
-# loaded.
-with warnings.catch_warnings(record=True) as w:
-    warnings.simplefilter("default", DrakeDeprecationWarning)
-    from pydrake.multibody.multibody_tree import (
-        BodyNodeIndex,
-        MobilizerIndex,
-        MultibodyTree,
-    )
-    from pydrake.multibody.multibody_tree.parsing import AddModelFromSdfFile
-    assert len(w) == 3, len(w)
 
 
 def get_index_class(cls):
@@ -100,6 +88,23 @@ class TestPlant(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(x)))
         if nonzero:
             self.assertTrue(not np.all(x == 0), str(x))
+
+    def test_multibody_plant_construction_api(self):
+        builder = DiagramBuilder()
+        plant, scene_graph = AddMultibodyPlantSceneGraph(builder)
+        spatial_inertia = SpatialInertia()
+        body = plant.AddRigidBody(name="new_body",
+                                  M_BBo_B=spatial_inertia)
+        box = Box(width=0.5, depth=1.0, height=2.0)
+        body_X_BG = RigidTransform()
+        body_friction = CoulombFriction(static_friction=0.6,
+                                        dynamic_friction=0.5)
+        plant.RegisterVisualGeometry(
+            body=body, X_BG=body_X_BG, shape=box, name="new_body_visual",
+            diffuse_color=[1., 0.64, 0.0, 0.5])
+        plant.RegisterCollisionGeometry(
+            body=body, X_BG=body_X_BG, shape=box, name="new_body_collision",
+            coulomb_friction=body_friction)
 
     def test_multibody_plant_api_via_parsing(self):
         # TODO(eric.cousineau): Decouple this when construction can be done
@@ -158,7 +163,11 @@ class TestPlant(unittest.TestCase):
         self.assertIsInstance(
             plant.get_actuation_input_port(), InputPort)
         self.assertIsInstance(
-            plant.get_continuous_state_output_port(), OutputPort)
+            plant.get_state_output_port(), OutputPort)
+        # Smoke test of deprecated methods.
+        with catch_drake_warnings(expected_count=2):
+            plant.get_continuous_state_output_port()
+            plant.get_continuous_state_output_port(model_instance)
         self.assertIsInstance(
             plant.get_contact_results_output_port(), OutputPort)
         self.assertIsInstance(plant.num_frames(), int)
@@ -215,20 +224,19 @@ class TestPlant(unittest.TestCase):
         self.assertIsInstance(joint_actuator.name(), unicode)
         self.assertIsInstance(joint_actuator.joint(), Joint)
 
-    def test_deprecated_parsing(self):
-        sdf_file = FindResourceOrThrow(
-            "drake/multibody/benchmarks/acrobot/acrobot.sdf")
-
-        plant = MultibodyPlant(time_step=0.01)
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("default", DrakeDeprecationWarning)
-            result = AddModelFromSdfFile(plant=plant, file_name=sdf_file)
-            self.assertIsInstance(result, ModelInstanceIndex)
-            self.assertEqual(len(w), 1)
-
     def check_old_spelling_exists(self, value):
         # Just to make it obvious when this is being tested.
         self.assertIsNot(value, None)
+
+    def test_inertia_api(self):
+        UnitInertia()
+        unit_inertia = UnitInertia(Ixx=2.0, Iyy=2.3, Izz=2.4)
+        SpatialInertia()
+        SpatialInertia(mass=2.5, p_PScm_E=[0.1, -0.2, 0.3],
+                       G_SP_E=unit_inertia)
+
+    def test_friction_api(self):
+        CoulombFriction(static_friction=0.7, dynamic_friction=0.6)
 
     def test_multibody_gravity_default(self):
         plant = MultibodyPlant()
@@ -252,7 +260,7 @@ class TestPlant(unittest.TestCase):
         base_frame = plant.GetFrameByName("base")
         X_WL = plant.CalcRelativeTransform(
             context, frame_A=world_frame, frame_B=base_frame)
-        self.assertIsInstance(X_WL, Isometry3)
+        self.assertIsInstance(X_WL, RigidTransform)
 
         p_AQi = plant.CalcPointsPositions(
             context=context, frame_B=base_frame,
@@ -281,10 +289,10 @@ class TestPlant(unittest.TestCase):
 
         # Compute body pose.
         X_WBase = plant.EvalBodyPoseInWorld(context, base)
-        self.assertIsInstance(X_WBase, Isometry3)
+        self.assertIsInstance(X_WBase, RigidTransform)
 
         # Set pose for the base.
-        X_WB_desired = Isometry3.Identity()
+        X_WB_desired = RigidTransform.Identity()
         X_WB = plant.CalcRelativeTransform(context, world_frame, base_frame)
         plant.SetFreeBodyPose(
             context=context, body=base, X_WB=X_WB_desired)
@@ -377,7 +385,7 @@ class TestPlant(unittest.TestCase):
             "drake/manipulation/models/" +
             "iiwa_description/sdf/iiwa14_no_collision.sdf")
 
-        plant = MultibodyPlant()
+        plant = MultibodyPlant(time_step=2e-3)
         parser = Parser(plant)
         iiwa_model = parser.AddModelFromFile(
             file_name=iiwa_sdf_path, model_name='robot')
@@ -390,7 +398,11 @@ class TestPlant(unittest.TestCase):
         self.assertIsInstance(
             plant.get_actuation_input_port(iiwa_model), InputPort)
         self.assertIsInstance(
-            plant.get_continuous_state_output_port(gripper_model), OutputPort)
+            plant.get_state_output_port(gripper_model), OutputPort)
+        self.assertIsInstance(
+            plant.get_generalized_contact_forces_output_port(
+                model_instance=gripper_model),
+            OutputPort)
 
     def test_model_instance_state_access(self):
         # Create a MultibodyPlant with a kuka arm and a schunk gripper.
@@ -412,10 +424,8 @@ class TestPlant(unittest.TestCase):
             file_name=wsg50_sdf_path, model_name='gripper')
 
         # Weld the base of arm and gripper to reduce the number of states.
-        X_EeGripper = Isometry3.Identity()
-        X_EeGripper.set_translation([0, 0, 0.081])
-        X_EeGripper.set_rotation(
-            RollPitchYaw(np.pi / 2, 0, np.pi / 2).ToRotationMatrix().matrix())
+        X_EeGripper = RigidTransform(
+            RollPitchYaw(np.pi / 2, 0, np.pi / 2), [0, 0, 0.081])
         plant.WeldFrames(A=plant.world_frame(),
                          B=plant.GetFrameByName("iiwa_link_0", iiwa_model))
         plant.WeldFrames(
@@ -553,11 +563,8 @@ class TestPlant(unittest.TestCase):
             file_name=wsg50_sdf_path, model_name='gripper')
 
         # Weld the base of arm and gripper to reduce the number of states.
-        X_EeGripper = Isometry3.Identity()
-        X_EeGripper.set_translation([0, 0, 0.081])
-        X_EeGripper.set_rotation(
-            RollPitchYaw(np.pi / 2, 0, np.pi / 2).
-            ToRotationMatrix().matrix())
+        X_EeGripper = RigidTransform(
+            RollPitchYaw(np.pi / 2, 0, np.pi / 2), [0, 0, 0.081])
         plant.WeldFrames(
             A=plant.world_frame(),
             B=plant.GetFrameByName("iiwa_link_0", iiwa_model))
@@ -660,7 +667,7 @@ class TestPlant(unittest.TestCase):
         plant.SetFreeBodyPose(
             context, plant.GetBodyByName("iiwa_link_0"),
             RigidTransform(RollPitchYaw([0.1, 0.2, 0.3]),
-                           p=[0.4, 0.5, 0.6]).GetAsIsometry3())
+                           p=[0.4, 0.5, 0.6]))
         v_expected = np.linspace(start=-1.0, stop=-nv, num=nv)
         qdot = plant.MapVelocityToQDot(context, v_expected)
         v_remap = plant.MapQDotToVelocity(context, qdot)
@@ -701,7 +708,7 @@ class TestPlant(unittest.TestCase):
                     distal_frame, instances[0]).body_frame(),
                 child_frame_C=plant.GetBodyByName(
                     proximal_frame, instances[1]).body_frame(),
-                X_PC=Isometry3.Identity()),
+                X_PC=RigidTransform.Identity()),
         ]
         for joint in joints:
             joint_out = plant.AddJoint(joint)
@@ -716,25 +723,30 @@ class TestPlant(unittest.TestCase):
     def test_multibody_add_frame(self):
         plant = MultibodyPlant()
         frame = plant.AddFrame(frame=FixedOffsetFrame(
-            name="frame", P=plant.world_frame(), X_PF=Isometry3.Identity(),
-            model_instance=None))
+            name="frame", P=plant.world_frame(),
+            X_PF=RigidTransform.Identity(), model_instance=None))
         self.assertIsInstance(frame, Frame)
         np.testing.assert_equal(
-            np.eye(4), frame.GetFixedPoseInBodyFrame().matrix())
+            np.eye(4), frame.GetFixedPoseInBodyFrame().GetAsMatrix4())
 
     def test_multibody_dynamics(self):
         file_name = FindResourceOrThrow(
             "drake/multibody/benchmarks/acrobot/acrobot.sdf")
         plant = MultibodyPlant()
         Parser(plant).AddModelFromFile(file_name)
+        # Getting ready for when we set foot on Mars :-).
+        plant.AddForceElement(UniformGravityFieldElement([0.0, 0.0, -3.71]))
         plant.Finalize()
         context = plant.CreateDefaultContext()
 
-        H = plant.CalcMassMatrixViaInverseDynamics(context)
+        # Set an arbitrary configuration away from the model's fixed point.
+        plant.SetPositions(context, [0.1, 0.2])
+
+        M = plant.CalcMassMatrixViaInverseDynamics(context)
         Cv = plant.CalcBiasTerm(context)
 
-        self.assertTrue(H.shape == (2, 2))
-        self.assert_sane(H)
+        self.assertTrue(M.shape == (2, 2))
+        self.assert_sane(M)
         self.assertTrue(Cv.shape == (2, ))
         self.assert_sane(Cv, nonzero=False)
         nv = plant.num_velocities()
@@ -744,14 +756,41 @@ class TestPlant(unittest.TestCase):
         self.assertEqual(tau.shape, (2,))
         self.assert_sane(tau, nonzero=False)
         # - Existence checks.
-        self.assertEqual(plant.CalcPotentialEnergy(context), 0)
+        # Gravity leads to non-zero potential energy.
+        self.assertNotEqual(plant.CalcPotentialEnergy(context), 0)
         plant.CalcConservativePower(context)
         tau_g = plant.CalcGravityGeneralizedForces(context)
         self.assertEqual(tau_g.shape, (nv,))
-        self.assert_sane(tau_g, nonzero=False)
+        self.assert_sane(tau_g, nonzero=True)
+
+        B = plant.MakeActuationMatrix()
+        np.testing.assert_equal(B, np.array([[0.], [1.]]))
 
         forces = MultibodyForces(plant=plant)
         plant.CalcForceElementsContribution(context=context, forces=forces)
+
+        # Test generalized forces.
+        forces.mutable_generalized_forces()[:] = 1
+        np.testing.assert_equal(forces.generalized_forces(), 1)
+        forces.SetZero()
+        np.testing.assert_equal(forces.generalized_forces(), 0)
+        # Test body force accessors and mutators.
+        link2 = plant.GetBodyByName("Link2")
+        self.assertIsInstance(
+            link2.GetForceInWorld(context, forces), SpatialForce)
+        forces.SetZero()
+        F_expected = np.array([1, 2, 3, 4, 5, 6])
+        link2.AddInForceInWorld(
+            context, F_Bo_W=SpatialForce(F=F_expected), forces=forces)
+        np.testing.assert_equal(
+            link2.GetForceInWorld(context, forces).get_coeffs(), F_expected)
+        link2.AddInForce(
+            context, p_BP_E=[0, 0, 0], F_Bp_E=SpatialForce(F=F_expected),
+            frame_E=plant.world_frame(), forces=forces)
+        # Also check accumulation.
+        np.testing.assert_equal(
+            link2.GetForceInWorld(context, forces).get_coeffs(),
+            2 * F_expected)
 
     def test_contact(self):
         # PenetrationAsContactPair
@@ -776,6 +815,8 @@ class TestPlant(unittest.TestCase):
         self.assertTrue(contact_info.contact_force().shape == (3,))
         self.assertTrue(contact_info.contact_point().shape == (3,))
         self.assertTrue(isinstance(contact_info.slip_speed(), float))
+        self.assertIsInstance(
+            contact_info.point_pair(), PenetrationAsPointPair)
 
         # ContactResults
         contact_results = ContactResults()
@@ -830,6 +871,13 @@ class TestPlant(unittest.TestCase):
         signed_distance_pair, = query_object.\
             ComputeSignedDistancePairwiseClosestPoints()
         self.assertIsInstance(signed_distance_pair, SignedDistancePair)
+        signed_distance_to_point = query_object.\
+            ComputeSignedDistanceToPoint(p_WQ=np.ones(3))
+        self.assertEqual(len(signed_distance_to_point), 2)
+        self.assertIsInstance(signed_distance_to_point[0],
+                              SignedDistanceToPoint)
+        self.assertIsInstance(signed_distance_to_point[1],
+                              SignedDistanceToPoint)
         inspector = query_object.inspector()
 
         def get_body_from_frame_id(frame_id):
@@ -844,56 +892,3 @@ class TestPlant(unittest.TestCase):
         self.assertSetEqual(
             bodies,
             {plant.GetBodyByName("body1"), plant.GetBodyByName("body2")})
-
-    def test_deprecated_tree_api(self):
-        plant = MultibodyPlant()
-        plant.Finalize()
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('always', DrakeDeprecationWarning)
-            num_expected_warnings = [0]
-
-            def expect_new_warning(msg_part):
-                num_expected_warnings[0] += 1
-                self.assertEqual(len(w), num_expected_warnings[0])
-                self.assertIn(msg_part, str(w[-1].message))
-
-            tree = plant.tree()
-            expect_new_warning("`tree()`")
-            MobilizerIndex(0)
-            expect_new_warning("`MobilizerIndex`")
-            BodyNodeIndex(0)
-            expect_new_warning("`BodyNodeIndex`")
-            MultibodyForces(model=tree)
-            expect_new_warning("`MultibodyForces(plant)`")
-            element = plant.world_body()
-            self.assertIsInstance(element.get_parent_tree(), MultibodyTree)
-            expect_new_warning("`get_parent_tree()`")
-
-        # Check old spellings (no deprecation warnings).
-        self.check_old_spelling_exists(tree.CalcRelativeTransform)
-        self.check_old_spelling_exists(tree.CalcPointsPositions)
-        self.check_old_spelling_exists(
-            tree.CalcFrameGeometricJacobianExpressedInWorld)
-        self.check_old_spelling_exists(tree.EvalBodyPoseInWorld)
-        self.check_old_spelling_exists(tree.SetFreeBodyPoseOrThrow)
-        self.check_old_spelling_exists(tree.SetFreeBodySpatialVelocityOrThrow)
-        self.check_old_spelling_exists(tree.EvalBodySpatialVelocityInWorld)
-        self.check_old_spelling_exists(tree.GetPositionsFromArray)
-        self.check_old_spelling_exists(tree.GetVelocitiesFromArray)
-        self.check_old_spelling_exists(tree.CalcMassMatrixViaInverseDynamics)
-        self.check_old_spelling_exists(tree.CalcBiasTerm)
-        self.check_old_spelling_exists(tree.CalcInverseDynamics)
-        self.check_old_spelling_exists(tree.num_frames)
-        self.check_old_spelling_exists(tree.get_body)
-        self.check_old_spelling_exists(tree.get_joint)
-        self.check_old_spelling_exists(tree.get_joint_actuator)
-        self.check_old_spelling_exists(tree.get_frame)
-        self.check_old_spelling_exists(tree.GetModelInstanceName)
-
-        context = plant.CreateDefaultContext()
-        # All body poses.
-        X_WB, = tree.CalcAllBodyPosesInWorld(context)
-        self.assertIsInstance(X_WB, Isometry3)
-        v_WB, = tree.CalcAllBodySpatialVelocitiesInWorld(context)
-        self.assertIsInstance(v_WB, SpatialVelocity)

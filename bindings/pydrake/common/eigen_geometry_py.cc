@@ -15,16 +15,17 @@ namespace drake {
 namespace pydrake {
 namespace {
 
-// TODO(eric.cousineau): There is validation from Python to C++, but no
-// validation in the other direction. Consider intercepting this.
-
-// TODO(eric.cousineau): Add operator overloads.
+// TODO(eric.cousineau): Do not require only SE(3) for isometries because this
+// makes it a misnomer: SE(3) ⊂ Isometry(3) b/c Isometry admits reflection.
+// Additionally, do not validate for Quaternion, b/c it will break parity with
+// C++ and cause odd edge cases when attempting to do projections from non-unit
+// quaternions to unit quaternions (e.g. for use with `RigidTransform`).
 
 // TODO(eric.cousineau): Disable tolerance checks for the symbolic case.
 
 // N.B. This could potentially interfere with another library's bindings of
-// Eigen types. If/when this happens, this should be addressed for both these
-// and AutoDiff types.
+// Eigen types. If/when this happens, this should be addressed for both double
+// and AutoDiff types, most likely using `py::module_local()`.
 
 // N.B. Use a loose tolerance, so that we don't have to be super strict with
 // C++.
@@ -45,7 +46,7 @@ void CheckRotMat(const Matrix3<T>& R) {
 }
 
 template <typename T>
-void CheckIsometry(const Isometry3<T>& X) {
+void CheckSe3(const Isometry3<T>& X) {
   CheckRotMat<T>(X.linear());
   Eigen::Matrix<T, 1, 4> bottom_expected;
   bottom_expected << 0, 0, 0, 1;
@@ -86,13 +87,15 @@ PYBIND11_MODULE(eigen_geometry, m) {
   // @note `linear` implies rotation, and `affine` implies translation.
   {
     using Class = Isometry3<T>;
-    py::class_<Class> py_class(m, "Isometry3");
-    py_class  // BR
+    py::class_<Class> cls(m, "Isometry3",
+        "Provides bindings of Eigen::Isometry3<> that only admit SE(3) "
+        "(no reflections).");
+    cls  // BR
         .def(py::init([]() { return Class::Identity(); }))
         .def_static("Identity", []() { return Class::Identity(); })
         .def(py::init([](const Matrix4<T>& matrix) {
           Class out(matrix);
-          CheckIsometry(out);
+          CheckSe3(out);
           return out;
         }),
             py::arg("matrix"))
@@ -115,7 +118,7 @@ PYBIND11_MODULE(eigen_geometry, m) {
         }),
             py::arg("quaternion"), py::arg("translation"))
         .def(py::init([](const Class& other) {
-          CheckIsometry(other);
+          CheckSe3(other);
           return other;
         }),
             py::arg("other"))
@@ -124,7 +127,7 @@ PYBIND11_MODULE(eigen_geometry, m) {
         .def("set_matrix",
             [](Class* self, const Matrix4<T>& matrix) {
               Class update(matrix);
-              CheckIsometry(update);
+              CheckSe3(update);
               *self = update;
             })
         .def("translation",
@@ -151,8 +154,6 @@ PYBIND11_MODULE(eigen_geometry, m) {
             })
         .def("__str__",
             [](py::object self) { return py::str(self.attr("matrix")()); })
-        // Do not define operator `__mul__` until we have the Python3 `@`
-        // operator so that operations are similar to those of arrays.
         .def("multiply",
             [](const Class& self, const Class& other) { return self * other; },
             py::arg("other"))
@@ -162,7 +163,9 @@ PYBIND11_MODULE(eigen_geometry, m) {
             },
             py::arg("position"))
         .def("inverse", [](const Class* self) { return self->inverse(); });
+    cls.attr("__matmul__") = cls.attr("multiply");
     py::implicitly_convertible<Matrix4<T>, Class>();
+    DefCopyAndDeepCopy(&cls);
   }
 
   // Quaternion.
@@ -171,11 +174,10 @@ PYBIND11_MODULE(eigen_geometry, m) {
   // TODO(eric.cousineau): Should this not be restricted to a unit quaternion?
   {
     using Class = Eigen::Quaternion<T>;
-    py::class_<Class> py_class(m, "Quaternion");
-    py_class.attr("__doc__") =
-        "Provides a unit quaternion binding of Eigen::Quaternion<>.";
-    py::object py_class_obj = py_class;
-    py_class  // BR
+    py::class_<Class> cls(m, "Quaternion",
+        "Provides a unit quaternion binding of Eigen::Quaternion<>.");
+    py::object py_class_obj = cls;
+    cls  // BR
         .def(py::init([]() { return Class::Identity(); }))
         .def_static("Identity", []() { return Class::Identity(); })
         .def(py::init([](const Vector4<T>& wxyz) {
@@ -242,8 +244,6 @@ PYBIND11_MODULE(eigen_geometry, m) {
                   .format(py_class_obj.attr("__name__"), self->w(), self->x(),
                       self->y(), self->z());
             })
-        // Do not define operator `__mul__` until we have the Python3 `@`
-        // operator so that operations are similar to those of arrays.
         .def("multiply",
             [](const Class& self, const Class& other) { return self * other; })
         .def("multiply",
@@ -253,15 +253,16 @@ PYBIND11_MODULE(eigen_geometry, m) {
             py::arg("position"))
         .def("inverse", [](const Class* self) { return self->inverse(); })
         .def("conjugate", [](const Class* self) { return self->conjugate(); });
+    cls.attr("__matmul__") = cls.attr("multiply");
+    DefCopyAndDeepCopy(&cls);
   }
 
   // Angle-axis.
   {
     using Class = Eigen::AngleAxis<T>;
-    py::class_<Class> py_class(m, "AngleAxis");
-    py_class.attr("__doc__") = "Bindings for Eigen::AngleAxis<>.";
-    py::object py_class_obj = py_class;
-    py_class  // BR
+    py::class_<Class> cls(m, "AngleAxis", "Bindings for Eigen::AngleAxis<>.");
+    py::object py_class_obj = cls;
+    cls  // BR
         .def(py::init([]() { return Class::Identity(); }))
         .def_static("Identity", []() { return Class::Identity(); })
         .def(py::init([](const T& angle, const Vector3<T>& axis) {
@@ -326,11 +327,11 @@ PYBIND11_MODULE(eigen_geometry, m) {
                   .format(py_class_obj.attr("__name__"), self->angle(),
                       self->axis());
             })
-        // Do not define operator `__mul__` until we have the Python3 `@`
-        // operator so that operations are similar to those of arrays.
         .def("multiply",
             [](const Class& self, const Class& other) { return self * other; })
         .def("inverse", [](const Class* self) { return self->inverse(); });
+    cls.attr("__matmul__") = cls.attr("multiply");
+    DefCopyAndDeepCopy(&cls);
   }
 }
 

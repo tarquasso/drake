@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -123,6 +124,9 @@ class GeometryState {
 
   /** Implementation of SceneGraphInspector::GetNumAnchoredGeometries().  */
   int GetNumAnchoredGeometries() const;
+
+  /** Implementation of SceneGraphInspector::GetCollisionCandidates().  */
+  std::set<std::pair<GeometryId, GeometryId>> GetCollisionCandidates() const;
 
   //@}
 
@@ -439,13 +443,14 @@ class GeometryState {
 
   /** Performs work in support of QueryObject::ComputeSignedDistanceToPoint().
    */
-  std::vector<SignedDistanceToPoint<double>>
+  std::vector<SignedDistanceToPoint<T>>
   ComputeSignedDistanceToPoint(
-      const Vector3<double> &p_WQ,
+      const Vector3<T> &p_WQ,
       const double threshold) const {
     return geometry_engine_->ComputeSignedDistanceToPoint(
-        p_WQ, geometry_index_to_id_map_, threshold);
+        p_WQ, geometry_index_to_id_map_, X_WG_, threshold);
   }
+
   //@}
 
   /** @name Scalar conversion  */
@@ -538,16 +543,19 @@ class GeometryState {
 
   // Sets the kinematic poses for the frames indicated by the given ids.
   // @param poses The frame id and pose values.
+  // @pre source_id is a registered source.
   // @throws std::logic_error  If the ids are invalid as defined by
   // ValidateFrameIds().
-  void SetFramePoses(const FramePoseVector<T>& poses);
+  void SetFramePoses(SourceId source_id, const FramePoseVector<T>& poses);
 
   // Confirms that the set of ids provided include _all_ of the frames
   // registered to the set's source id and that no extra frames are included.
   // @param values The kinematics values (ids and values) to validate.
+  // @pre source_id is a registered source.
   // @throws std::runtime_error if the set is inconsistent with known topology.
   template <typename ValueType>
-  void ValidateFrameIds(const FrameKinematicsVector<ValueType>& values) const;
+  void ValidateFrameIds(SourceId source_id,
+                        const FrameKinematicsVector<ValueType>& values) const;
 
   // Method that performs any final book-keeping/updating on the state after
   // _all_ of the state's frames have had their poses updated.

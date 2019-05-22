@@ -39,18 +39,17 @@ GTEST_TEST(JacoLcmTest, JacoCommandPassthroughTest) {
   command.finger_velocity = std::vector<double>{
     -10, -20, -30, -40, -50, -60, -70};
 
-  context->FixInputPort(
-      0, std::make_unique<Value<lcmt_jaco_command>>(command));
+  diagram->get_input_port(0).FixValue(context.get(), command);
 
   std::unique_ptr<systems::DiscreteValues<double>> update =
       diagram->AllocateDiscreteVariables();
   update->SetFrom(context->get_mutable_discrete_state());
   diagram->CalcDiscreteVariableUpdates(*context, update.get());
-  context->get_mutable_discrete_state().CopyFrom(*update);
+  context->get_mutable_discrete_state().SetFrom(*update);
   diagram->CalcOutput(*context, output.get());
 
   lcmt_jaco_command command_out =
-      output->get_data(0)->GetValue<lcmt_jaco_command>();
+      output->get_data(0)->get_value<lcmt_jaco_command>();
 
   ASSERT_EQ(command.num_joints, command_out.num_joints);
   for (int i = 0; i < command.num_joints; i++) {
@@ -109,18 +108,17 @@ GTEST_TEST(JacoLcmTest, JacoStatusPassthroughTest) {
     status.finger_current[i] = -i * 1000;
   }
 
-  context->FixInputPort(
-      0, std::make_unique<Value<lcmt_jaco_status>>(status));
+  diagram->get_input_port(0).FixValue(context.get(), status);
 
   std::unique_ptr<systems::DiscreteValues<double>> update =
       diagram->AllocateDiscreteVariables();
   update->SetFrom(context->get_mutable_discrete_state());
   diagram->CalcDiscreteVariableUpdates(*context, update.get());
-  context->get_mutable_discrete_state().CopyFrom(*update);
+  context->get_mutable_discrete_state().SetFrom(*update);
   diagram->CalcOutput(*context, output.get());
 
   lcmt_jaco_status status_out =
-      output->get_data(0)->GetValue<lcmt_jaco_status>();
+      output->get_data(0)->get_value<lcmt_jaco_status>();
 
   // Force and current won't actually pass through since they're not
   // part of the state in drake.

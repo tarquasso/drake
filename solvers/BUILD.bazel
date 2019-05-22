@@ -280,6 +280,15 @@ drake_cc_library(
     ],
 )
 
+# The mathematical_program_lite library is similar to the mathematical_program
+# library, differing only in that "lite" does not offer deprecated APIs that
+# assume the solution is stored inside the program (including prog.Solve()).
+# As such, "lite" does not depend on any of the solver implementations, and so
+# is a lighter-weight dependency if the user already knows which particular
+# solver(s) should be used for their class of program.  In the future, the
+# mathematical_program library will also drop those dependencies, at which
+# point this library will become a deprecated alias for mathematical_program.
+# TODO(jwnimmer-tri) Rename the library targets on 2019-06-01.
 drake_cc_library(
     name = "mathematical_program_lite",
     srcs = [
@@ -290,9 +299,6 @@ drake_cc_library(
         "mathematical_program.h",
         "solver_interface.h",
     ],
-    # TODO(jwnimmer-tri) Once we start deprecating non-const Solve, we should
-    # probably make mathematical_program_lite public.
-    visibility = ["//visibility:private"],
     deps = [
         ":binding",
         ":create_constraint",
@@ -332,6 +338,7 @@ drake_cc_library(
     srcs = ["mathematical_program_result.cc"],
     hdrs = ["mathematical_program_result.h"],
     deps = [
+        ":binding",
         ":solution_result",
         ":solver_result",
         "//common:symbolic",
@@ -559,6 +566,17 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "exponential_cone_program_examples",
+    testonly = 1,
+    srcs = ["test/exponential_cone_program_examples.cc"],
+    hdrs = ["test/exponential_cone_program_examples.h"],
+    deps = [
+        ":mathematical_program_test_util",
+        "//common/test_utilities:eigen_matrix_compare",
+    ],
+)
+
+drake_cc_library(
     name = "solution_result",
     srcs = [
         "solution_result.cc",
@@ -596,6 +614,7 @@ drake_cc_library(
     deps = [
         ":choose_best_solver",
         ":mathematical_program_lite",
+        "//common:nice_type_name",
     ],
 )
 
@@ -1360,6 +1379,7 @@ drake_cc_googletest(
 drake_cc_googletest(
     name = "scs_solver_test",
     deps = [
+        ":exponential_cone_program_examples",
         ":linear_program_examples",
         ":mathematical_program_lite",
         ":mathematical_program_test_util",
@@ -1388,6 +1408,7 @@ drake_cc_googletest(
 drake_cc_googletest(
     name = "solver_base_test",
     deps = [
+        ":mathematical_program",
         ":solver_base",
         "//common/test_utilities:expect_throws_message",
     ],
@@ -1415,6 +1436,7 @@ drake_cc_googletest(
         ":mathematical_program_lite",
         ":solve",
         ":sos_basis_generator",
+        "//common/test_utilities:symbolic_test_util",
     ],
 )
 
@@ -1498,6 +1520,7 @@ drake_cc_googletest(
 drake_cc_googletest(
     name = "mathematical_program_result_test",
     deps = [
+        ":cost",
         ":mathematical_program_result",
         "//common/test_utilities:eigen_matrix_compare",
         "//common/test_utilities:expect_throws_message",

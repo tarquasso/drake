@@ -34,7 +34,7 @@ GTEST_TEST(ContactResultToLcmSystem, EmptyMultibodyPlant) {
                                                 &lcm_message_value);
 
   const lcmt_contact_results_for_viz& lcm_message =
-      lcm_message_value.GetValue<lcmt_contact_results_for_viz>();
+      lcm_message_value.get_value();
 
   // We haven't stepped, so we should assume the time is the context's default
   // value.
@@ -88,7 +88,7 @@ GTEST_TEST(ContactResultToLcmSystem, NonEmptyMultibodyPlantEmptyContact) {
   lcm_system.get_lcm_message_output_port().Calc(*lcm_context,
                                                 &lcm_message_value);
   const lcmt_contact_results_for_viz& lcm_message =
-      lcm_message_value.GetValue<lcmt_contact_results_for_viz>();
+      lcm_message_value.get_value();
 
   // We haven't stepped, so we should assume the time is the context's default
   // value.
@@ -98,12 +98,13 @@ GTEST_TEST(ContactResultToLcmSystem, NonEmptyMultibodyPlantEmptyContact) {
   EXPECT_EQ(info_msg.timestamp, 0);
   EXPECT_EQ(info_msg.body1_name, name1);
   EXPECT_EQ(info_msg.body2_name, name2);
-  CompareMatrices(Vector3<double>(info_msg.contact_point), p_WC, 0,
-                  MatrixCompareType::absolute);
-  CompareMatrices(Vector3<double>(info_msg.contact_force), f_BC_W, 0,
-                  MatrixCompareType::absolute);
-  CompareMatrices(Vector3<double>(info_msg.normal), penetration_data.nhat_BA_W,
-                  0, MatrixCompareType::absolute);
+  EXPECT_TRUE(CompareMatrices(Vector3<double>(info_msg.contact_point), p_WC, 0,
+                              MatrixCompareType::absolute));
+  EXPECT_TRUE(CompareMatrices(Vector3<double>(info_msg.contact_force), f_BC_W,
+                              0, MatrixCompareType::absolute));
+  EXPECT_TRUE(CompareMatrices(Vector3<double>(info_msg.normal),
+                              penetration_data.nhat_BA_W, 0,
+                              MatrixCompareType::absolute));
 }
 
 // Confirm that the system can be transmogrified to other supported scalars.

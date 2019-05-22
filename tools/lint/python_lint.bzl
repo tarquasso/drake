@@ -7,19 +7,8 @@ load("@drake//tools/skylark:drake_py.bzl", "py_test_isolated")
 PYTHON_LINT_IGNORE_DEFAULT = "E121,E123,E126,E226,E24,E704,W503".split(",")
 
 # Internal helper.
-def _python_lint(name_prefix, files, ignore):
-    ignore_types = list(PYTHON_LINT_IGNORE_DEFAULT)
-    for e in (ignore or []):
-        if type(e) == int:
-            # Backwards compatibility.
-            print(
-                "WARNING: Passing an integer to `ignore = [...]` is " +
-                "deprecated, and will not be supported on or after " +
-                "2019-03-01.",
-            )
-            ignore_types.append("E{}".format(e))
-        else:
-            ignore_types.append(e)
+def _python_lint(name_prefix, files, ignore, disallow_executable):
+    ignore_types = PYTHON_LINT_IGNORE_DEFAULT + (ignore or [])
     ignore_args = ["--ignore={}".format(",".join(ignore_types))]
 
     # Pycodestyle.
@@ -36,12 +25,16 @@ def _python_lint(name_prefix, files, ignore):
     )
 
     # Additional Drake lint.
+    drakelint_args = []
+    if disallow_executable:
+        drakelint_args += ["--disallow_executable"]
+    drakelint_args += locations
     py_test_isolated(
         name = name_prefix + "_drakelint",
         size = "small",
         srcs = ["@drake//tools/lint:drakelint"],
         data = files,
-        args = locations,
+        args = drakelint_args,
         main = "@drake//tools/lint:drakelint.py",
         tags = ["drakelint", "lint"],
     )
@@ -100,10 +93,12 @@ def python_lint(
                 name_prefix = rule["name"],
                 files = files,
                 ignore = ignore,
+                disallow_executable = True,
             )
     if extra_srcs:
         _python_lint(
             name_prefix = "extra_srcs",
             files = extra_srcs,
             ignore = ignore,
+            disallow_executable = False,
         )

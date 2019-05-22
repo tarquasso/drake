@@ -6,7 +6,6 @@
 
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/systems/framework/abstract_values.h"
 #include "drake/systems/framework/discrete_values.h"
 
@@ -69,13 +68,7 @@ class Parameters {
     return numeric_parameters_->num_groups();
   }
 
-  DRAKE_DEPRECATED("Use num_numeric_parameter_groups().  This method will be"
-                   " removed after 2/15/19.")
-  int num_numeric_parameters() const {
-    return num_numeric_parameter_groups();
-  }
-
-    int num_abstract_parameters() const {
+  int num_abstract_parameters() const {
     return abstract_parameters_->size();
   }
 
@@ -117,14 +110,15 @@ class Parameters {
   /// is out of bounds, and throws if the parameter is not of type V.
   template <typename V>
   const V& get_abstract_parameter(int index) const {
-    return get_abstract_parameter(index).template GetValue<V>();
+    return get_abstract_parameter(index).template get_value<V>();
   }
 
   /// Returns the abstract-valued parameter at @p index. Asserts if the index
   /// is out of bounds, and throws if the parameter is not of type V.
   template <typename V>
   V& get_mutable_abstract_parameter(int index) {
-    return get_mutable_abstract_parameter(index).template GetMutableValue<V>();
+    return get_mutable_abstract_parameter(index).
+        template get_mutable_value<V>();
   }
 
   const AbstractValues& get_abstract_parameters() const {
@@ -145,12 +139,11 @@ class Parameters {
     return clone;
   }
 
-  /// Initializes this state (regardless of scalar type) from a
-  /// Parameters<double>. All scalar types in Drake must support
-  /// initialization from doubles.
-  void SetFrom(const Parameters<double>& other) {
+  /// Initializes this state from `other`.
+  template <typename U>
+  void SetFrom(const Parameters<U>& other) {
     numeric_parameters_->SetFrom(other.get_numeric_parameters());
-    abstract_parameters_->CopyFrom(other.get_abstract_parameters());
+    abstract_parameters_->SetFrom(other.get_abstract_parameters());
   }
 
  private:

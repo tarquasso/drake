@@ -37,7 +37,6 @@ class PiecewisePolynomialAffineSystemTest
     }
     context_ = dut_->CreateDefaultContext();
     input_vector_ = make_unique<BasicVector<double>>(2 /* size */);
-    system_output_ = dut_->AllocateOutput();
     continuous_state_ = &context_->get_mutable_continuous_state();
     discrete_state_ = &context_->get_mutable_discrete_state();
     derivatives_ = dut_->AllocateTimeDerivatives();
@@ -48,7 +47,6 @@ class PiecewisePolynomialAffineSystemTest
   // The Device Under Test (DUT) is a PiecewisePolynomialAffineSystem<double>.
   unique_ptr<PiecewisePolynomialAffineSystem<double>> dut_;
   unique_ptr<Context<double>> context_;
-  unique_ptr<SystemOutput<double>> system_output_;
 
   ContinuousState<double>* continuous_state_{nullptr};
   DiscreteValues<double>* discrete_state_{nullptr};
@@ -62,7 +60,7 @@ class PiecewisePolynomialAffineSystemTest
 };
 
 TEST_P(PiecewisePolynomialAffineSystemTest, Constructor) {
-  EXPECT_EQ(1, context_->get_num_input_ports());
+  EXPECT_EQ(1, context_->num_input_ports());
   EXPECT_EQ(dut_->A(0.), ltv_data_.A.value(0.));
   EXPECT_EQ(dut_->B(0.), ltv_data_.B.value(0.));
   EXPECT_EQ(dut_->C(0.), ltv_data_.C.value(0.));
@@ -70,8 +68,8 @@ TEST_P(PiecewisePolynomialAffineSystemTest, Constructor) {
   EXPECT_EQ(dut_->f0(0.), ltv_data_.f0.value(0.));
   EXPECT_EQ(dut_->y0(0.), ltv_data_.y0.value(0.));
   EXPECT_EQ(dut_->time_period(), time_period_);
-  EXPECT_EQ(1, dut_->get_num_output_ports());
-  EXPECT_EQ(1, dut_->get_num_input_ports());
+  EXPECT_EQ(1, dut_->num_output_ports());
+  EXPECT_EQ(1, dut_->num_input_ports());
 }
 
 TEST_P(PiecewisePolynomialAffineSystemTest, KnotPointConsistency) {
@@ -111,7 +109,7 @@ TEST_P(PiecewisePolynomialAffineSystemTest, DiscreteUpdates) {
 
   const double tol = 1e-10;
   for (const double t : mat_data_.times) {
-    context_->set_time(t);
+    context_->SetTime(t);
     const Eigen::Matrix2d A = ltv_data_.A.value(t);
     const Eigen::Matrix2d B = ltv_data_.B.value(t);
     const Eigen::Vector2d f0 = ltv_data_.f0.value(t);
@@ -144,15 +142,13 @@ TEST_P(PiecewisePolynomialAffineSystemTest, Output) {
 
   const double tol = 1e-10;
   for (const double t : mat_data_.times) {
-    context_->set_time(t);
+    context_->SetTime(t);
 
-    dut_->CalcOutput(*context_, system_output_.get());
     const Eigen::Matrix2d C = ltv_data_.C.value(t);
     const Eigen::Matrix2d D = ltv_data_.D.value(t);
     const Eigen::Vector2d y0 = ltv_data_.y0.value(t);
-
     EXPECT_TRUE(CompareMatrices(C * x + D * u + y0,
-                                system_output_->get_vector_data(0)->get_value(),
+                                dut_->get_output_port().Eval(*context_),
                                 tol));
   }
 }

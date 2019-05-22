@@ -61,23 +61,23 @@ class BodyFrame final : public Frame<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(BodyFrame)
 
-  Isometry3<T> CalcPoseInBodyFrame(
+  math::RigidTransform<T> CalcPoseInBodyFrame(
       const systems::Context<T>&) const override {
-    return Isometry3<T>::Identity();
+    return math::RigidTransform<T>::Identity();
   }
 
-  Isometry3<T> CalcOffsetPoseInBody(
+  math::RigidTransform<T> CalcOffsetPoseInBody(
       const systems::Context<T>&,
-      const Isometry3<T>& X_FQ) const override {
+      const math::RigidTransform<T>& X_FQ) const override {
     return X_FQ;
   }
 
-  Isometry3<T> GetFixedPoseInBodyFrame() const override {
-    return Isometry3<T>::Identity();
+  math::RigidTransform<T> GetFixedPoseInBodyFrame() const override {
+    return math::RigidTransform<T>::Identity();
   }
 
-  Isometry3<T> GetFixedOffsetPoseInBody(
-      const Isometry3<T>& X_FQ) const override {
+  math::RigidTransform<T> GetFixedOffsetPoseInBody(
+      const math::RigidTransform<T>& X_FQ) const override {
     return X_FQ;
   }
 
@@ -218,7 +218,7 @@ class Body : public MultibodyTreeElement<Body<T>, BodyIndex> {
 
   /// Returns the pose `X_WB` of this body B in the world frame W as a function
   /// of the state of the model stored in `context`.
-  const Isometry3<T>& EvalPoseInWorld(
+  const math::RigidTransform<T>& EvalPoseInWorld(
       const systems::Context<T>& context) const {
     return this->get_parent_tree().EvalBodyPoseInWorld(context, *this);
   }
@@ -231,15 +231,24 @@ class Body : public MultibodyTreeElement<Body<T>, BodyIndex> {
         context, *this);
   }
 
+  /// Gets the sptatial force on `this` body B from `forces` as F_BBo_W:
+  /// applied at body B's origin Bo and expressed in world world frame W.
+  const SpatialForce<T>& GetForceInWorld(
+      const systems::Context<T>&, const MultibodyForces<T>& forces) const {
+    DRAKE_THROW_UNLESS(
+        forces.CheckHasRightSizeForModel(this->get_parent_tree()));
+    return forces.body_forces()[node_index()];
+  }
+
   /// Adds the spatial force on `this` body B, applied at body B's origin Bo and
   /// expressed in the world frame W into `forces`.
-  void AddInForceInWorld(const systems::Context<T>& context,
+  void AddInForceInWorld(const systems::Context<T>&,
                          const SpatialForce<T>& F_Bo_W,
                          MultibodyForces<T>* forces) const {
     DRAKE_THROW_UNLESS(forces != nullptr);
     DRAKE_THROW_UNLESS(
         forces->CheckHasRightSizeForModel(this->get_parent_tree()));
-    forces->mutable_body_forces()[node_index()] = F_Bo_W;
+    forces->mutable_body_forces()[node_index()] += F_Bo_W;
   }
 
   /// Adds the spatial force on `this` body B, applied at point P and
@@ -264,7 +273,7 @@ class Body : public MultibodyTreeElement<Body<T>, BodyIndex> {
     DRAKE_THROW_UNLESS(forces != nullptr);
     DRAKE_THROW_UNLESS(
         forces->CheckHasRightSizeForModel(this->get_parent_tree()));
-    const Isometry3<T> X_WE = frame_E.CalcPoseInWorld(context);
+    const math::RigidTransform<T> X_WE = frame_E.CalcPoseInWorld(context);
     const Matrix3<T>& R_WE = X_WE.linear();
     const Vector3<T> p_PB_W = -R_WE * p_BP_E;
     const SpatialForce<T> F_Bo_W = (R_WE * F_Bp_E).Shift(p_PB_W);

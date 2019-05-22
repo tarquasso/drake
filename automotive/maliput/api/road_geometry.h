@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "drake/automotive/maliput/api/branch_point.h"
@@ -37,7 +38,7 @@ class RoadGeometry {
   /// Returns the persistent identifier.
   ///
   // TODO(maddog@tri.global)  Tie id into a tiling mechanism?
-  const RoadGeometryId id() const { return do_id(); }
+  RoadGeometryId id() const { return do_id(); }
 
   // TODO(maddog@tri.global) Proper iterators over junctions and branch-points?
 
@@ -145,7 +146,7 @@ class RoadGeometry {
   /// These must satisfy the constraints/invariants of the
   /// corresponding public methods.
   ///@{
-  virtual const RoadGeometryId do_id() const = 0;
+  virtual RoadGeometryId do_id() const = 0;
 
   virtual int do_num_junctions() const = 0;
 
@@ -182,6 +183,11 @@ class RoadGeometry::IdIndex {
   /// Returns the Lane identified by @p id, or `nullptr` if @p id is unknown.
   const Lane* GetLane(const LaneId& id) const { return DoGetLane(id); }
 
+  // Returns all of the Lane instances.
+  const std::unordered_map<LaneId, const Lane*>& GetLanes() const {
+    return DoGetLanes();
+  }
+
   /// Returns the Segment identified by @p id, or `nullptr` if @p id is
   /// unknown.
   const Segment* GetSegment(const SegmentId& id) const {
@@ -205,6 +211,7 @@ class RoadGeometry::IdIndex {
 
  private:
   virtual const Lane* DoGetLane(const LaneId& id) const = 0;
+  virtual const std::unordered_map<LaneId, const Lane*>& DoGetLanes() const = 0;
   virtual const Segment* DoGetSegment(const SegmentId& id) const = 0;
   virtual const Junction* DoGetJunction(const JunctionId& id) const = 0;
   virtual const BranchPoint* DoGetBranchPoint(

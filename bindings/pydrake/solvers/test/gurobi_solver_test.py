@@ -16,7 +16,16 @@ class TestMathematicalProgram(unittest.TestCase):
         solver = GurobiSolver()
         self.assertTrue(solver.available())
         self.assertEqual(solver.solver_type(), mp.SolverType.kGurobi)
-        result = solver.Solve(prog)
-        self.assertEqual(result, mp.SolutionResult.kSolutionFound)
+        result = solver.Solve(prog, None, None)
+        self.assertTrue(result.is_success())
         x_expected = np.array([1, 1])
-        self.assertTrue(np.allclose(prog.GetSolution(x), x_expected))
+        self.assertTrue(np.allclose(result.GetSolution(x), x_expected))
+
+    def test_gurobi_license(self):
+        # Nominal use case.
+        with GurobiSolver.AcquireLicense():
+            pass
+        # Inspect.
+        with GurobiSolver.AcquireLicense() as license:
+            self.assertTrue(license.is_valid())
+        self.assertFalse(license.is_valid())

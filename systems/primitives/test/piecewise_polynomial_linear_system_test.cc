@@ -37,7 +37,6 @@ class PiecewisePolynomialLinearSystemTest
     }
     context_ = dut_->CreateDefaultContext();
     input_vector_ = make_unique<BasicVector<double>>(2 /* size */);
-    system_output_ = dut_->AllocateOutput();
     continuous_state_ = &context_->get_mutable_continuous_state();
     discrete_state_ = &context_->get_mutable_discrete_state();
     derivatives_ = dut_->AllocateTimeDerivatives();
@@ -48,7 +47,6 @@ class PiecewisePolynomialLinearSystemTest
   // The Device Under Test (DUT) is a PiecewisePolynomialLinearSystem<double>.
   unique_ptr<PiecewisePolynomialLinearSystem<double>> dut_;
   unique_ptr<Context<double>> context_;
-  unique_ptr<SystemOutput<double>> system_output_;
 
   ContinuousState<double>* continuous_state_{nullptr};
   DiscreteValues<double>* discrete_state_{nullptr};
@@ -62,14 +60,14 @@ class PiecewisePolynomialLinearSystemTest
 };
 
 TEST_P(PiecewisePolynomialLinearSystemTest, Constructor) {
-  EXPECT_EQ(1, context_->get_num_input_ports());
+  EXPECT_EQ(1, context_->num_input_ports());
   EXPECT_EQ(dut_->A(0.), ltv_data_.A.value(0.));
   EXPECT_EQ(dut_->B(0.), ltv_data_.B.value(0.));
   EXPECT_EQ(dut_->C(0.), ltv_data_.C.value(0.));
   EXPECT_EQ(dut_->D(0.), ltv_data_.D.value(0.));
   EXPECT_EQ(dut_->time_period(), time_period_);
-  EXPECT_EQ(1, dut_->get_num_output_ports());
-  EXPECT_EQ(1, dut_->get_num_input_ports());
+  EXPECT_EQ(1, dut_->num_output_ports());
+  EXPECT_EQ(1, dut_->num_input_ports());
 }
 
 TEST_P(PiecewisePolynomialLinearSystemTest, KnotPointConsistency) {
@@ -108,7 +106,7 @@ TEST_P(PiecewisePolynomialLinearSystemTest, Derivatives) {
                             1.5 * kDiscreteTimeStep};
   const double tol = 1e-10;
   for (const double t : times) {
-    context_->set_time(t);
+    context_->SetTime(t);
     const Eigen::Matrix2d A = ltv_data_.A.value(t);
     const Eigen::Matrix2d B = ltv_data_.B.value(t);
     if (time_period_ == 0.) {
@@ -143,14 +141,12 @@ TEST_P(PiecewisePolynomialLinearSystemTest, Output) {
                             1.5 * kDiscreteTimeStep};
   const double tol = 1e-10;
   for (const double t : times) {
-    context_->set_time(t);
+    context_->SetTime(t);
 
-    dut_->CalcOutput(*context_, system_output_.get());
     const Eigen::Matrix2d C = ltv_data_.C.value(t);
     const Eigen::Matrix2d D = ltv_data_.D.value(t);
-
     EXPECT_TRUE(CompareMatrices(
-        C * x + D * u, system_output_->get_vector_data(0)->get_value(), tol));
+        C * x + D * u, dut_->get_output_port().Eval(*context_), tol));
   }
 }
 

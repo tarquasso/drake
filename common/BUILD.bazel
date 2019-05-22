@@ -32,10 +32,12 @@ drake_cc_package_library(
         ":essential",
         ":extract_double",
         ":find_resource",
+        ":find_runfiles",
         ":hash",
         ":is_approx_equal_abstol",
         ":is_cloneable",
         ":is_less_than_comparable",
+        ":name_value",
         ":nice_type_name",
         ":pointer_cast",
         ":polynomial",
@@ -68,6 +70,7 @@ drake_cc_library(
         "drake_assertion_error.h",
         "drake_copyable.h",
         "drake_deprecated.h",
+        "drake_nodiscard.h",
         "drake_optional.h",
         "drake_throw.h",
         "drake_variant.h",
@@ -145,6 +148,7 @@ drake_cc_library(
 
 drake_cc_library(
     name = "hash",
+    srcs = ["hash.cc"],
     hdrs = ["hash.h"],
     deps = [
         ":essential",
@@ -298,10 +302,21 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "find_runfiles",
+    srcs = ["find_runfiles.cc"],
+    hdrs = ["find_runfiles.h"],
+    deps = [
+        ":essential",
+        "@bazel_tools//tools/cpp/runfiles",
+    ],
+)
+
+drake_cc_library(
     name = "find_resource",
     srcs = [
         "find_loaded_library.cc",
         "find_resource.cc",
+        "find_resource_deprecated.cc",
     ],
     hdrs = [
         "find_loaded_library.h",
@@ -318,7 +333,7 @@ drake_cc_library(
     deps = [
         ":drake_marker_shared_library",
         ":essential",
-        "@spruce",
+        ":find_runfiles",
     ],
 )
 
@@ -346,6 +361,14 @@ drake_cc_library(
 )
 
 drake_cc_library(
+    name = "name_value",
+    hdrs = ["name_value.h"],
+    deps = [
+        ":essential",
+    ],
+)
+
+drake_cc_library(
     name = "nice_type_name",
     srcs = ["nice_type_name.cc"],
     hdrs = ["nice_type_name.h"],
@@ -367,7 +390,9 @@ drake_cc_library(
 
 drake_cc_library(
     name = "random",
+    srcs = ["random.cc"],
     hdrs = ["random.h"],
+    deps = [":essential"],
 )
 
 drake_cc_library(
@@ -484,6 +509,7 @@ drake_cc_library(
     deps = [
         ":copyable_unique_ptr",
         ":essential",
+        ":hash",
         ":is_cloneable",
         ":nice_type_name",
     ],
@@ -562,6 +588,7 @@ drake_cc_googletest(
     ],
     deps = [
         ":autodiff",
+        "//common/test_utilities:eigen_matrix_compare",
     ],
 )
 
@@ -581,6 +608,13 @@ drake_cc_googletest(
         ":drake_bool",
         ":symbolic",
         "//common/test_utilities:symbolic_test_util",
+    ],
+)
+
+drake_cc_googletest(
+    name = "random_test",
+    deps = [
+        ":random",
     ],
 )
 
@@ -716,6 +750,14 @@ drake_cc_googletest(
 )
 
 drake_cc_googletest(
+    name = "drake_nodiscard_test",
+    deps = [
+        ":essential",
+        ":unused",
+    ],
+)
+
+drake_cc_googletest(
     name = "drake_optional_test",
     deps = [
         ":essential",
@@ -821,10 +863,43 @@ drake_cc_googletest(
 )
 
 drake_cc_googletest(
+    name = "find_runfiles_test",
+    data = [
+        "test/find_resource_test_data.txt",
+    ],
+    deps = [
+        ":find_runfiles",
+        ":temp_directory",
+        "//common/test_utilities:expect_throws_message",
+    ],
+)
+
+drake_cc_googletest(
+    name = "find_runfiles_fail_test",
+    deps = [
+        ":find_runfiles",
+    ],
+)
+
+drake_py_unittest(
+    name = "find_runfiles_subprocess_test",
+    data = [
+        ":find_runfiles_test",
+    ],
+)
+
+drake_cc_googletest(
     name = "is_approx_equal_abstol_test",
     deps = [
         ":essential",
         ":is_approx_equal_abstol",
+    ],
+)
+
+drake_cc_googletest(
+    name = "name_value_test",
+    deps = [
+        ":name_value",
     ],
 )
 
@@ -964,6 +1039,7 @@ drake_cc_googletest(
     deps = [
         ":essential",
         ":symbolic",
+        "//common/test_utilities:eigen_matrix_compare",
         "//common/test_utilities:expect_throws_message",
         "//common/test_utilities:symbolic_test_util",
     ],
@@ -1205,7 +1281,6 @@ drake_cc_googletest(
 # TODO(jwnimmer-tri) These tests are currently missing...
 # - drake_assert_test in fancy variants
 # - drake_assert_test_compile in fancy variants
-# - drake_deprecated_test in fancy variants
 # - cpplint_wrapper_test.py
 
 add_lint_tests(

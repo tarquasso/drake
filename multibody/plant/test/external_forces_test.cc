@@ -5,6 +5,7 @@
 
 #include "drake/common/autodiff.h"
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
+#include "drake/common/test_utilities/limit_malloc.h"
 #include "drake/multibody/plant/test/kuka_iiwa_model_tests.h"
 #include "drake/multibody/tree/body.h"
 #include "drake/multibody/tree/frame.h"
@@ -40,6 +41,12 @@ TEST_F(KukaIiwaModelTests, ExternalBodyForces) {
       *context_, p_EP, F_Ep_E, end_effector_link_->body_frame(), &forces);
   const VectorX<double> tau_id =
       plant_->CalcInverseDynamics(*context_, vdot, forces);
+  { // Repeat the computation to confirm the heap behavior.  We allow the
+    // method to heap-allocate 2 temporaries and 1 return value.
+    drake::test::LimitMalloc guard({ .max_num_allocations = 3 });
+    auto dummy = plant_->CalcInverseDynamics(*context_, vdot, forces);
+    unused(dummy);
+  }
 
   MatrixX<double> M(nv, nv);
   plant_->CalcMassMatrixViaInverseDynamics(*context_, &M);
@@ -67,6 +74,25 @@ TEST_F(KukaIiwaModelTests, ExternalBodyForces) {
   EXPECT_TRUE(CompareMatrices(
       tau_id, tau_id_expected,
       kTolerance, MatrixCompareType::relative));
+}
+
+TEST_F(KukaIiwaModelTests, BodyForceApi) {
+  SetArbitraryConfiguration();
+  MultibodyForces<double> forces(*plant_);
+  Vector6<double> F_expected;
+  F_expected << 1, 2, 3, 4, 5, 6;
+  SpatialForce<double> F_Bo_W(F_expected);
+  end_effector_link_->AddInForceInWorld(*context_, F_Bo_W, &forces);
+  EXPECT_TRUE(CompareMatrices(
+      end_effector_link_->GetForceInWorld(*context_, forces).get_coeffs(),
+      F_expected));
+  // Test frame-specfic, and ensure we accumulate.
+  end_effector_link_->AddInForce(
+      *context_, Vector3<double>::Zero(), F_Bo_W, plant_->world_frame(),
+      &forces);
+  EXPECT_TRUE(CompareMatrices(
+      end_effector_link_->GetForceInWorld(*context_, forces).get_coeffs(),
+      2 * F_expected));
 }
 
 }  // namespace
