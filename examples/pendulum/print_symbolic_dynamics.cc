@@ -47,7 +47,7 @@ VectorX<Expression> MultibodyPlantDynamics() {
   plant.AddForceElement<UniformGravityFieldElement>();
   Parser parser(&plant);
   parser.AddModelFromFile(FindResourceOrThrow(urdf_path));
-  plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base_part2"));
+  plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base"));
   plant.Finalize();
   auto symbolic_plant_ptr = System<double>::ToSymbolic(plant);
   const MultibodyPlant<Expression>& symbolic_plant = *symbolic_plant_ptr;
@@ -55,7 +55,8 @@ VectorX<Expression> MultibodyPlantDynamics() {
   // Obtain the symbolic dynamics.
   auto context = symbolic_plant.CreateDefaultContext();
   context->FixInputPort(
-      0, Vector1<Expression>::Constant(Variable("tau")));
+      symbolic_plant.get_actuation_input_port().get_index(),
+      Vector1<Expression>::Constant(Variable("tau")));
   symbolic_plant.SetPositionsAndVelocities(
       context.get(), Vector2<Expression>(
           Variable("theta"), Variable("thetadot")));

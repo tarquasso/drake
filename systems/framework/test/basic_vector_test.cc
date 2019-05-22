@@ -59,9 +59,9 @@ GTEST_TEST(BasicVectorTest, DoubleInitiallyNaN) {
 // Tests that the BasicVector<AutoDiffXd> is initialized to NaN.
 GTEST_TEST(BasicVectorTest, AutodiffInitiallyNaN) {
   BasicVector<AutoDiffXd> vec(3);
-  EXPECT_TRUE(std::isnan(vec.GetAtIndex(0).value()));
-  EXPECT_TRUE(std::isnan(vec.GetAtIndex(1).value()));
-  EXPECT_TRUE(std::isnan(vec.GetAtIndex(2).value()));
+  EXPECT_TRUE(std::isnan(vec[0].value()));
+  EXPECT_TRUE(std::isnan(vec[1].value()));
+  EXPECT_TRUE(std::isnan(vec[2].value()));
 }
 
 // Tests that the BasicVector<symbolic::Expression> is initialized to NaN.
@@ -151,13 +151,18 @@ GTEST_TEST(BasicVectorTest, ReinitializeInvalid) {
 
 // Tests the infinity norm computation
 GTEST_TEST(BasicVectorTest, NormInf) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   BasicVector<double> vec(2);
   vec.get_mutable_value() << 3, -4;
   EXPECT_EQ(vec.NormInf(), 4);
+#pragma GCC diagnostic pop
 }
 
 // Tests the infinity norm for an autodiff type.
 GTEST_TEST(BasicVectorTest, NormInfAutodiff) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   // Set up the device under test ("dut").
   // The DUT is a vector with two values [-11.5, 22.5].
   // The ∂/∂t of DUT is [1.5, 3.5] (where t is some arbitrary variable).
@@ -182,11 +187,12 @@ GTEST_TEST(BasicVectorTest, NormInfAutodiff) {
   // The norminf(DUT) is now 33.5 and the ∂/∂t of norminf(DUT) is -3.5.
   // The element0 has the max absolute value of the AutoDiffScalar's scalar.
   // It is negative, so the sign of its derivatives gets flipped.
-  dut.GetAtIndex(0).value() = -33.5;
+  dut[0].value() = -33.5;
   expected_norminf.value() = 33.5;
   expected_norminf.derivatives() = Vector1d(-1.5);
   EXPECT_EQ(dut.NormInf().value(), expected_norminf.value());
   EXPECT_EQ(dut.NormInf().derivatives(), expected_norminf.derivatives());
+#pragma GCC diagnostic pop
 }
 
 // Tests all += * operations for BasicVector.
@@ -262,7 +268,7 @@ GTEST_TEST(BasicVectorTest, DefaultCalcInequalityConstraint) {
 
 // Tests the protected `::values()` methods.
 GTEST_TEST(BasicVectorTest, ValuesAccess) {
-  MyVector<2, double> dut;
+  MyVector2d dut;
   dut[0] = 11.0;
   dut[1] = 22.0;
 

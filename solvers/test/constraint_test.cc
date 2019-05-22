@@ -491,6 +491,80 @@ GTEST_TEST(testConstraint, testEvaluatorConstraint) {
       -1 <= y_sym[0] && y_sym[0] <= 1 && -1 <= y_sym[1] && y_sym[1] <= 1);
 }
 
+GTEST_TEST(testConstraint, testExponentialConeConstraint) {
+  Eigen::SparseMatrix<double> A(3, 2);
+  A.coeffRef(0, 0) = 2;
+  A.coeffRef(1, 1) = 3;
+  A.coeffRef(2, 0) = 1;
+  Eigen::Vector3d b(1, 2, 3);
+  ExponentialConeConstraint constraint(A, b);
+
+  Eigen::Vector2d x(3, 4);
+  Eigen::VectorXd y;
+  constraint.Eval(x, &y);
+  // Now evaluate z manually.
+  const Eigen::Vector3d z = A * x + b;
+  Eigen::Vector2d y_expected;
+  y_expected(0) = z(0) - z(1) * std::exp(z(2) / z(1));
+  y_expected(1) = z(1);
+  const double tol = 5 * std::numeric_limits<double>::epsilon();
+  EXPECT_TRUE(CompareMatrices(y, y_expected, tol));
+
+  // Check autodiff evaluation.
+  Eigen::MatrixXd dx(2, 1);
+  dx << 1, 1;
+  const auto x_autodiff =
+      math::initializeAutoDiffGivenGradientMatrix(Eigen::VectorXd(x), dx);
+  AutoDiffVecXd y_autodiff;
+  constraint.Eval(x_autodiff, &y_autodiff);
+  // Now compute the gradient manually.
+  const AutoDiffVecXd z_autodiff = A * x_autodiff + b;
+  AutoDiffVecXd y_autodiff_expected(2);
+  y_autodiff_expected(0) =
+      z_autodiff(0) - z_autodiff(1) * exp(z_autodiff(2) / z_autodiff(1));
+  y_autodiff_expected(1) = z_autodiff(1);
+  EXPECT_TRUE(CompareMatrices(math::autoDiffToValueMatrix(y_autodiff),
+                              y_expected, tol));
+  EXPECT_TRUE(CompareMatrices(
+      math::autoDiffToGradientMatrix(y_autodiff),
+      math::autoDiffToGradientMatrix(y_autodiff_expected), tol));
+}
+
+GTEST_TEST(testConstraint, SetGradientSparsityPattern) {
+  const VectorXd lb = VectorXd::Constant(2, -1);
+  const VectorXd ub = VectorXd::Constant(2, 1);
+  EvaluatorConstraint<> constraint(std::make_shared<SimpleEvaluator>(), lb, ub);
+  // The gradient sparsity pattern should be unset at constraint construction.
+  EXPECT_FALSE(constraint.gradient_sparsity_pattern().has_value());
+  // Now set the gradient sparsity pattern.
+  constraint.SetGradientSparsityPattern(
+      {{0, 0}, {0, 1}, {0, 2}, {1, 0}, {1, 1}, {1, 2}});
+  const auto& gradient_sparsity_pattern =
+      constraint.gradient_sparsity_pattern();
+  int gradient_entry_count = 0;
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      EXPECT_EQ(gradient_sparsity_pattern.value()[gradient_entry_count].first,
+                i);
+      EXPECT_EQ(gradient_sparsity_pattern.value()[gradient_entry_count].second,
+                j);
+      ++gradient_entry_count;
+    }
+  }
+
+#ifdef DRAKE_ASSERT_IS_ARMED
+  // row index out of range.
+  EXPECT_THROW(constraint.SetGradientSparsityPattern({{-1, 0}}),
+               std::invalid_argument);
+  // column index out of range.
+  EXPECT_THROW(constraint.SetGradientSparsityPattern({{0, -1}}),
+               std::invalid_argument);
+  // repeated entries.
+  EXPECT_THROW(constraint.SetGradientSparsityPattern({{0, 0}, {0, 0}}),
+               std::invalid_argument);
+#endif
+}
+
 }  // namespace
 }  // namespace solvers
 }  // namespace drake

@@ -123,9 +123,6 @@ class TestAll(unittest.TestCase):
             "InverseKinematics",
             # - math
             "SpatialVelocity",
-            # - multibody_tree
-            "BodyNodeIndex",
-            "MultibodyTree",
             # - parsing
             "Parser",
             # - parsers
@@ -173,6 +170,9 @@ class TestAll(unittest.TestCase):
             "TemplateSystem",
             # - sensors
             "Image",
+            # visualization
+            # - plotting
+            "plot_sublevelset_quadratic",
         )
         # Ensure each symbol is exposed as globals from the above import
         # statement.

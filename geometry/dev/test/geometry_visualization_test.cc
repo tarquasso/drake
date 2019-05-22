@@ -37,7 +37,7 @@ GTEST_TEST(GeometryVisualization, SimpleScene) {
 
   const std::string frame_name("frame");
   FrameId frame_id = scene_graph.RegisterFrame(
-      source_id, GeometryFrame(frame_name, Isometry3d::Identity()));
+      source_id, GeometryFrame(frame_name));
 
   // Floats because the lcm messages store floats.
   const float radius = 1.25f;
@@ -49,7 +49,7 @@ GTEST_TEST(GeometryVisualization, SimpleScene) {
       Isometry3d::Identity(), make_unique<Sphere>(radius), "sphere");
   Vector4<double> color{r, g, b, a};
   instance->set_illustration_properties(
-      geometry::MakeDrakeVisualizerProperties(color));
+      geometry::MakePhongIllustrationProperties(color));
   scene_graph.RegisterGeometry(source_id, frame_id, std::move(instance));
 
   unique_ptr<Context<double>> context = scene_graph.AllocateContext();

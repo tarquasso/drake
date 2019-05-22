@@ -31,26 +31,24 @@ namespace examples {
 namespace simple_gripper {
 namespace {
 
-using Eigen::Isometry3d;
-using Eigen::Translation3d;
 using Eigen::Vector3d;
-using drake::geometry::SceneGraph;
-using drake::geometry::Sphere;
-using drake::lcm::DrakeLcm;
-using drake::math::RollPitchYaw;
-using drake::math::RotationMatrix;
-using drake::multibody::Body;
-using drake::multibody::CoulombFriction;
-using drake::multibody::ConnectContactResultsToDrakeVisualizer;
-using drake::multibody::MultibodyPlant;
-using drake::multibody::Parser;
-using drake::multibody::PrismaticJoint;
-using drake::multibody::UniformGravityFieldElement;
-using drake::systems::ImplicitEulerIntegrator;
-using drake::systems::RungeKutta2Integrator;
-using drake::systems::RungeKutta3Integrator;
-using drake::systems::SemiExplicitEulerIntegrator;
-using drake::systems::Sine;
+using geometry::SceneGraph;
+using geometry::Sphere;
+using lcm::DrakeLcm;
+using math::RigidTransformd;
+using math::RollPitchYawd;
+using multibody::Body;
+using multibody::CoulombFriction;
+using multibody::ConnectContactResultsToDrakeVisualizer;
+using multibody::MultibodyPlant;
+using multibody::Parser;
+using multibody::PrismaticJoint;
+using multibody::UniformGravityFieldElement;
+using systems::ImplicitEulerIntegrator;
+using systems::RungeKutta2Integrator;
+using systems::RungeKutta3Integrator;
+using systems::SemiExplicitEulerIntegrator;
+using systems::Sine;
 
 // TODO(amcastro-tri): Consider moving this large set of parameters to a
 // configuration file (e.g. YAML).
@@ -149,7 +147,7 @@ void AddGripperPads(MultibodyPlant<double>* plant,
     p_FSo(2) = std::sin(d_theta * i + sample_rotation) * kPadMajorRadius;
 
     // Pose of the sphere frame S in the finger frame F.
-    const Isometry3d X_FS = Isometry3d(Translation3d(p_FSo));
+    const RigidTransformd X_FS(p_FSo);
 
     CoulombFriction<double> friction(
         FLAGS_ring_static_friction, FLAGS_ring_static_friction);
@@ -268,7 +266,9 @@ int do_main() {
       scene_graph.get_source_pose_port(plant.get_source_id().value()));
 
   // Publish contact results for visualization.
-  ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
+  // (Currently only available when time stepping.)
+  if (FLAGS_time_stepping)
+    ConnectContactResultsToDrakeVisualizer(&builder, plant, &lcm);
 
   // Sinusoidal force input. We want the gripper to follow a trajectory of the
   // form x(t) = X0 * sin(ω⋅t). By differentiating once, we can compute the
@@ -330,12 +330,10 @@ int do_main() {
       plant_context, left_finger).translation();
   const double mug_y_W = (p_WBr(1) + p_WBl(1)) / 2.0;
 
-  Isometry3d X_WM;
-  Vector3d rpy(FLAGS_rx * M_PI / 180,
-               FLAGS_ry * M_PI / 180,
-               (FLAGS_rz * M_PI / 180) + M_PI);
-  X_WM.linear() = RotationMatrix<double>(RollPitchYaw<double>(rpy)).matrix();
-  X_WM.translation() = Vector3d(0.0, mug_y_W, 0.0);
+  RigidTransformd X_WM(
+      RollPitchYawd(FLAGS_rx * M_PI / 180, FLAGS_ry * M_PI / 180,
+                    (FLAGS_rz * M_PI / 180) + M_PI),
+      Vector3d(0.0, mug_y_W, 0.0));
   plant.SetFreeBodyPose(&plant_context, mug, X_WM);
 
   // Set the initial height of the gripper and its initial velocity so that with
@@ -347,6 +345,7 @@ int do_main() {
   // Set up simulator.
   systems::Simulator<double> simulator(*diagram, std::move(diagram_context));
   systems::IntegratorBase<double>* integrator{nullptr};
+
   if (FLAGS_integration_scheme == "implicit_euler") {
     integrator =
         simulator.reset_integrator<ImplicitEulerIntegrator<double>>(
@@ -378,19 +377,26 @@ int do_main() {
   simulator.set_publish_every_time_step(true);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
-  simulator.StepTo(FLAGS_simulation_time);
+  simulator.AdvanceTo(FLAGS_simulation_time);
 
-  // Print some stats for variable time step integrators.
-  fmt::print("Integrator stats:\n");
-  fmt::print("Number of time steps taken = {:d}\n",
-             integrator->get_num_steps_taken());
-  if (!integrator->get_fixed_step_mode()) {
-    fmt::print("Initial time step taken = {:10.6g} s\n",
-               integrator->get_actual_initial_step_size_taken());
-    fmt::print("Largest time step taken = {:10.6g} s\n",
-               integrator->get_largest_step_size_taken());
-    fmt::print("Smallest adapted step size = {:10.6g} s\n",
-               integrator->get_smallest_adapted_step_size_taken());
+  if (FLAGS_time_stepping) {
+    fmt::print("Used time stepping with dt={}\n", FLAGS_max_time_step);
+    fmt::print("Number of time steps taken = {:d}\n",
+               simulator.get_num_steps_taken());
+  } else {
+    fmt::print("Stats for integrator {}:\n", FLAGS_integration_scheme);
+    fmt::print("Number of time steps taken = {:d}\n",
+               integrator->get_num_steps_taken());
+    if (!integrator->get_fixed_step_mode()) {
+      fmt::print("Initial time step taken = {:10.6g} s\n",
+                 integrator->get_actual_initial_step_size_taken());
+      fmt::print("Largest time step taken = {:10.6g} s\n",
+                 integrator->get_largest_step_size_taken());
+      fmt::print("Smallest adapted step size = {:10.6g} s\n",
+                 integrator->get_smallest_adapted_step_size_taken());
+      fmt::print("Number of steps shrunk due to error control = {:d}\n",
+                 integrator->get_num_step_shrinkages_from_error_control());
+    }
   }
 
   return 0;

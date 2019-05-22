@@ -9,7 +9,6 @@
 #include "drake/geometry/scene_graph.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/math/random_rotation.h"
-#include "drake/multibody/tree/quaternion_floating_mobilizer.h"
 #include "drake/systems/analysis/implicit_euler_integrator.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
@@ -36,7 +35,6 @@ DEFINE_double(simulation_time, 10.0,
               "Desired duration of the simulation in seconds.");
 
 using Eigen::AngleAxisd;
-using Eigen::Isometry3d;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using geometry::SceneGraph;
@@ -50,7 +48,6 @@ using systems::SemiExplicitEulerIntegrator;
 // "multibody" namespace is ambiguous here without "drake::".
 using drake::multibody::CoulombFriction;
 using drake::multibody::MultibodyPlant;
-using drake::multibody::QuaternionFloatingMobilizer;
 
 int do_main() {
   systems::DiagramBuilder<double> builder;
@@ -107,10 +104,8 @@ int do_main() {
   // Set at height z0 with random orientation.
   std::mt19937 generator(41);
   std::uniform_real_distribution<double> uniform(-1.0, 1.0);
-  Matrix3d R_WB = math::UniformlyRandomRotationMatrix(&generator).matrix();
-  Isometry3d X_WB = Isometry3d::Identity();
-  X_WB.linear() = R_WB;
-  X_WB.translation() = Vector3d(0.0, 0.0, z0);
+  math::RotationMatrixd R_WB = math::UniformlyRandomRotationMatrix(&generator);
+  math::RigidTransformd X_WB(R_WB, Vector3d(0.0, 0.0, z0));
   plant.SetFreeBodyPose(
       &plant_context, plant.GetBodyByName("Ball"), X_WB);
 
@@ -147,7 +142,7 @@ int do_main() {
   simulator.set_publish_every_time_step(false);
   simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
   simulator.Initialize();
-  simulator.StepTo(FLAGS_simulation_time);
+  simulator.AdvanceTo(FLAGS_simulation_time);
 
   // Some sanity checks:
   if (FLAGS_integration_scheme == "semi_explicit_euler") {

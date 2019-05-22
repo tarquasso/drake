@@ -57,7 +57,7 @@ class MyOutputPort : public OutputPort<double> {
   void DoCalc(const Context<double>& diagram_context,
               AbstractValue* value) const override {
     EXPECT_NE(value, nullptr);
-    EXPECT_NO_THROW(value->SetValueOrThrow<BasicVector<double>>(
+    EXPECT_NO_THROW(value->set_value<BasicVector<double>>(
         MyVector2d(Vector2d(3., 4.))));
   }
 
@@ -143,16 +143,16 @@ GTEST_TEST(TestBaseClass, BadOutputType) {
 
   EXPECT_NO_THROW(port.Calc(*context, good_port_value.get()));
 
-// This message is thrown in Debug. In Release some other error may trigger
-// but not from OutputPort, so we can't use
-// DRAKE_EXPECT_THROWS_MESSAGE_IF_ARMED() which would insist that if any
-// message is thrown in Release it must be the expected one.
-#ifndef DRAKE_ASSERT_IS_DISARMED
-  DRAKE_EXPECT_THROWS_MESSAGE(
-      port.Calc(*context, bad_port_value.get()), std::logic_error,
-      "OutputPort::Calc().*expected.*MyVector.*but got.*std::string"
-      ".*OutputPort\\[0\\].*");
-#endif
+  // This message is thrown in Debug. In Release some other error may trigger
+  // but not from OutputPort, so we can't use
+  // DRAKE_EXPECT_THROWS_MESSAGE_IF_ARMED() which would insist that if any
+  // message is thrown in Release it must be the expected one.
+  if (kDrakeAssertIsArmed) {
+    DRAKE_EXPECT_THROWS_MESSAGE(
+        port.Calc(*context, bad_port_value.get()), std::logic_error,
+        "OutputPort::Calc().*expected.*MyVector.*but got.*std::string"
+        ".*OutputPort\\[0\\].*");
+  }
 }
 
 // These functions match the signatures required by LeafOutputPort.
@@ -171,14 +171,14 @@ unique_ptr<AbstractValue> alloc_myvector3() {
 // CalcCallback that expects to have a string to write on.
 void calc_string(const ContextBase&, AbstractValue* value) {
   ASSERT_NE(value, nullptr);
-  string& str_value = value->GetMutableValueOrThrow<string>();
+  string& str_value = value->get_mutable_value<string>();
   str_value = "from calc_string";
 }
 
 // CalcVectorCallback sets the 3-element output vector to 99,100,101.
 void calc_vector3(const ContextBase&, AbstractValue* value) {
   ASSERT_NE(value, nullptr);
-  auto& vec = value->template GetMutableValueOrThrow<BasicVector<double>>();
+  auto& vec = value->template get_mutable_value<BasicVector<double>>();
   EXPECT_EQ(vec.size(), 3);
   vec.set_value(Vector3d(99., 100., 101.));
 }
@@ -196,7 +196,7 @@ class LeafOutputPortTest : public ::testing::Test {
           &dummy_,  // implicit_cast<const System<T>*>(&dummy_)
           &dummy_,  // implicit_cast<SystemBase*>(&dummy_)
           "absport",
-          OutputPortIndex(dummy_.get_num_output_ports()),
+          OutputPortIndex(dummy_.num_output_ports()),
           dummy_.assign_next_dependency_ticket(), kAbstractValued, 0 /* size */,
           &dummy_.DeclareCacheEntry(
               "absport", alloc_string, calc_string));
@@ -206,7 +206,7 @@ class LeafOutputPortTest : public ::testing::Test {
           &dummy_,  // implicit_cast<const System<T>*>(&dummy_)
           &dummy_,  // implicit_cast<SystemBase*>(&dummy_)
           "vecport",
-          OutputPortIndex(dummy_.get_num_output_ports()),
+          OutputPortIndex(dummy_.num_output_ports()),
           dummy_.assign_next_dependency_ticket(), kVectorValued, 3 /* size */,
           &dummy_.DeclareCacheEntry(
               "vecport", alloc_myvector3, calc_vector3));
@@ -219,12 +219,12 @@ void AbstractPortCheck(const Context<double>& context,
                        const LeafOutputPort<double>& port,
                        string alloc_string) {
   unique_ptr<AbstractValue> val = port.Allocate();
-  EXPECT_EQ(val->GetValueOrThrow<string>(), alloc_string);
+  EXPECT_EQ(val->get_value<string>(), alloc_string);
   port.Calc(context, val.get());
   const string new_value("from calc_string");
-  EXPECT_EQ(val->GetValueOrThrow<string>(), new_value);
+  EXPECT_EQ(val->get_value<string>(), new_value);
   EXPECT_EQ(port.Eval<string>(context), new_value);
-  EXPECT_EQ(port.Eval<AbstractValue>(context).GetValueOrThrow<string>(),
+  EXPECT_EQ(port.Eval<AbstractValue>(context).get_value<string>(),
             new_value);
 
   // Can't Eval into the wrong type.
@@ -246,7 +246,7 @@ void VectorPortCheck(const Context<double>& context,
   // Treat the vector-valued port as a BasicVector, which
   // should have MyVector3d as concrete type.
   unique_ptr<AbstractValue> val = port.Allocate();
-  auto& basic = val->template GetMutableValueOrThrow<BasicVector<double>>();
+  auto& basic = val->template get_mutable_value<BasicVector<double>>();
   MyVector3d& myvector3 = dynamic_cast<MyVector3d&>(basic);
   EXPECT_EQ(basic.get_value(), alloc_value);
   EXPECT_EQ(myvector3.get_value(), alloc_value);
@@ -265,7 +265,7 @@ void VectorPortCheck(const Context<double>& context,
   EXPECT_EQ(eval_basic.CopyToVector(), new_value);
   EXPECT_EQ(eval_myvec3.CopyToVector(), new_value);
   EXPECT_EQ(
-      eval_abs.GetValueOrThrow<BasicVector<double>>().CopyToVector(),
+      eval_abs.get_value<BasicVector<double>>().CopyToVector(),
       new_value);
 }
 
@@ -289,7 +289,7 @@ TEST_F(LeafOutputPortTest, ThrowIfNullAlloc) {
       &dummy_,  // implicit_cast<const System<T>*>(&dummy_)
       &dummy_,  // implicit_cast<SystemBase*>(&dummy_),
       "null_port",
-      OutputPortIndex(dummy_.get_num_output_ports()),
+      OutputPortIndex(dummy_.num_output_ports()),
       dummy_.assign_next_dependency_ticket(),
       kAbstractValued, 0 /* size */,
       &dummy_.DeclareCacheEntry("null", alloc_null, calc_string));
@@ -302,8 +302,11 @@ TEST_F(LeafOutputPortTest, ThrowIfNullAlloc) {
 // Check that Debug builds catch bad output types. We can't run these tests
 // unchecked since the results would be indeterminate -- they may run to
 // completion or segfault depending on memory contents.
-#ifndef DRAKE_ASSERT_IS_DISARMED
 TEST_F(LeafOutputPortTest, ThrowIfBadCalcOutput) {
+  if (kDrakeAssertIsDisarmed) {
+    return;
+  }
+
   // The abstract port is a string; let's give it an int.
   auto good_out = absport_general_.Allocate();
   auto bad_out = AbstractValue::Make<int>(5);
@@ -312,7 +315,7 @@ TEST_F(LeafOutputPortTest, ThrowIfBadCalcOutput) {
       absport_general_.Calc(*context_, bad_out.get()), std::logic_error,
       "OutputPort::Calc().*expected.*std::string.*got.*int.*");
 
-  // The vector port is a MyVector<3,double>, we'll give it a BasicVector.
+  // The vector port is a MyVector3d, we'll give it a BasicVector.
   auto good_vec = vecport_general_.Allocate();
   auto bad_vec = AbstractValue::Make(BasicVector<double>(2));
   EXPECT_NO_THROW(vecport_general_.Calc(*context_, good_vec.get()));
@@ -320,7 +323,6 @@ TEST_F(LeafOutputPortTest, ThrowIfBadCalcOutput) {
       vecport_general_.Calc(*context_, bad_vec.get()), std::logic_error,
       "OutputPort::Calc().*expected.*MyVector.*got.*BasicVector.*");
 }
-#endif
 
 // For testing diagram output ports we need a couple of subsystems that have
 // recognizably different Contexts so we can verify that (1) the diagram exports
@@ -338,7 +340,7 @@ class SystemWithNStates : public LeafSystem<double> {
  private:
   void ReturnNumContinuous(const Context<double>& context, int* nc) const {
     ASSERT_NE(nc, nullptr);
-    *nc = context.get_state().get_continuous_state().size();
+    *nc = context.num_continuous_states();
   }
 };
 
@@ -381,8 +383,8 @@ GTEST_TEST(DiagramOutputPortTest, OneLevel) {
   auto value1 = out1.Allocate();
   const int* int0{};
   const int* int1{};
-  EXPECT_NO_THROW(int0 = &value0->GetValueOrThrow<int>());
-  EXPECT_NO_THROW(int1 = &value1->GetValueOrThrow<int>());
+  EXPECT_NO_THROW(int0 = &value0->get_value<int>());
+  EXPECT_NO_THROW(int1 = &value1->get_value<int>());
   EXPECT_EQ(*int0, 0);  // Default value initialized.
   EXPECT_EQ(*int1, 0);
   out0.Calc(*context, value0.get());
@@ -403,9 +405,9 @@ GTEST_TEST(DiagramOutputPortTest, Nested) {
   const int* int0{};
   const int* int1{};
   const int* int2{};
-  EXPECT_NO_THROW(int0 = &value0->GetValueOrThrow<int>());
-  EXPECT_NO_THROW(int1 = &value1->GetValueOrThrow<int>());
-  EXPECT_NO_THROW(int2 = &value2->GetValueOrThrow<int>());
+  EXPECT_NO_THROW(int0 = &value0->get_value<int>());
+  EXPECT_NO_THROW(int1 = &value1->get_value<int>());
+  EXPECT_NO_THROW(int2 = &value2->get_value<int>());
   EXPECT_EQ(*int0, 0);  // Default value initialized.
   EXPECT_EQ(*int1, 0);
   EXPECT_EQ(*int2, 0);

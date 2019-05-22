@@ -86,7 +86,7 @@ HIDE_COMPOUND_REFERENCE= NO
 SHOW_INCLUDE_FILES     = YES
 SHOW_GROUPED_MEMB_INC  = NO
 FORCE_LOCAL_INCLUDES   = NO
-INLINE_INFO            = YES
+INLINE_INFO            = NO
 SORT_MEMBER_DOCS       = YES
 SORT_BRIEF_DOCS        = NO
 SORT_MEMBERS_CTORS_1ST = NO
@@ -327,6 +327,10 @@ X& operator=(const X&) = default; \
 X(X&&) = default; \
 X& operator=(X&&) = default; \
 /** \} */"
+PREDEFINED            += "DRAKE_DEPRECATED(removal_date,message):= \
+/** (Deprecated.) \deprecated message <br> \
+This will be removed from Drake on or after removal_date. */ \
+"
 # =============================================================================
 EXPAND_AS_DEFINED      =
 SKIP_FUNCTION_MACROS   = YES
@@ -366,7 +370,7 @@ DIRECTORY_GRAPH        = YES
 DOT_IMAGE_FORMAT       = svg
 INTERACTIVE_SVG        = YES
 DOT_PATH               = "@DOXYGEN_DOT_EXECUTABLE@"
-DOTFILE_DIRS           =
+DOTFILE_DIRS           = "@INPUT_ROOT@/drake"
 MSCFILE_DIRS           =
 DIAFILE_DIRS           =
 PLANTUML_JAR_PATH      =

@@ -56,7 +56,7 @@ namespace systems {
 ///
 /// @ingroup primitive_systems
 template <typename T>
-class SignalLogger : public LeafSystem<T> {
+class SignalLogger final : public LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SignalLogger)
 
@@ -73,6 +73,10 @@ class SignalLogger : public LeafSystem<T> {
   /// input_size-by-batch_allocation_size.
   /// @see LogOutput() helper function for a convenient way to add %logging.
   explicit SignalLogger(int input_size, int batch_allocation_size = 1000);
+
+  /// Scalar-converting copy constructor. See @ref system_scalar_conversion.
+  template <typename U>
+  explicit SignalLogger(const SignalLogger<U>&);
 
   /// Sets the publishing period of this system to specify periodic sampling
   /// and disables the default per-step sampling. This method can only be called
@@ -112,6 +116,8 @@ class SignalLogger : public LeafSystem<T> {
   const InputPort<T>& get_input_port() const;
 
  private:
+  template <typename> friend class SignalLogger;
+
   enum LoggingMode { kPerStep, kPeriodic, kForced };
 
   // Logging is done in this event handler.

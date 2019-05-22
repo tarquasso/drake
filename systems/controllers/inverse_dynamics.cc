@@ -3,19 +3,10 @@
 #include <vector>
 
 using drake::multibody::MultibodyPlant;
-using drake::multibody::PositionKinematicsCache;
-using drake::multibody::VelocityKinematicsCache;
 
 namespace drake {
 namespace systems {
 namespace controllers {
-
-template <typename T>
-InverseDynamics<T>::InverseDynamics(const MultibodyPlant<T>* plant,
-                                    bool pure_gravity_compensation)
-    : InverseDynamics(plant, pure_gravity_compensation ?
-                      InverseDynamicsMode::kGravityCompensation :
-                      InverseDynamicsMode::kInverseDynamics) {}
 
 template <typename T>
 InverseDynamics<T>::InverseDynamics(const MultibodyPlant<T>* plant,
@@ -68,7 +59,7 @@ void InverseDynamics<T>::CalcOutputForce(const Context<T>& context,
 
   auto& plant = *multibody_plant_;
   // Set the position and velocity in the context.
-  plant.GetMutablePositionsAndVelocities(multibody_plant_context_.get()) = x;
+  plant.SetPositionsAndVelocities(multibody_plant_context_.get(), x);
 
   if (this->is_pure_gravity_compensation()) {
     output->get_mutable_value() =

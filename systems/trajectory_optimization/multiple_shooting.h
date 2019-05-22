@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -8,11 +9,11 @@
 
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
+#include "drake/common/drake_deprecated.h"
 #include "drake/common/symbolic.h"
 #include "drake/common/trajectories/piecewise_polynomial.h"
 #include "drake/solvers/mathematical_program.h"
-#include "drake/systems/framework/context.h"
-#include "drake/systems/framework/system.h"
+#include "drake/systems/trajectory_optimization/sequential_expression_manager.h"
 
 namespace drake {
 namespace systems {
@@ -38,7 +39,7 @@ class MultipleShooting : public solvers::MathematicalProgram {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(MultipleShooting)
 
-  ~MultipleShooting() override {}
+  virtual ~MultipleShooting() {}
 
   /// Returns the decision variable associated with the timestep, h, at time
   /// index @p index.
@@ -111,11 +112,28 @@ class MultipleShooting : public solvers::MathematicalProgram {
     return u_vars_.segment(index * num_inputs_, num_inputs_);
   }
 
+  /// Adds a sequential variable (a variable that has associated decision
+  /// variables for each time index) to the optimization problem and returns a
+  /// placeholder variable (not actually declared as a decision variable in the
+  /// MathematicalProgram).  This variable will be substituted for real decision
+  /// variables at particular times in methods like AddRunningCost().  Passing
+  /// this variable directly into objectives/constraints for the parent classes
+  /// will result in an error.
+  solvers::VectorXDecisionVariable NewSequentialVariable(
+      int rows, const std::string& name);
+
+  /// Returns the decision variables associated with the sequential variable
+  /// `name` at time index `index`.
+  /// @see NewSequentialVariable().
+  solvers::VectorXDecisionVariable GetSequentialVariableAtIndex(
+      const std::string& name, int index) const;
+
   /// Adds an integrated cost to all time steps, of the form
   ///    @f[ cost = \int_0^T g(t,x,u) dt, @f]
   /// where any instances of time(), state(), and/or input() placeholder
-  /// variables are substituted with the relevant variables for each current
-  /// time index.  The particular integration scheme is determined by the
+  /// variables, as well as placeholder variables returned by calls to
+  /// NewSequentialVariable(), are substituted with the relevant variables for
+  /// each time index.  The particular integration scheme is determined by the
   /// derived class implementation.
   void AddRunningCost(const symbolic::Expression& g) { DoAddRunningCost(g); }
 
@@ -128,8 +146,9 @@ class MultipleShooting : public solvers::MathematicalProgram {
   }
 
   /// Adds a constraint to all knot points, where any instances of time(),
-  /// state(), and/or input() placeholder variables are substituted with the
-  /// relevant variables for each current time index.
+  /// state(), and/or input() placeholder variables, as well as placeholder
+  /// variables returned by calls to NewSequentialVariable(), are substituted
+  /// with the relevant variables for each time index.
   void AddConstraintToAllKnotPoints(const symbolic::Formula& f) {
     for (int i = 0; i < N_; i++) {
       // TODO(russt): update this to AddConstraint once MathematicalProgram
@@ -167,8 +186,9 @@ class MultipleShooting : public solvers::MathematicalProgram {
   /// Adds a cost to the final time, of the form
   ///    @f[ cost = e(t,x,u), @f]
   /// where any instances of time(), state(), and/or input() placeholder
-  /// variables are substituted with the relevant variables for each current
-  /// time index.
+  /// variables, as well as placeholder variables returned by calls to
+  /// NewSequentialVariable(), are substituted with the relevant variables for
+  /// the final time index.
   void AddFinalCost(const symbolic::Expression& e) {
     AddCost(SubstitutePlaceholderVariables(e, N_ - 1));
   }
@@ -252,30 +272,88 @@ class MultipleShooting : public solvers::MathematicalProgram {
 
   /// Returns a vector containing the elapsed time at each knot point at the
   /// solution.
+  DRAKE_DEPRECATED("2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   Eigen::VectorXd GetSampleTimes() const {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     return GetSampleTimes(this->GetSolution(h_vars_));
+#pragma GCC diagnostic pop
+  }
+
+  Eigen::VectorXd GetSampleTimes(
+      const solvers::MathematicalProgramResult& result) const {
+    return GetSampleTimes(result.GetSolution(h_vars_));
   }
 
   /// Returns a matrix containing the input values (arranged in columns) at
   /// each knot point at the solution.
+  DRAKE_DEPRECATED("2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   Eigen::MatrixXd GetInputSamples() const;
+
+  /// Returns a matrix containing the input values (arranged in columns) at
+  /// each knot point at the solution.
+  Eigen::MatrixXd GetInputSamples(
+      const solvers::MathematicalProgramResult& result) const;
 
   /// Returns a matrix containing the state values (arranged in columns) at
   /// each knot point at the solution.
+  DRAKE_DEPRECATED("2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   Eigen::MatrixXd GetStateSamples() const;
+
+  /// Returns a matrix containing the state values (arranged in columns) at
+  /// each knot point at the solution.
+  Eigen::MatrixXd GetStateSamples(
+      const solvers::MathematicalProgramResult& result) const;
+
+  DRAKE_DEPRECATED("2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  virtual trajectories::PiecewisePolynomial<double>
+  ReconstructInputTrajectory() const = 0;
 
   /// Get the input trajectory at the solution as a PiecewisePolynomial.  The
   /// order of the trajectory will be determined by the integrator used in
   /// the dynamic constraints.  Requires that the system has at least one input
   /// port.
+  virtual trajectories::PiecewisePolynomial<double> ReconstructInputTrajectory(
+      const solvers::MathematicalProgramResult&) const {
+    // TODO(hongkai.dai): make this function an abstract virtual function, when
+    // we deprecate ReconstructInputTrajectory(). Currently I throw this error
+    // so that the derived classes in Drake can override it, and we do not break
+    // the derived class outside of drake master.
+    throw std::runtime_error(
+        "The derived class has to override this function.");
+  }
+
+  DRAKE_DEPRECATED("2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   virtual trajectories::PiecewisePolynomial<double>
-  ReconstructInputTrajectory() const = 0;
+  ReconstructStateTrajectory() const = 0;
 
   /// Get the state trajectory at the solution as a PiecewisePolynomial.  The
   /// order of the trajectory will be determined by the integrator used in
   /// the dynamic constraints.
-  virtual trajectories::PiecewisePolynomial<double>
-  ReconstructStateTrajectory() const = 0;
+  virtual trajectories::PiecewisePolynomial<double> ReconstructStateTrajectory(
+      const solvers::MathematicalProgramResult&) const {
+    // TODO(hongkai.dai): make this function an abstract virtual function, when
+    // we deprecate ReconstructStateTrajectory(). Currently I throw this error
+    // so that the derived classes in Drake can override it, and we do not break
+    // the derived class outside of drake master.
+    throw std::runtime_error(
+        "The derived class has to override this function.");
+  }
 
   double fixed_timestep() const {
     DRAKE_THROW_UNLESS(!timesteps_are_decision_variables_);
@@ -330,6 +408,10 @@ class MultipleShooting : public solvers::MathematicalProgram {
   const solvers::VectorXDecisionVariable& x_vars() const { return x_vars_; }
 
  private:
+  MultipleShooting(int num_inputs, int num_states, int num_time_samples,
+                   bool timesteps_are_decision_variables,
+                   double minimum_timestep, double maximum_timestep);
+
   virtual void DoAddRunningCost(const symbolic::Expression& g) = 0;
 
   // Helper method that performs the work for SubstitutePlaceHolderVariables
@@ -345,14 +427,16 @@ class MultipleShooting : public solvers::MathematicalProgram {
   solvers::VectorXDecisionVariable h_vars_;  // Time deltas between each
                                              // input/state sample or the empty
                                              // vector (if timesteps are fixed).
-  const solvers::VectorXDecisionVariable x_vars_;
-  const solvers::VectorXDecisionVariable u_vars_;
+  solvers::VectorXDecisionVariable x_vars_;
+  solvers::VectorXDecisionVariable u_vars_;
 
   // See description of the public time(), state(), and input() accessor methods
   // for details about the placeholder variables.
-  const solvers::VectorDecisionVariable<1> placeholder_t_var_;
-  const solvers::VectorXDecisionVariable placeholder_x_vars_;
-  const solvers::VectorXDecisionVariable placeholder_u_vars_;
+  solvers::VectorDecisionVariable<1> placeholder_t_var_;
+  solvers::VectorXDecisionVariable placeholder_x_vars_;
+  solvers::VectorXDecisionVariable placeholder_u_vars_;
+
+  internal::SequentialExpressionManager sequential_expression_manager_;
 };
 
 }  // namespace trajectory_optimization

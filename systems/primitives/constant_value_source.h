@@ -5,7 +5,6 @@
 
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/systems/framework/leaf_system.h"
 
 namespace drake {
@@ -24,17 +23,12 @@ namespace systems {
 ///
 /// They are already available to link against in the containing library.
 template <typename T>
-class ConstantValueSource : public LeafSystem<T> {
+class ConstantValueSource final : public LeafSystem<T> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(ConstantValueSource)
 
   /// @param value The constant value to emit which is copied by this system.
   explicit ConstantValueSource(const AbstractValue& value);
-
-  // TODO(jwnimmer-tri) Remove this overload on or about 2018-04-01.
-  DRAKE_DEPRECATED(
-      "Use the ConstantValueSource(const AbstractValue&) constructor instead")
-  explicit ConstantValueSource(std::unique_ptr<AbstractValue> value);
 
   /// Scalar-converting copy constructor. See @ref system_scalar_conversion.
   template <typename U>
@@ -61,11 +55,6 @@ ConstantValueSource<T>::ConstantValueSource(const AbstractValue& value)
         output->SetFrom(*source_value_);
       });
 }
-
-template <typename T>
-ConstantValueSource<T>::ConstantValueSource(
-    std::unique_ptr<AbstractValue> value)
-    : ConstantValueSource<T>(*value) {}
 
 template <typename T>
 template <typename U>

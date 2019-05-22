@@ -45,17 +45,17 @@ class PoseSmootherTest : public ::testing::Test {
     context_ = dut_->CreateDefaultContext();
     output_ = dut_->AllocateOutput();
 
-    EXPECT_EQ(dut_->get_num_input_ports(), 1);
-    EXPECT_EQ(dut_->get_num_output_ports(), 2);
+    EXPECT_EQ(dut_->num_input_ports(), 1);
+    EXPECT_EQ(dut_->num_output_ports(), 2);
   }
 
   CombinedState UpdateStateCalcOutput(
       const Isometry3d& input_pose, double input_time) {
     std::unique_ptr<AbstractValue> input(
         AbstractValue::Make(Isometry3<double>::Identity()));
-    input->SetValue(input_pose);
+    input->set_value(input_pose);
     context_->FixInputPort(0 /* input port ID*/, std::move(input));
-    context_->set_time(input_time);
+    context_->SetTime(input_time);
 
     dut_->CalcUnrestrictedUpdate(*context_, &context_->get_mutable_state());
     dut_->CalcOutput(*context_, output_.get());
@@ -66,8 +66,8 @@ class PoseSmootherTest : public ::testing::Test {
         dut_->get_smoothed_velocity_output_port().get_index());
 
     CombinedState return_state(
-        output_pose_value->GetValue<Isometry3d>(),
-        output_velocity_value->GetValue<Vector6<double>>());
+        output_pose_value->get_value<Isometry3d>(),
+        output_velocity_value->get_value<Vector6<double>>());
 
     return return_state;
   }

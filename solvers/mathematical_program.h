@@ -44,154 +44,14 @@ namespace solvers {
 
 class SolverInterface;
 
-/** @addtogroup solvers
- * @{
- * Drake wraps a number of commercial solvers (+ a few custom solvers) to
- * provide a common interface for convex optimization, mixed-integer convex
- * optimization, and other non-convex mathematical programs.
- *
- * The MathematicalProgram class handles the coordination of decision variables,
- * objectives, and constraints.  The MathematicalProgram::Solve() method
- * reflects on the accumulated objectives and constraints and will dispatch to
- * the most appropriate solver.  Alternatively, one can invoke specific solver
- * by instantiating its SolverInterface and passing the MathematicalProgram
- * directly to the SolverInterface::Solve() method.
- *
- * Our solver coverage still has many gaps, but is under active development.
- *
- * <b>Closed-form solutions</b>
- *
- * The LinearSystemSolver and EqualityConstrainedQPSolver classes provide
- * efficient closed-form solutions to these special cases.
- *
- * <b>Convex Optimization</b>
- *
- * <table>
- * <tr>
- *   <td>Solver</td>
- *   <td><a href="https://en.wikipedia.org/wiki/Linear_programming">LP</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Quadratic_programming">
- *     QP</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Second-order_cone_programming">
- *     SOCP</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Semidefinite_programming">
- *     SDP</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Sum-of-squares_optimization">
- *     SOS</a></td>
- * </tr>
- * <tr><td>&dagger; <a href="https://www.gurobi.com/products/gurobi-optimizer">
- *    Gurobi</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *    <td></td>
- *  </tr>
- * <tr><td>&dagger; <a href="https://www.mosek.com/products/mosek">
- *    Mosek</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- * </tr>
- * <tr><td> <a href="https://github.com/cvxgrp/scs">
- *    SCS</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- * </tr>
- * <tr><td> <a href="https://github.com/oxfordcontrol/osqp">
- *    OSQP</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *    <td></td>
- *    <td></td>
- * </tr>
- * </table>
- *
- * <b>Mixed-Integer Convex Optimization</b>
- *
- * <table>
- * <tr>
- *   <td>Solver</td>
- *   <td>MILP</a></td>
- *   <td>MIQP</a></td>
- *   <td>MISOCP</a></td>
- *   <td>MISDP</a></td>
- * </tr>
- * <tr><td>&dagger; <a href="https://www.gurobi.com/products/gurobi-optimizer">
- *    Gurobi</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *  </tr>
- * <tr><td>&dagger; <a href="https://www.mosek.com/products/mosek">
- *    Mosek</a></td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td align="center">&diams;</td>
- *    <td></td>
- * </tr>
- * </table>
- *
- * <b>Nonconvex Programming</b>
- *
- * <table>
- * <tr>
- *   <td>Solver</td>
- *   <td><a href="https://en.wikipedia.org/wiki/Nonlinear_programming">
- *     Nonlinear Program</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Linear_complementarity_problem">
- *   LCP</a></td>
- *   <td><a href="https://en.wikipedia.org/wiki/Satisfiability_modulo_theories">
- *     SMT</a></td>
- * </tr>
- * <tr><td>&dagger;
- *   <a href="http://www.sbsi-sol-optimize.com/asp/sol_product_snopt.htm">
- *    SNOPT</a></td></tr>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *    <td></td>
- * <tr><td><a href="https://projects.coin-or.org/Ipopt">Ipopt</a></td></tr>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *    <td></td>
- * <tr><td><a href="http://ab-initio.mit.edu/wiki/index.php/NLopt">
- *    NLopt</a></td></tr>
- *    <td align="center">&diams;</td>
- *    <td></td>
- *    <td></td>
- * <tr><td><a href="https://github.com/PositronicsLab/Moby">
- *    Moby LCP</a></td>
- *    <td></td>
- *    <td align="center">&diams;</td>
- *    <td></td>
- * <tr><td><a href="https://dreal.github.io/">dReal</a></td>
- *    <td></td>
- *    <td></td>
- *    <td align="center">&diams;</td>
- * </tr>
- * </table>
- *
- * &dagger; indicates that this is a commercial solver which requires a license
- * (note that some have free licenses for academics).
- * @}
- */
-class MathematicalProgram;
-
 template <int...>
 struct NewVariableNames {};
 /**
-   * The type of the names for the newly added variables.
-   * @tparam Size If Size is a fixed non-negative integer, then the type of the
-   * name is std::array<std::string, Size>. Otherwise the type is
-   * std::vector<std::string>.
-   */
+ * The type of the names for the newly added variables.
+ * @tparam Size If Size is a fixed non-negative integer, then the type of the
+ * name is std::array<std::string, Size>. Otherwise the type is
+ * std::vector<std::string>.
+ */
 template <int Size>
 struct NewVariableNames<Size> {
   typedef std::array<std::string, Size> type;
@@ -280,8 +140,8 @@ struct assert_if_is_constraint {
 
 /**
  * MathematicalProgram stores the decision variables, the constraints and costs
- * of an optimization problem. The user can solve the problem by calling Solve()
- * function, and obtain the results of the optimization.
+ * of an optimization problem. The user can solve the problem by calling
+ * solvers::Solve() function, and obtain the results of the optimization.
  *
  * @ingroup solvers
  */
@@ -1092,6 +952,72 @@ class MathematicalProgram {
   Binding<Cost> AddCost(const symbolic::Expression& e);
 
   /**
+   * Adds the cost to maximize the log determinant of symmetric matrix X.
+   * log(det(X)) is a concave function of X, so we can maximize it through
+   * convex optimization. In order to do that, we introduce slack variables t,
+   * and a lower triangular matrix Z, with the constraints
+   * ⌈X         Z⌉ is positive semidifinite.
+   * ⌊Zᵀ  diag(Z)⌋
+   * log(Z(i, i)) >= t(i)
+   * and we will minimize -∑ᵢt(i).
+   * @param X A symmetric positive semidefinite matrix X, whose log(det(X)) will
+   * be maximized.
+   * @pre X is a symmetric matrix.
+   * @note The constraint log(Z(i, i)) >= t(i) is imposed as an exponential cone
+   * constraint. Please make sure your have a solver that supports exponential
+   * cone constraint (currently SCS does).
+   */
+  void AddMaximizeLogDeterminantSymmetricMatrixCost(
+      const Eigen::Ref<const MatrixX<symbolic::Expression>>& X);
+
+  /**
+   * @anchor maximize_geometric_mean
+   * @name    Maximize geometric mean
+   * Adds the cost to maximize the geometric mean of z = Ax+b, i.e.
+   * power(∏ᵢz(i), 1/n), where z ∈ ℝⁿ, z(i) >= 0. Mathematically, the cost we
+   * add is -power(∏ᵢz(i), 1/r), where r = power(2, ceil(log₂n)), namely r is
+   * the smallest power of 2 that is no smaller than the size of z. For example,
+   * if z ∈ ℝ², then the added cost is -power(z(0)*z(1), 1/2) if z ∈ ℝ³, then
+   * the added cost is -power(z(0)*z(1)*z(2), 1/4).
+   *
+   * In order to add this cost, we need to introduce a set of second-order cone
+   * constraints. For example, to maximize power(z(0) * z(1), 1/2), we
+   * introduce the slack variable w(0), together with the second order cone
+   * constraint w(0)² ≤ z(0) * z(1), z(0) ≥ 0, z(1) ≥ 0, and we maximize w(0).
+   *
+   * To maximize power(z(0) * z(1) * z(2), 1/ 4), we introduce the slack
+   * variable w(0), w(1), w(2), together with the second order cone constraints
+   * <pre>
+   * w(0)² ≤ z(0) * z(1), z(0) ≥ 0, z(1) ≥ 0
+   * w(1)² ≤ z(2), z(2) ≥ 0
+   * w(2)² ≤ w(0) * w(1), w(0) ≥ 0, w(1) ≥ 0
+   * </pre>
+   * and we maximize w(2).
+   */
+  //@{
+  /**
+   * An overloaded version of @ref maximize_geometric_mean.
+   * @pre A.rows() == b.rows(), A.rows() >= 2.
+   */
+  void AddMaximizeGeometricMeanCost(
+      const Eigen::Ref<const Eigen::MatrixXd>& A,
+      const Eigen::Ref<const Eigen::VectorXd>& b,
+      const Eigen::Ref<const VectorX<symbolic::Variable>>& x);
+
+  /**
+   * An overloaded version of @ref maximize_geometric_mean.
+   * We add the cost to maximize the geometric mean of x, i.e., c*power(∏ᵢx(i),
+   * 1/n).
+   * @param c The positive coefficient of the geometric mean cost, @default
+   * is 1.
+   * @pre x.rows() >= 2.
+   * @pre c > 0.
+   */
+  void AddMaximizeGeometricMeanCost(
+      const Eigen::Ref<const VectorX<symbolic::Variable>>& x, double c = 1.0);
+  //@}
+
+  /**
    * Adds a generic constraint to the program.  This should
    * only be used if a more specific type of constraint is not
    * available, as it may require the use of a significantly more
@@ -1491,7 +1417,7 @@ class MathematicalProgram {
    * Example: to add two equality constraints which only depend on two of the
    * elements of x, you could use
    * @code{.cc}
-   *   auto x = prog.NewContinuousDecisionVariable(6,"myvar");
+   *   auto x = prog.NewContinuousVariables(6,"myvar");
    *   Eigen::Matrix2d Aeq;
    *   Aeq << -1, 2,
    *           1, 1;
@@ -1521,7 +1447,7 @@ class MathematicalProgram {
    * Example: to add two equality constraints which only depend on two of the
    * elements of x, you could use
    * @code{.cc}
-   *   auto x = prog.NewContinuousDecisionVariable(6,"myvar");
+   *   auto x = prog.NewContinuousVariables(6,"myvar");
    *   Eigen::Matrix2d Aeq;
    *   Aeq << -1, 2,
    *           1, 1;
@@ -1594,8 +1520,8 @@ class MathematicalProgram {
    * Example
    * \code{.cc}
    * MathematicalProgram prog;
-   * auto x = prog.NewContinuousDecisionVariables<2>("x");
-   * auto y = prog.NewContinuousDecisionVariables<1>("y");
+   * auto x = prog.NewContinuousVariables<2>("x");
+   * auto y = prog.NewContinuousVariables<1>("y");
    * Eigen::Vector3d lb(0, 1, 2);
    * Eigen::Vector3d ub(1, 2, 3);
    * // Imposes the constraint
@@ -2243,26 +2169,23 @@ class MathematicalProgram {
   /**
    * Adds constraints that a given polynomial @p p is a sums-of-squares (SOS),
    * that is, @p p can be decomposed into `mᵀQm`, where m is the @p
-   * monomial_basis. It returns a pair expressing:
-   *
-   *  - The coefficients matrix Q, which is positive semidefinite.
-   *  - The coefficients matching conditions in linear equality constraint.
+   * monomial_basis. It returns the coefficients matrix Q, which is positive
+   * semidefinite.
    */
-  std::pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
-  AddSosConstraint(
+  MatrixXDecisionVariable AddSosConstraint(
       const symbolic::Polynomial& p,
       const Eigen::Ref<const VectorX<symbolic::Monomial>>& monomial_basis);
 
   /**
    * Adds constraints that a given polynomial @p p is a sums-of-squares (SOS),
-   * that is, @p p can be decomposed into `mᵀQm`, where m is the monomial
-   * basis of all indeterminates in the program with degree equal to half the
-   * TotalDegree of @p p. It returns a pair of constraint bindings expressing:
+   * that is, @p p can be decomposed into `mᵀQm`, where m is a monomial
+   * basis selected from the sparsity of @p p. It returns a pair of constraint
+   * bindings expressing:
    *
    *  - The coefficients matrix Q, which is positive semidefinite.
-   *  - The coefficients matching conditions in linear equality constraint.
+   *  - The monomial basis m.
    */
-  std::pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
+  std::pair<MatrixXDecisionVariable, VectorX<symbolic::Monomial>>
   AddSosConstraint(const symbolic::Polynomial& p);
 
   /**
@@ -2270,34 +2193,59 @@ class MathematicalProgram {
    * sums-of-squares (SOS), that is, @p p can be decomposed into `mᵀQm`,
    * where m is the @p monomial_basis.  Note that it decomposes @p e into a
    * polynomial with respect to `indeterminates()` in this mathematical
-   * program. It returns a pair of constraint bindings expressing:
-   *
-   *  - The coefficients matrix Q, which is positive semidefinite.
-   *  - The coefficients matching conditions in linear equality constraint.
+   * program. It returns the coefficients matrix Q, which is positive
+   * semidefinite.
    */
-  std::pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
-  AddSosConstraint(
+  MatrixXDecisionVariable AddSosConstraint(
       const symbolic::Expression& e,
       const Eigen::Ref<const VectorX<symbolic::Monomial>>& monomial_basis);
 
   /**
    * Adds constraints that a given symbolic expression @p e is a sums-of-squares
-   * (SOS), that is, @p e can be decomposed into `mTQm`. Note that it decomposes
+   * (SOS), that is, @p e can be decomposed into `mᵀQm`. Note that it decomposes
    * @p e into a polynomial with respect to `indeterminates()` in this
-   * mathematical program. It returns a pair of
-   * constraint bindings expressing:
+   * mathematical program. It returns a pair expressing:
    *
    *  - The coefficients matrix Q, which is positive semidefinite.
-   *  - The coefficients matching conditions in linear equality constraint.
+   *  - The monomial basis m.
    */
-  std::pair<MatrixXDecisionVariable, Binding<LinearEqualityConstraint>>
+  std::pair<MatrixXDecisionVariable, VectorX<symbolic::Monomial>>
   AddSosConstraint(const symbolic::Expression& e);
 
-  // template <typename FunctionType>
-  // void AddCost(std::function..);
-  // void AddLinearCost(const Eigen::MatrixBase<Derived>& c, const vector<const
-  // DecisionVariable&>& vars)
-  // void addQuadraticCost ...
+  /**
+   * Adds the exponential cone constraint that
+   * z = binding.evaluator()->A() * binding.variables() +
+   *     binding.evaluator()->b()
+   * should be in the exponential cone. Namely
+   * {(z₀, z₁, z₂) | z₀ ≥ z₁ * exp(z₂ / z₁), z₁ > 0}.
+   * @param binding The binding of ExponentialConeConstraint and its bound
+   * variables.
+   *
+   * @exclude_from_pydrake_mkdoc{Not bound in pydrake.}
+   */
+  Binding<ExponentialConeConstraint> AddConstraint(
+      const Binding<ExponentialConeConstraint>& binding);
+
+  /**
+   * Adds an exponential cone constraint, that z = A * vars + b should be in
+   * the exponential cone. Namely {z₀, z₁, z₂ | z₀ ≥ z₁ * exp(z₂ / z₁), z₁ >
+   * 0}.
+   * @param A The A matrix in the documentation above. A must have 3 rows.
+   * @param b The b vector in the documentation above.
+   * @param vars The variables bound with this constraint.
+   */
+  Binding<ExponentialConeConstraint> AddExponentialConeConstraint(
+      const Eigen::Ref<const Eigen::SparseMatrix<double>>& A,
+      const Eigen::Ref<const Eigen::Vector3d>& b,
+      const Eigen::Ref<const VectorXDecisionVariable>& vars);
+
+  /**
+   * Add the constraint that z is in the exponential cone.
+   * @param z The expression in the exponential cone.
+   * @pre each entry in `z` is a linear expression of the decision variables.
+   */
+  Binding<ExponentialConeConstraint> AddExponentialConeConstraint(
+      const Eigen::Ref<const Vector3<symbolic::Expression>>& z);
 
   /**
    * Gets the initial guess for a single variable.
@@ -2334,6 +2282,7 @@ class MathematicalProgram {
 
   /**
    * Sets the initial guess for a single variable @p decision_variable.
+   * The guess is stored as part of this program.
    * @pre decision_variable is a registered decision variable in the program.
    * @throws std::runtime_error if precondition is not satisfied.
    */
@@ -2342,14 +2291,14 @@ class MathematicalProgram {
 
   /**
    * Sets the initial guess for the decision variables stored in
-   * @p decision_variable_mat to be @p x0. Variables begin with a default
-   * initial guess of NaN to indicate that no guess is available.
+   * @p decision_variable_mat to be @p x0.
+   * The guess is stored as part of this program.
    */
   template <typename DerivedA, typename DerivedB>
   void SetInitialGuess(const Eigen::MatrixBase<DerivedA>& decision_variable_mat,
                        const Eigen::MatrixBase<DerivedB>& x0) {
-    DRAKE_ASSERT(decision_variable_mat.rows() == x0.rows());
-    DRAKE_ASSERT(decision_variable_mat.cols() == x0.cols());
+    DRAKE_DEMAND(decision_variable_mat.rows() == x0.rows());
+    DRAKE_DEMAND(decision_variable_mat.cols() == x0.cols());
     for (int i = 0; i < decision_variable_mat.rows(); ++i) {
       for (int j = 0; j < decision_variable_mat.cols(); ++j) {
         SetInitialGuess(decision_variable_mat(i, j), x0(i, j));
@@ -2370,26 +2319,50 @@ class MathematicalProgram {
   }
 
   /**
+   * Updates the value of a single @p decision_variable inside the @p values
+   * vector to be @p decision_variable_new_value.
+   * The other decision variables' values in @p values are unchanged.
+   * @param decision_variable a registered decision variable in this program.
+   * @param decision_variable_new_value the variable's new values.
+   * @param[in,out] values The vector to be tweaked; must be of size num_vars().
+   */
+  void SetDecisionVariableValueInVector(
+      const symbolic::Variable& decision_variable,
+      double decision_variable_new_value,
+      EigenPtr<Eigen::VectorXd> values) const;
+
+  /**
+   * Updates the values of some @p decision_variables inside the @p values
+   * vector to be @p decision_variables_new_values.
+   * The other decision variables' values in @p values are unchanged.
+   * @param decision_variables registered decision variables in this program.
+   * @param decision_variables_new_values the variables' respective new values;
+   *   must have the same rows() and cols() sizes and @p decision_variables.
+   * @param[in,out] values The vector to be tweaked; must be of size num_vars().
+   */
+  void SetDecisionVariableValueInVector(
+      const Eigen::Ref<const MatrixXDecisionVariable>& decision_variables,
+      const Eigen::Ref<const Eigen::MatrixXd>& decision_variables_new_values,
+      EigenPtr<Eigen::VectorXd> values) const;
+
+  /**
    * Solve the MathematicalProgram.
    *
    * @return SolutionResult indicating if the solution was successful.
    */
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   SolutionResult Solve();
-  // TODO(naveenoid) : add argument for options
 
-  //    template <typename Derived>
-  //    bool solve(const Eigen::MatrixBase<Derived>& x0);
-
-  //    getCostValue();
-  //    getExitFlag();
-  //    getInfeasibleConstraintNames();
-
-  void PrintSolution() {
-    for (int i = 0; i < num_vars(); ++i) {
-      std::cout << decision_variables_(i).get_name() << " = "
-                << GetSolution(decision_variables_(i)) << std::endl;
-    }
-  }
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  void PrintSolution();
 
   void SetSolverOption(const SolverId& solver_id,
                        const std::string& solver_option, double option_value) {
@@ -2431,7 +2404,12 @@ class MathematicalProgram {
    * Returns the ID of the solver that was used to solve this program.
    * Returns empty if Solve() has not been called.
    */
-  optional<SolverId> GetSolverId() const { return solver_id_; }
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  optional<SolverId> GetSolverId() const;
 
   /**
    * Getter for optimal cost at the solution.
@@ -2443,13 +2421,23 @@ class MathematicalProgram {
    * return some finite value as the optimal cost.
    * Otherwise, the optimal cost is NaN.
    */
-  double GetOptimalCost() const { return optimal_cost_; }
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  double GetOptimalCost() const;
 
   /**
    * Getter for lower bound on optimal cost. Defaults to -Infinity
    * if a lower bound has not been found.
    */
-  double GetLowerBoundCost() const { return lower_bound_cost_; }
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  double GetLowerBoundCost() const;
 
   /**
    * Getter for all callbacks.
@@ -2496,28 +2484,34 @@ class MathematicalProgram {
     return linear_constraints_;
   }
 
-  /** Getter for Lorentz cone constraint */
+  /** Getter for Lorentz cone constraints. */
   const std::vector<Binding<LorentzConeConstraint>>& lorentz_cone_constraints()
       const {
     return lorentz_cone_constraint_;
   }
 
-  /** Getter for rotated Lorentz cone constraint */
+  /** Getter for rotated Lorentz cone constraints. */
   const std::vector<Binding<RotatedLorentzConeConstraint>>&
   rotated_lorentz_cone_constraints() const {
     return rotated_lorentz_cone_constraint_;
   }
 
-  /** Getter for positive semidefinite constraint */
+  /** Getter for positive semidefinite constraints. */
   const std::vector<Binding<PositiveSemidefiniteConstraint>>&
   positive_semidefinite_constraints() const {
     return positive_semidefinite_constraint_;
   }
 
-  /** Getter for linear matrix inequality constraint */
+  /** Getter for linear matrix inequality constraints. */
   const std::vector<Binding<LinearMatrixInequalityConstraint>>&
   linear_matrix_inequality_constraints() const {
     return linear_matrix_inequality_constraint_;
+  }
+
+  /** Getter for exponential cone constraints. */
+  const std::vector<Binding<ExponentialConeConstraint>>&
+  exponential_cone_constraints() const {
+    return exponential_cone_constraints_;
   }
 
   /**
@@ -2577,29 +2571,6 @@ class MathematicalProgram {
     return linear_complementarity_constraints_;
   }
 
-  // Base class for solver-specific data.  A solver implementation may derive
-  // a helper class from this for use with getSolverData.
-  struct SolverData {
-    DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SolverData)
-    SolverData() = default;
-    virtual ~SolverData() = default;
-  };
-
-  // Call from solver implementations to get a persistently-stored
-  // helper structure of type T (derived from SolverData).  If no
-  // data of type T is already stored then a new one will be created
-  // and stored, replacing data from any other solver in this problem
-  // instance.
-  template <typename T>
-  std::shared_ptr<T> GetSolverData() {
-    auto p = std::dynamic_pointer_cast<T>(solver_data_);
-    if (!p) {
-      p = std::make_shared<T>();
-      solver_data_ = p;
-    }
-    return p;
-  }
-
   /** Getter for number of variables in the optimization program */
   int num_vars() const { return decision_variables_.rows(); }
 
@@ -2646,17 +2617,25 @@ class MathematicalProgram {
    * @return The value of the decision variable after solving the problem.
    */
   template <typename Derived>
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   typename std::enable_if<
       std::is_same<typename Derived::Scalar, symbolic::Variable>::value,
       Eigen::Matrix<double, Derived::RowsAtCompileTime,
                     Derived::ColsAtCompileTime>>::type
-  GetSolution(const Eigen::MatrixBase<Derived>& var) const {
+      GetSolution(const Eigen::MatrixBase<Derived>& var) const {
     Eigen::Matrix<double, Derived::RowsAtCompileTime,
                   Derived::ColsAtCompileTime>
         value(var.rows(), var.cols());
     for (int i = 0; i < var.rows(); ++i) {
       for (int j = 0; j < var.cols(); ++j) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         value(i, j) = GetSolution(var(i, j));
+#pragma GCC diagnostic pop
       }
     }
     return value;
@@ -2665,6 +2644,11 @@ class MathematicalProgram {
   /**
    * Gets the value of a single decision variable.
    */
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   double GetSolution(const symbolic::Variable& var) const;
 
   /**
@@ -2677,6 +2661,11 @@ class MathematicalProgram {
    * will be substituted by its solutions in double values, but not the
    * indeterminates.
    */
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   symbolic::Expression SubstituteSolution(const symbolic::Expression& e) const;
 
   /**
@@ -2689,6 +2678,11 @@ class MathematicalProgram {
    * will be substituted by its solutions in double values, but not the
    * indeterminates.
    */
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   symbolic::Polynomial SubstituteSolution(const symbolic::Polynomial& p) const;
 
   /**
@@ -2735,9 +2729,8 @@ class MathematicalProgram {
   template <typename C, typename DerivedX>
   typename std::enable_if<is_eigen_vector<DerivedX>::value,
                           VectorX<typename DerivedX::Scalar>>::type
-  EvalBindings(
-      const std::vector<Binding<C>>& bindings,
-      const Eigen::MatrixBase<DerivedX>& prog_var_vals) const {
+  EvalBindings(const std::vector<Binding<C>>& bindings,
+               const Eigen::MatrixBase<DerivedX>& prog_var_vals) const {
     // TODO(eric.cousineau): Minimize memory allocations when it becomes a
     // major performance bottleneck.
     using Scalar = typename DerivedX::Scalar;
@@ -2794,6 +2787,11 @@ class MathematicalProgram {
    * @return The value of @p binding at the solution value.
    */
   template <typename C>
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
   Eigen::VectorXd EvalBindingAtSolution(const Binding<C>& binding) const {
     return EvalBinding(binding, x_values_);
   }
@@ -2835,7 +2833,12 @@ class MathematicalProgram {
   // This method should be called by the derived classes of SolverInterface,
   // which is not a friend class of MathematicalProgram, as we do not want to
   // leak any of the internal details of MathematicalProgram.
-  void SetSolverResult(const SolverResult& solver_result);
+  DRAKE_DEPRECATED(
+      "2019-06-01",
+      "MathematicalProgram methods that assume the solution is stored inside "
+      "the program are deprecated; for details and porting advice, see "
+      "https://github.com/RobotLocomotion/drake/issues/9633.")
+  void SetSolverResult(const internal::SolverResult& solver_result);
 
   /// Getter for the required capability on the solver, given the
   /// cost/constraint/variable types in the program.
@@ -2854,6 +2857,7 @@ class MathematicalProgram {
 
  private:
   static void AppendNanToEnd(int new_var_size, Eigen::VectorXd* vector);
+
   // maps the ID of a symbolic variable to the index of the variable stored in
   // the optimization program.
   std::unordered_map<symbolic::Variable::Id, int> decision_variable_index_{};
@@ -2882,6 +2886,7 @@ class MathematicalProgram {
       positive_semidefinite_constraint_;
   std::vector<Binding<LinearMatrixInequalityConstraint>>
       linear_matrix_inequality_constraint_;
+  std::vector<Binding<ExponentialConeConstraint>> exponential_cone_constraints_;
 
   // Invariant:  The bindings in this list must be non-overlapping, when calling
   // Linear Complementarity solver like Moby. If this constraint is solved
@@ -2893,7 +2898,6 @@ class MathematicalProgram {
 
   Eigen::VectorXd x_initial_guess_;
   Eigen::VectorXd x_values_;
-  std::shared_ptr<SolverData> solver_data_;
   optional<SolverId> solver_id_;
   double optimal_cost_{};
   // The lower bound of the objective found by the solver, during the
@@ -2905,7 +2909,7 @@ class MathematicalProgram {
 
   ProgramAttributes required_capabilities_{};
 
-  // By tradition, our soon-to-be-deprecated mutable Solve() method reuses its
+  // By tradition, our deprecated mutable Solve() method reuses its
   // SolverInterface objects from one run to the next; doing so might improve
   // performance if the Solver retains its heap allocations from one run to the
   // next, for example.  This member field serves to keep that behavior intact

@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 #include <Eigen/Dense>
 
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_copyable.h"
+#include "drake/common/drake_deprecated.h"
 #include "drake/common/drake_throw.h"
 #include "drake/common/eigen_types.h"
 
@@ -39,24 +41,32 @@ class VectorBase {
   virtual int size() const = 0;
 
   /// Returns the element at the given index in the vector.
-  /// @throws std::runtime_error if the index is >= size().
-  ///
-  /// Implementations should ensure this operation is O(1) and allocates no
-  /// memory.
-  virtual const T& GetAtIndex(int index) const = 0;
+  /// @pre 0 <= `index` < size()
+  T& operator[](int index) { return DoGetAtIndex(index); }
 
   /// Returns the element at the given index in the vector.
-  /// @throws std::runtime_error if the index is >= size().
-  ///
-  /// Implementations should ensure this operation is O(1) and allocates no
-  /// memory.
-  virtual T& GetAtIndex(int index) = 0;
+  /// @pre 0 <= `index` < size()
+  const T& operator[](int index) const { return DoGetAtIndex(index); }
 
-  T& operator[](std::size_t idx) { return GetAtIndex(idx); }
-  const T& operator[](std::size_t idx) const { return GetAtIndex(idx); }
+  /// Returns the element at the given index in the vector.
+  /// @throws std::runtime_error if the index is >= size() or negative.
+  /// Consider operator[]() instead if bounds-checking is unwanted.
+  const T& GetAtIndex(int index) const {
+    if (index < 0) { throw std::out_of_range("VectorBase index < 0"); }
+    return DoGetAtIndex(index);
+  }
+
+  /// Returns the element at the given index in the vector.
+  /// @throws std::runtime_error if the index is >= size() or negative.
+  /// Consider operator[]() instead if bounds-checking is unwanted.
+  T& GetAtIndex(int index) {
+    if (index < 0) { throw std::out_of_range("VectorBase index < 0"); }
+    return DoGetAtIndex(index);
+  }
 
   /// Replaces the state at the given index with the value.
   /// @throws std::runtime_error if the index is >= size().
+  /// Consider operator[]() instead if bounds-checking is unwanted.
   void SetAtIndex(int index, const T& value) {
     GetAtIndex(index) = value;
   }
@@ -70,7 +80,7 @@ class VectorBase {
   virtual void SetFrom(const VectorBase<T>& value) {
     DRAKE_THROW_UNLESS(value.size() == size());
     for (int i = 0; i < value.size(); ++i) {
-      SetAtIndex(i, value.GetAtIndex((i)));
+      (*this)[i] = value[i];
     }
   }
 
@@ -82,27 +92,40 @@ class VectorBase {
   virtual void SetFromVector(const Eigen::Ref<const VectorX<T>>& value) {
     DRAKE_THROW_UNLESS(value.rows() == size());
     for (int i = 0; i < value.rows(); ++i) {
-      SetAtIndex(i, value[i]);
+      (*this)[i] = value[i];
     }
   }
 
   virtual void SetZero() {
     const int sz = size();
     for (int i = 0; i < sz; ++i) {
-      SetAtIndex(i, T(0));
+      (*this)[i] = T(0.0);
     }
   }
 
-  /// Copies the entire state to a vector with no semantics.
+  /// Copies this entire %VectorBase into a contiguous Eigen Vector.
   ///
   /// Implementations should ensure this operation is O(N) in the size of the
   /// value and allocates only the O(N) memory that it returns.
   virtual VectorX<T> CopyToVector() const {
     VectorX<T> vec(size());
     for (int i = 0; i < size(); ++i) {
-      vec[i] = GetAtIndex(i);
+      vec[i] = (*this)[i];
     }
     return vec;
+  }
+
+  /// Copies this entire %VectorBase into a pre-sized Eigen Vector.
+  ///
+  /// Implementations should ensure this operation is O(N) in the size of the
+  /// value.
+  /// @throws std::exception if `vec` is the wrong size.
+  virtual void CopyToPreSizedVector(EigenPtr<VectorX<T>> vec) const {
+    DRAKE_THROW_UNLESS(vec != nullptr);
+    DRAKE_THROW_UNLESS(vec->rows() == size());
+    for (int i = 0; i < size(); ++i) {
+      (*vec)[i] = (*this)[i];
+    }
   }
 
   /// Adds a scaled version of this vector to Eigen vector @p vec, which
@@ -113,11 +136,19 @@ class VectorBase {
   /// Implementations should ensure this operation remains O(N) in the size of
   /// the value and allocates no memory.
   virtual void ScaleAndAddToVector(const T& scale,
-                                   Eigen::Ref<VectorX<T>> vec) const {
-    if (vec.rows() != size()) {
+                                   EigenPtr<VectorX<T>> vec) const {
+    DRAKE_THROW_UNLESS(vec != nullptr);
+    if (vec->rows() != size()) {
       throw std::out_of_range("Addends must be the same size.");
     }
-    for (int i = 0; i < size(); ++i) vec[i] += scale * GetAtIndex(i);
+    for (int i = 0; i < size(); ++i) {
+      (*vec)[i] += scale * (*this)[i];
+    }
+  }
+
+  DRAKE_DEPRECATED("2019-06-01", "Use the EigenPtr overload instead.")
+  void ScaleAndAddToVector(const T& scale, Eigen::Ref<VectorX<T>> vec) const {
+    ScaleAndAddToVector(scale, &vec);
   }
 
   /// Add in scaled vector @p rhs to this vector. Both vectors must
@@ -150,22 +181,14 @@ class VectorBase {
     return PlusEqScaled(T(-1), rhs);
   }
 
-  /// Computes the infinity norm for this vector.
-  ///
-  /// You should override this method if possible with a more efficient
-  /// approach that leverages structure; the default implementation performs
-  /// element-by-element computations that are likely inefficient. If the
-  /// vector is contiguous, for example, Eigen implementations should be far
-  /// more efficient. Overriding implementations should
-  /// ensure that this operation remains O(N) in the size of
-  /// the value and allocates no memory.
+  DRAKE_DEPRECATED("2019-06-01", "Use CopyToVector + Eigen lpNorm.")
   virtual T NormInf() const {
     using std::abs;
     using std::max;
     T norm(0);
     const int count = size();
     for (int i = 0; i < count; ++i) {
-      T val = abs(GetAtIndex(i));
+      T val = abs((*this)[i]);
       norm = max(norm, val);
     }
 
@@ -185,6 +208,14 @@ class VectorBase {
  protected:
   VectorBase() {}
 
+  /// Implementations should ensure this operation is O(1) and allocates no
+  /// memory.  The index has already been checked for negative, but not size.
+  virtual const T& DoGetAtIndex(int index) const = 0;
+
+  /// Implementations should ensure this operation is O(1) and allocates no
+  /// memory.  The index has already been checked for negative, but not size.
+  virtual T& DoGetAtIndex(int index) = 0;
+
   /// Adds in multiple scaled vectors to this vector. All vectors
   /// are guaranteed to be the same size.
   ///
@@ -199,11 +230,15 @@ class VectorBase {
   virtual void DoPlusEqScaled(const std::initializer_list<
                               std::pair<T, const VectorBase<T>&>>& rhs_scale) {
     const int sz = size();
+    for (const auto& operand : rhs_scale) {
+      DRAKE_THROW_UNLESS(operand.second.size() == sz);
+    }
     for (int i = 0; i < sz; ++i) {
       T value(0);
-      for (const auto& operand : rhs_scale)
-        value += operand.second.GetAtIndex(i) * operand.first;
-      SetAtIndex(i, GetAtIndex(i) + value);
+      for (const auto& operand : rhs_scale) {
+        value += operand.second[i] * operand.first;
+      }
+      (*this)[i] += value;
     }
   }
 };
@@ -217,7 +252,7 @@ std::ostream& operator<<(std::ostream& os, const VectorBase<T>& vec) {
   for (int i = 0; i < vec.size(); ++i) {
     if (i > 0)
       os << ", ";
-    os << vec.GetAtIndex(i);
+    os << vec[i];
   }
 
   os << "]";

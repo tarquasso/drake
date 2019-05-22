@@ -1,9 +1,12 @@
 #include "pybind11/pybind11.h"
 
+#include "drake/bindings/pydrake/common/cpp_template_pybind.h"
+#include "drake/bindings/pydrake/common/default_scalars_pybind.h"
+#include "drake/bindings/pydrake/common/wrap_pybind.h"
 #include "drake/bindings/pydrake/documentation_pybind.h"
 #include "drake/bindings/pydrake/pydrake_pybind.h"
-#include "drake/bindings/pydrake/systems/systems_pybind.h"
 #include "drake/systems/analysis/integrator_base.h"
+#include "drake/systems/analysis/monte_carlo.h"
 #include "drake/systems/analysis/runge_kutta2_integrator.h"
 #include "drake/systems/analysis/runge_kutta3_integrator.h"
 #include "drake/systems/analysis/simulator.h"
@@ -82,7 +85,8 @@ PYBIND11_MODULE(analysis, m) {
             py::keep_alive<3, 1>(), doc.Simulator.ctor.doc)
         .def("Initialize", &Simulator<T>::Initialize,
             doc.Simulator.Initialize.doc)
-        .def("StepTo", &Simulator<T>::StepTo, doc.Simulator.StepTo.doc)
+        .def("AdvanceTo", &Simulator<T>::AdvanceTo, doc.Simulator.AdvanceTo.doc)
+        .def("StepTo", &Simulator<T>::StepTo, "Use AdvanceTo() instead.")
         .def("get_context", &Simulator<T>::get_context, py_reference_internal,
             doc.Simulator.get_context.doc)
         .def("get_integrator", &Simulator<T>::get_integrator,
@@ -96,7 +100,7 @@ PYBIND11_MODULE(analysis, m) {
                 std::unique_ptr<IntegratorBase<T>> integrator) {
               return self->reset_integrator(std::move(integrator));
             },
-            // Keep alive, ownership: 'Integrator' keeps 'self' alive.
+            // Keep alive, ownership: `Integrator` keeps `self` alive.
             py::keep_alive<2, 1>(),
             doc.Simulator.reset_integrator.doc_1args_stduniqueptr)
         .def("set_publish_every_time_step",
@@ -106,7 +110,44 @@ PYBIND11_MODULE(analysis, m) {
             &Simulator<T>::set_target_realtime_rate,
             doc.Simulator.set_target_realtime_rate.doc);
   };
-  type_visit(bind_scalar_types, pysystems::NonSymbolicScalarPack{});
+  type_visit(bind_scalar_types, NonSymbolicScalarPack{});
+
+  // Monte Carlo Testing
+  {
+    constexpr auto& doc = pydrake_doc.drake.systems.analysis;
+
+    m.def("RandomSimulation",
+        WrapCallbacks(
+            [](const analysis::SimulatorFactory make_simulator,
+                const analysis::ScalarSystemFunction& output, double final_time,
+                RandomGenerator* generator) -> double {
+              return analysis::RandomSimulation(
+                  make_simulator, output, final_time, generator);
+            }),
+        py::arg("make_simulator"), py::arg("output"), py::arg("final_time"),
+        py::arg("generator"), doc.RandomSimulation.doc);
+
+    py::class_<analysis::RandomSimulationResult>(
+        m, "RandomSimulationResult", doc.RandomSimulationResult.doc)
+        .def_readwrite("output", &analysis::RandomSimulationResult::output,
+            doc.RandomSimulationResult.output.doc)
+        .def_readonly("generator_snapshot",
+            &analysis::RandomSimulationResult::generator_snapshot,
+            doc.RandomSimulationResult.generator_snapshot.doc);
+
+    m.def("MonteCarloSimulation",
+        WrapCallbacks(
+            [](const analysis::SimulatorFactory make_simulator,
+                const analysis::ScalarSystemFunction& output, double final_time,
+                int num_samples, RandomGenerator* generator)
+                -> std::vector<analysis::RandomSimulationResult> {
+              return analysis::MonteCarloSimulation(
+                  make_simulator, output, final_time, num_samples, generator);
+            }),
+        py::arg("make_simulator"), py::arg("output"), py::arg("final_time"),
+        py::arg("num_samples"), py::arg("generator"),
+        doc.MonteCarloSimulation.doc);
+  }
 }
 
 }  // namespace pydrake

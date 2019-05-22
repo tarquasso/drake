@@ -122,7 +122,7 @@ TEST_F(PoseAggregatorTest, CompositeAggregation) {
 
   // Extract the output PoseBundle.
   const PoseBundle<double>& bundle =
-      output_->get_data(0)->GetValueOrThrow<PoseBundle<double>>();
+      output_->get_data(0)->get_value<PoseBundle<double>>();
   ASSERT_EQ(kNumBundlePoses + kNumSinglePoses, bundle.get_num_poses());
 
   // Check that the PoseBundle poses and velocities are passed through to the
@@ -176,15 +176,16 @@ TEST_F(PoseAggregatorTest, CompositeAggregation) {
   auto autodiff_output = autodiff_aggregator->AllocateOutput();
   autodiff_aggregator->CalcOutput(*autodiff_context, autodiff_output.get());
   const PoseBundle<AutoDiffXd>& autodiff_bundle =
-      autodiff_output->get_data(0)->GetValueOrThrow<PoseBundle<AutoDiffXd>>();
+      autodiff_output->get_data(0)->get_value<PoseBundle<AutoDiffXd>>();
   ASSERT_EQ(bundle.get_num_poses(), autodiff_bundle.get_num_poses());
   for (int i = 0; i < bundle.get_num_poses(); i++) {
-    CompareMatrices(
+    EXPECT_TRUE(CompareMatrices(
         bundle.get_pose(i).matrix(),
-        math::autoDiffToValueMatrix(autodiff_bundle.get_pose(i).matrix()));
-    CompareMatrices(bundle.get_velocity(i).get_value(),
-                    math::autoDiffToValueMatrix(
-                        autodiff_bundle.get_velocity(i).get_value()));
+        math::autoDiffToValueMatrix(autodiff_bundle.get_pose(i).matrix())));
+    EXPECT_TRUE(
+        CompareMatrices(bundle.get_velocity(i).get_value(),
+                        math::autoDiffToValueMatrix(
+                            autodiff_bundle.get_velocity(i).get_value())));
     EXPECT_EQ(bundle.get_name(i), autodiff_bundle.get_name(i));
     EXPECT_EQ(bundle.get_model_instance_id(i),
               autodiff_bundle.get_model_instance_id(i));
@@ -207,9 +208,10 @@ TEST_F(PoseAggregatorTest, AddSinglePoseAndVelocityPorts) {
 // Tests that PoseBundle supports Symbolic form.
 GTEST_TEST(PoseBundleTest, Symbolic) {
   PoseBundle<symbolic::Expression> dut{1};
-
+  multibody::SpatialVelocity<symbolic::Expression> msv =
+    dut.get_velocity(0).get_velocity();
   // Just sanity check that some element got zero-initialized.
-  const symbolic::Expression& x = dut.get_velocity(0).get_velocity()[0];
+  const symbolic::Expression& x = msv[0];
   EXPECT_TRUE(x.EqualTo(0.0));
 }
 

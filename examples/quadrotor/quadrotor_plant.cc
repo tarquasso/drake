@@ -1,12 +1,8 @@
 #include "drake/examples/quadrotor/quadrotor_plant.h"
 
-#include <memory>
-
 #include "drake/common/default_scalars.h"
-#include "drake/math/gradient.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/systems/controllers/linear_quadratic_regulator.h"
-#include "drake/util/drakeGeometryUtil.h"
 
 using Eigen::Matrix3d;
 
@@ -39,10 +35,13 @@ QuadrotorPlant<T>::QuadrotorPlant(double m_arg, double L_arg,
     : systems::LeafSystem<T>(
           systems::SystemTypeTag<quadrotor::QuadrotorPlant>{}),
       g_{9.81}, m_(m_arg), L_(L_arg), kF_(kF_arg), kM_(kM_arg), I_(I_arg) {
-  this->DeclareInputPort(systems::kVectorValued, kInputDimension);
-  this->DeclareContinuousState(kStateDimension);
-  this->DeclareVectorOutputPort(systems::BasicVector<T>(kStateDimension),
-                                &QuadrotorPlant::CopyStateOut);
+  // Four inputs -- one for each propellor.
+  this->DeclareInputPort("propellor_force", systems::kVectorValued, 4);
+  // State is x ,y , z, roll, pitch, yaw + velocities.
+  this->DeclareContinuousState(12);
+  this->DeclareVectorOutputPort("state", systems::BasicVector<T>(12),
+                                &QuadrotorPlant::CopyStateOut,
+                                {this->all_state_ticket()});
 }
 
 template <typename T>
@@ -130,12 +129,6 @@ void QuadrotorPlant<T>::DoCalcTimeDerivatives(
   derivatives->SetFromVector(xDt);
 }
 
-// Declare storage for our constants.
-template <typename T>
-constexpr int QuadrotorPlant<T>::kStateDimension;
-template <typename T>
-constexpr int QuadrotorPlant<T>::kInputDimension;
-
 std::unique_ptr<systems::AffineSystem<double>> StabilizingLQRController(
     const QuadrotorPlant<double>* quadrotor_plant,
     Eigen::Vector3d nominal_position) {
@@ -149,7 +142,7 @@ std::unique_ptr<systems::AffineSystem<double>> StabilizingLQRController(
       4, quadrotor_plant->m() * quadrotor_plant->g() / 4);
 
   quad_context_goal->FixInputPort(0, u0);
-  quadrotor_plant->set_state(quad_context_goal.get(), x0);
+  quad_context_goal->SetContinuousState(x0);
 
   // Setup LQR cost matrices (penalize position error 10x more than velocity
   // error).

@@ -205,6 +205,13 @@ const MobilizerType<T>& MultibodyTree<T>::AddMobilizer(
   // all. Consider also removing MultibodyTreeElement altogether.
   mobilizer->set_parent_tree(this, mobilizer_index);
 
+  // Mark free bodies as needed.
+  const BodyIndex outboard_body_index = mobilizer->outboard_body().index();
+  topology_.get_mutable_body(outboard_body_index).is_floating =
+      mobilizer->is_floating();
+  topology_.get_mutable_body(outboard_body_index).has_quaternion_dofs =
+      mobilizer->has_quaternion_dofs();
+
   MobilizerType<T>* raw_mobilizer_ptr = mobilizer.get();
   owned_mobilizers_.push_back(std::move(mobilizer));
   return *raw_mobilizer_ptr;
@@ -317,20 +324,20 @@ template <typename T>
 template<template<typename> class JointType, typename... Args>
 const JointType<T>& MultibodyTree<T>::AddJoint(
     const std::string& name,
-    const Body<T>& parent, const optional<Isometry3<double>>& X_PF,
-    const Body<T>& child, const optional<Isometry3<double>>& X_BM,
+    const Body<T>& parent, const optional<math::RigidTransform<double>>& X_PF,
+    const Body<T>& child, const optional<math::RigidTransform<double>>& X_BM,
     Args&&... args) {
   static_assert(std::is_base_of<Joint<T>, JointType<T>>::value,
                 "JointType<T> must be a sub-class of Joint<T>.");
 
-  const Frame<T>* frame_on_parent;
+  const Frame<T>* frame_on_parent{nullptr};
   if (X_PF) {
     frame_on_parent = &this->AddFrame<FixedOffsetFrame>(parent, *X_PF);
   } else {
     frame_on_parent = &parent.body_frame();
   }
 
-  const Frame<T>* frame_on_child;
+  const Frame<T>* frame_on_child{nullptr};
   if (X_BM) {
     frame_on_child = &this->AddFrame<FixedOffsetFrame>(child, *X_BM);
   } else {
@@ -580,7 +587,7 @@ Eigen::VectorBlock<const VectorX<T>>
 MultibodyTree<T>::get_discrete_state_vector(
     const systems::Context<T>& context) const {
   DRAKE_ASSERT(is_state_discrete());
-  DRAKE_ASSERT(context.get_num_discrete_state_groups() == 1);
+  DRAKE_ASSERT(context.num_discrete_state_groups() == 1);
   const systems::BasicVector<T>& discrete_state_vector =
       context.get_discrete_state(0);  // Only q and v.
   DRAKE_ASSERT(discrete_state_vector.size() ==
@@ -594,7 +601,7 @@ MultibodyTree<T>::get_mutable_discrete_state_vector(
     systems::Context<T>* context) const {
   DRAKE_ASSERT(context != nullptr);
   DRAKE_ASSERT(is_state_discrete());
-  DRAKE_ASSERT(context->get_num_discrete_state_groups() == 1);
+  DRAKE_ASSERT(context->num_discrete_state_groups() == 1);
   systems::BasicVector<T>& discrete_state_vector =
       context->get_mutable_discrete_state(0);  // Only q and v.
   DRAKE_ASSERT(discrete_state_vector.size() ==

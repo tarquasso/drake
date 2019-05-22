@@ -8,6 +8,7 @@
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/geometry/scene_graph.h"
 #include "drake/math/autodiff_gradient.h"
+#include "drake/math/rigid_transform.h"
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/tree/multibody_tree.h"
 #include "drake/systems/framework/diagram.h"
@@ -109,10 +110,41 @@ class TwoFreeSpheresTest : public ::testing::Test {
   FrameIndex sphere2_index_;
 
   // The pose of sphere 1's collision geometry in sphere 1's body frame.
-  Eigen::Isometry3d X_B1S1_;
+  math::RigidTransformd X_B1S1_;
   // The pose of sphere 2's collision geometry in sphere 2's body frame.
-  Eigen::Isometry3d X_B2S2_;
+  math::RigidTransformd X_B2S2_;
 
+  std::unique_ptr<systems::Context<double>> diagram_context_double_;
+  std::unique_ptr<systems::Context<AutoDiffXd>> diagram_context_autodiff_;
+  systems::Context<double>* plant_context_double_{nullptr};
+  systems::Context<AutoDiffXd>* plant_context_autodiff_{nullptr};
+};
+
+/**
+ * Compute the signed distance between a box and a sphere.
+ * @param box_size The size of the box.
+ * @param radius The radius of the sphere.
+ * @param X_WB the pose of the box (B) in the world frame (W).
+ * @param X_WS the pose of the sphere (S) in the world frame (W).
+ */
+template <typename T>
+T BoxSphereSignedDistance(const Eigen::Ref<const Eigen::Vector3d>& box_size,
+                          double radius, const math::RigidTransform<T>& X_WB,
+                          const math::RigidTransform<T>& X_WS);
+
+class BoxSphereTest : public ::testing::Test {
+ public:
+  BoxSphereTest();
+
+ protected:
+  Eigen::Vector3d box_size_;
+  double radius_{0};
+  std::unique_ptr<systems::Diagram<double>> diagram_double_;
+  std::unique_ptr<systems::Diagram<AutoDiffXd>> diagram_autodiff_;
+  MultibodyPlant<double>* plant_double_{nullptr};
+  MultibodyPlant<AutoDiffXd>* plant_autodiff_{nullptr};
+  geometry::SceneGraph<double>* scene_graph_double_{nullptr};
+  geometry::SceneGraph<AutoDiffXd>* scene_graph_autodiff_{nullptr};
   std::unique_ptr<systems::Context<double>> diagram_context_double_;
   std::unique_ptr<systems::Context<AutoDiffXd>> diagram_context_autodiff_;
   systems::Context<double>* plant_context_double_{nullptr};

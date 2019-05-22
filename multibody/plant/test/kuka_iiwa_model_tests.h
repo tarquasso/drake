@@ -48,7 +48,7 @@ class KukaIiwaModelTests : public ::testing::Test {
     // Add a frame H with a fixed pose X_EH in the end effector frame E.
     end_effector_link_ = &plant_->GetBodyByName("iiwa_link_7");
     frame_H_ = &plant_->AddFrame(std::make_unique<FixedOffsetFrame<double>>(
-        "H", *end_effector_link_, X_EH_.GetAsIsometry3()));
+        "H", *end_effector_link_, X_EH_));
     plant_->Finalize();
 
     context_ = plant_->CreateDefaultContext();
@@ -81,8 +81,7 @@ class KukaIiwaModelTests : public ::testing::Test {
         RollPitchYaw<double>(M_PI / 3, -M_PI / 2, M_PI / 8),
         Vector3<double>(0.05, -0.2, 0.05));
     plant_->SetFreeBodyPoseInAnchoredFrame(
-        context_.get(), plant_->world_frame(), base_body,
-        X_WB.GetAsIsometry3());
+        context_.get(), plant_->world_frame(), base_body, X_WB);
     // Set an arbitrary non-zero spatial velocity of the floating base link.
     const Vector3<double> w_WB{-1, 1, -1};
     const Vector3<double> v_WB{1, -1, 1};

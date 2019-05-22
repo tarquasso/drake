@@ -88,13 +88,14 @@ namespace {
 // Linearize.
 std::unique_ptr<AffineSystem<double>> DoFirstOrderTaylorApproximation(
     const System<double>& system, const Context<double>& context,
-    int input_port_index, int output_port_index,
+    variant<InputPortSelection, InputPortIndex> input_port_index,
+    variant<OutputPortSelection, OutputPortIndex> output_port_index,
     optional<double> equilibrium_check_tolerance = nullopt) {
   DRAKE_ASSERT_VOID(system.CheckValidContext(context));
 
   const bool has_only_discrete_states_contained_in_one_group =
       context.has_only_discrete_state() &&
-      context.get_num_discrete_state_groups() == 1;
+      context.num_discrete_state_groups() == 1;
   DRAKE_DEMAND(context.is_stateless() || context.has_only_continuous_state() ||
                has_only_discrete_states_contained_in_one_group);
 
@@ -114,32 +115,12 @@ std::unique_ptr<AffineSystem<double>> DoFirstOrderTaylorApproximation(
   std::unique_ptr<Context<AutoDiffXd>> autodiff_context =
       autodiff_system->CreateDefaultContext();
   autodiff_context->SetTimeStateAndParametersFrom(context);
+  autodiff_system->FixInputPortsFrom(system, context, autodiff_context.get());
 
-  // By default, use the first input / output ports (if they exist).
-  const InputPort<AutoDiffXd>* input_port = nullptr;
-  if (input_port_index == kUseFirstInputIfItExists) {
-    if (system.get_num_input_ports() > 0) {
-      input_port = &(autodiff_system->get_input_port(0));
-    }
-  } else if (input_port_index >= 0 &&
-             input_port_index < system.get_num_input_ports()) {
-    input_port = &(autodiff_system->get_input_port(input_port_index));
-  } else if (input_port_index != kNoInput) {
-    DRAKE_ABORT_MSG("Invalid input_port_index specified.");
-  }
-
-  // By default, use the first input / output ports (if they exist).
-  const OutputPort<AutoDiffXd>* output_port = nullptr;
-  if (output_port_index == kUseFirstOutputIfItExists) {
-    if (system.get_num_output_ports() > 0) {
-      output_port = &(autodiff_system->get_output_port(0));
-    }
-  } else if (output_port_index >= 0 &&
-             output_port_index < system.get_num_output_ports()) {
-    output_port = &(autodiff_system->get_output_port(output_port_index));
-  } else if (output_port_index != kNoOutput) {
-    DRAKE_ABORT_MSG("Invalid output_port_index specified.");
-  }
+  const InputPort<AutoDiffXd>* input_port =
+      autodiff_system->get_input_port_selection(input_port_index);
+  const OutputPort<AutoDiffXd>* output_port =
+      autodiff_system->get_output_port_selection(output_port_index);
 
   // Verify that the input port is not abstract valued.
   if (input_port &&
@@ -159,32 +140,6 @@ std::unique_ptr<AffineSystem<double>> DoFirstOrderTaylorApproximation(
                  ? context.get_continuous_state_vector().CopyToVector()
                  : context.get_discrete_state(0).get_value());
   const int num_states = x0.size();
-
-  // Fix autodiff'd versions of the inputs to the autodiff'd Context.
-  for (int i = 0; i < system.get_num_input_ports(); ++i) {
-    const InputPort<double>& input_port_i =
-        system.get_input_port(InputPortIndex(i));
-
-    // Look for abstract valued port.
-    if (input_port_i.get_data_type() == PortDataType::kAbstractValued) {
-      if (input_port_i.HasValue(context)) {
-        throw std::logic_error(fmt::format(
-            "Unable to linearize system with connected abstract port ({}) - "
-            "connected abstract ports not yet supported.",
-            input_port_i.get_name()));
-      }
-      continue;
-    }
-
-    // Must be a vector valued port. First look to see whether it's connected.
-    if (!input_port_i.HasValue(context)) {
-      throw std::logic_error(fmt::format(
-          "Vector-valued input port {} must be either fixed or connected to "
-          "the output of another system.", input_port_i.get_name()));
-    }
-    Eigen::VectorBlock<const VectorX<double>> u = input_port_i.Eval(context);
-    autodiff_context->FixInputPort(i, u.cast<AutoDiffXd>());
-  }
 
   Eigen::VectorXd u0 = Eigen::VectorXd::Zero(num_inputs);
   if (input_port) {
@@ -269,17 +224,12 @@ std::unique_ptr<AffineSystem<double>> DoFirstOrderTaylorApproximation(
   Eigen::VectorXd y0 = Eigen::VectorXd::Zero(num_outputs);
 
   if (output_port) {
-    std::unique_ptr<AbstractValue> autodiff_y0 = output_port->Allocate();
-    output_port->Calc(*autodiff_context, autodiff_y0.get());
-
-    auto autodiff_y0_vec =
-        autodiff_y0->GetValue<BasicVector<AutoDiffXd>>().CopyToVector();
-
-    const Eigen::MatrixXd CD = math::autoDiffToGradientMatrix(autodiff_y0_vec);
+    const auto& autodiff_y0 = output_port->Eval(*autodiff_context);
+    const Eigen::MatrixXd CD = math::autoDiffToGradientMatrix(autodiff_y0);
     C = CD.leftCols(num_states);
     D = CD.rightCols(num_inputs);
 
-    const Eigen::VectorXd y = math::autoDiffToValueMatrix(autodiff_y0_vec);
+    const Eigen::VectorXd y = math::autoDiffToValueMatrix(autodiff_y0);
 
     // Note: No tolerance check needed here.  We have defined that the output
     // for the system produced by Linearize is in the coordinates (y-y0).
@@ -295,12 +245,13 @@ std::unique_ptr<AffineSystem<double>> DoFirstOrderTaylorApproximation(
 
 std::unique_ptr<LinearSystem<double>> Linearize(
     const System<double>& system, const Context<double>& context,
-    int input_port_index, int output_port_index,
+    variant<InputPortSelection, InputPortIndex> input_port_index,
+    variant<OutputPortSelection, OutputPortIndex> output_port_index,
     double equilibrium_check_tolerance) {
   std::unique_ptr<AffineSystem<double>> affine =
-      DoFirstOrderTaylorApproximation(system, context, input_port_index,
-                                      output_port_index,
-                                      equilibrium_check_tolerance);
+      DoFirstOrderTaylorApproximation(
+          system, context, std::move(input_port_index),
+          std::move(output_port_index), equilibrium_check_tolerance);
 
   return std::make_unique<LinearSystem<double>>(affine->A(), affine->B(),
                                                 affine->C(), affine->D(),
@@ -309,9 +260,11 @@ std::unique_ptr<LinearSystem<double>> Linearize(
 
 std::unique_ptr<AffineSystem<double>> FirstOrderTaylorApproximation(
     const System<double>& system, const Context<double>& context,
-    int input_port_index, int output_port_index) {
-  return DoFirstOrderTaylorApproximation(system, context, input_port_index,
-                                         output_port_index);
+    variant<InputPortSelection, InputPortIndex> input_port_index,
+    variant<OutputPortSelection, OutputPortIndex> output_port_index) {
+  return DoFirstOrderTaylorApproximation(system, context,
+                                         std::move(input_port_index),
+                                         std::move(output_port_index));
 }
 
 /// Returns the controllability matrix:  R = [B, AB, ..., A^{n-1}B].

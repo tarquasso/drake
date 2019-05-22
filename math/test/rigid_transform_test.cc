@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include "drake/common/test_utilities/eigen_matrix_compare.h"
+
 namespace drake {
 namespace math {
 namespace {
@@ -55,7 +57,6 @@ RotationMatrix<double> GetRotationMatrixB() {
   return RotationMatrix<double>(m);
 }
 
-#ifdef DRAKE_ASSERT_IS_ARMED
 // Helper function to create an invalid rotation matrix.
 Matrix3d GetBadRotationMatrix() {
   const double theta = 0.5;
@@ -66,7 +67,6 @@ Matrix3d GetBadRotationMatrix() {
        0, -sin_theta, cos_theta;
   return m;
 }
-#endif
 
 // Helper functions to create generic position vectors.
 Vector3d GetPositionVectorA() { return Vector3d(2, 3, 4); }
@@ -85,6 +85,20 @@ RigidTransform<double> GetRigidTransformB() {
 GTEST_TEST(RigidTransform, DefaultRigidTransformIsIdentity) {
   const RigidTransform<double> X;
   EXPECT_TRUE(X.IsExactlyIdentity());
+}
+
+// This tests the conversion operator from a RigidTransform to an Isometry3.
+// This test will fail once the conversion operator is removed per
+// resolution of #9865, and thus this test should be removed as well.
+GTEST_TEST(RigidTransform, ImplicitConstructionFromIsometry3) {
+  const RotationMatrix<double> R = GetRotationMatrixB();
+  const Vector3<double> p(4, 5, 6);
+  RigidTransform<double> X(R, p);
+
+  // An implicit conversion happens here and we hold a reference to the newly
+  // created object.
+  const Isometry3<double>& Xiso = X;
+  EXPECT_TRUE(Xiso.isApprox(X.GetAsIsometry3(), 0));
 }
 
 // Tests constructing a RigidTransform from a RotationMatrix and Vector3.
@@ -108,7 +122,6 @@ GTEST_TEST(RigidTransform, ConstructorAndSet) {
   EXPECT_TRUE((zero_rotation.array() == 0).all());
   EXPECT_TRUE((zero_position.array() == 0).all());
 
-#ifdef DRAKE_ASSERT_IS_ARMED
   // Bad rotation matrix should throw exception.
   // Note: Although this test seems redundant with similar tests for the
   // RotationMatrix class, it is here due to the bug (mentioned below) in
@@ -116,9 +129,10 @@ GTEST_TEST(RigidTransform, ConstructorAndSet) {
   // an extra set of parentheses around its first argument) with the use of
   // EXPECT_THROW((RigidTransform<double>(isometryC)), std::logic_error); below.
   const Matrix3d bad = GetBadRotationMatrix();
-  EXPECT_THROW(RigidTransform<double>(RotationMatrix<double>(bad), p),
-               std::logic_error);
-#endif
+  if (kDrakeAssertIsArmed) {
+    EXPECT_THROW(RigidTransform<double>(RotationMatrix<double>(bad), p),
+                 std::logic_error);
+  }
 }
 
 // Tests constructing a RigidTransform from just a RotationMatrix.
@@ -259,7 +273,6 @@ GTEST_TEST(RigidTransform, Isometry3) {
   EXPECT_TRUE((zero_rotation.array() == 0).all());
   EXPECT_TRUE((zero_position.array() == 0).all());
 
-#ifdef DRAKE_ASSERT_IS_ARMED
   // Bad matrix should throw exception.
   const Matrix3d bad = GetBadRotationMatrix();
   Isometry3<double> isometryC;
@@ -269,8 +282,9 @@ GTEST_TEST(RigidTransform, Isometry3) {
   // The default RigidTransform constructor does not throw an exception which
   // means the EXPECT_THROW fails.  The fix (credit Sherm) was to add an extra
   // set of parentheses around the first argument of EXPECT_THROW.
-  EXPECT_THROW((RigidTransform<double>(isometryC)), std::logic_error);
-#endif
+  if (kDrakeAssertIsArmed) {
+    EXPECT_THROW((RigidTransform<double>(isometryC)), std::logic_error);
+  }
 }
 
 // Tests method Identity (identity rotation matrix and zero vector).
@@ -471,6 +485,131 @@ GTEST_TEST(RigidTransform, SymbolicRigidTransformThrowsExceptions) {
 
   test_Bool = X_symbolic.IsNearlyEqualTo(X_identity, kEpsilon);
   EXPECT_THROW(test_Bool.Evaluate(), std::runtime_error);
+}
+
+// Test constructing a RigidTransform constructor from an Eigen::Translation3.
+GTEST_TEST(RigidTransform, ConstructRigidTransformFromTranslation3) {
+  const Vector3d p_AoBo_A(1.0, 2.0, 3.0);
+  const Eigen::Translation3d translation3(p_AoBo_A);
+  const RigidTransformd X_AB(translation3);            // Explicit construction
+  const RigidTransformd X_AB_implicit = translation3;  // Implicit construction
+  EXPECT_EQ(X_AB.translation(), p_AoBo_A);
+  EXPECT_TRUE(X_AB.rotation().IsExactlyIdentity());
+  EXPECT_TRUE(X_AB.IsExactlyEqualTo(X_AB_implicit));
+}
+
+// Test multiplying a RigidTransform by an Eigen::Translation3 and vice-versa.
+GTEST_TEST(RigidTransform, OperatorMultiplyByTranslation3AndViceVersa) {
+  const Vector3d p_AoBo_A(1.0, 2.0, 3.0);
+  const RotationMatrixd R_AB(RollPitchYawd(0.3, 0.2, 0.7));
+  const RigidTransformd X_AB(R_AB, p_AoBo_A);
+
+  const Vector3d p_BoCo_B(4.0, 5.0, 9.0);
+  const Eigen::Translation3d X_BC(p_BoCo_B);
+
+  // Multiply a RigidTransform by a Translation3.
+  const RigidTransformd X_AC = X_AB * X_BC;
+
+  // Verify the rotation portion of the previous multiply.
+  const RotationMatrixd& R_AC = X_AC.rotation();
+  EXPECT_TRUE(R_AC.IsExactlyEqualTo(X_AB.rotation()));
+
+  // Verify the translation portion of the previous multiply.
+  const Vector3d p_BoCo_A = R_AB * p_BoCo_B;
+  const Vector3d p_AoCo_A = p_AoBo_A + p_BoCo_A;
+  EXPECT_TRUE(X_AC.translation().isApprox(p_AoCo_A, 32 * kEpsilon));
+
+  // Test multiplying a Translation3 by a RigidTransform.
+  const Eigen::Translation3d X_CB = X_BC.inverse();
+  const RigidTransformd X_BA = X_AB.inverse();
+  const RigidTransformd X_CA = X_CB * X_BA;
+
+  // Verify the rotation portion of the previous multiply.
+  const RotationMatrixd& R_CA = X_CA.rotation();
+  const RotationMatrixd& R_BA = X_BA.rotation();
+  EXPECT_TRUE(R_CA.IsExactlyEqualTo(R_BA));
+  const RotationMatrixd  R_CB = RotationMatrixd::Identity();
+
+  // Verify the translation portion of the previous multiply.
+  const Vector3d& p_CoBo_C = X_CB.translation();
+  const Vector3d& p_BoAo_B = X_BA.translation();
+  const Vector3d p_BoAo_C = R_CB * p_BoAo_B;
+  const Vector3d p_CoAo_C = p_CoBo_C + p_BoAo_C;
+  EXPECT_TRUE(X_CA.translation().isApprox(p_CoAo_C, 32 * kEpsilon));
+
+  // Verify X_AC is the inverse of X_CA.
+  EXPECT_TRUE(X_AC.IsNearlyEqualTo(X_CA.inverse(), 32 * kEpsilon));
+}
+
+// Tests RigidTransform X_AB multiplied by a 3 x n matrix whose columns are
+// regarded as position vectors from Bo (frame B's origin) to an arbitrary point
+// Qi, expressed in B.  The result is tested to be a 3 x n matrix whose columns
+// are position vectors from Ao (frame A's origin) to Qi, expressed in A.
+GTEST_TEST(RigidTransform, OperatorMultiplyByMatrix3X) {
+  // Create a generic RigidTransform having a rotation matrix whose elements are
+  // all non-zero elements and a position vector having all non-zero elements.
+  const RigidTransform<double> X_AB = GetRigidTransformA();
+
+  // Multiply the RigidTransform X_AB by 3 position vectors to test operator*
+  // for a 3 x n matrix, where n = 3 is known before compilation.
+  Eigen::Matrix3d p_BoQ_B;
+  const Vector3d p_BoQ1_B(-12, -9, 7);   p_BoQ_B.col(0) = p_BoQ1_B;
+  const Vector3d p_BoQ2_B(-11, -8, 10);  p_BoQ_B.col(1) = p_BoQ2_B;
+  const Vector3d p_BoQ3_B(-10, -7, 12);  p_BoQ_B.col(2) = p_BoQ3_B;
+  const auto p_AoQ_A = X_AB * p_BoQ_B;
+
+  // Ensure the compiler's declared type for p_AoQ_A has the proper number of
+  // rows and columns before compilation.  Then verify the results.
+  EXPECT_EQ(decltype(p_AoQ_A)::RowsAtCompileTime, 3);
+  EXPECT_EQ(decltype(p_AoQ_A)::ColsAtCompileTime, 3);
+  EXPECT_TRUE(CompareMatrices(p_AoQ_A.col(0), X_AB * p_BoQ1_B, kEpsilon));
+  EXPECT_TRUE(CompareMatrices(p_AoQ_A.col(1), X_AB * p_BoQ2_B, kEpsilon));
+  EXPECT_TRUE(CompareMatrices(p_AoQ_A.col(2), X_AB * p_BoQ3_B, kEpsilon));
+
+  // Multiply the RigidTransform X_AB by n position vectors to test operator*
+  // for a 3 x n matrix, where n is not known before compilation.
+  const int number_of_position_vectors = 2;
+  Eigen::Matrix3Xd p_BoP_B(3, number_of_position_vectors);
+  p_BoP_B.col(0) = p_BoQ1_B;
+  p_BoP_B.col(1) = p_BoQ2_B;
+  const auto p_AoP_A = X_AB * p_BoP_B;
+
+  // Ensure the compiler's declared type for p_AoP_A has the proper number of
+  // rows before compilation (dictated by the return type of operator*) and
+  // has the proper number of columns at run time.
+  EXPECT_EQ(decltype(p_AoP_A)::RowsAtCompileTime, 3);
+  EXPECT_EQ(p_AoP_A.cols(), number_of_position_vectors);
+  for (int i = 0; i < number_of_position_vectors; ++i) {
+    const Vector3d p_AoPi_A = p_AoP_A.col(i);
+    const Vector3d p_AoPi_A_expected = p_AoP_A.col(i);  // Previous result.
+    EXPECT_TRUE(CompareMatrices(p_AoPi_A, p_AoPi_A_expected, kEpsilon));
+  }
+
+  // Test RigidTransform operator* can multiply an Eigen expression, namely the
+  // Eigen expression arising from a 3x1 matrix multiplied by a 1x4 matrix.
+  const Eigen::MatrixXd p_AoR_A = X_AB * (Eigen::Vector3d(1, 2, 3) *
+                                          Eigen::RowVector4d(1, 2, 3, 4));
+  EXPECT_EQ(p_AoR_A.rows(), 3);
+  EXPECT_EQ(p_AoR_A.cols(), 4);
+
+  // Test RigidTransform operator* can multiply a different looking Eigen
+  // expression that produces the same result.
+  const auto p_AoR_A_expected = X_AB *
+       (Eigen::MatrixXd(3, 4) << Eigen::Vector3d(1, 2, 3),
+                                 Eigen::Vector3d(2, 4, 6),
+                                 Eigen::Vector3d(3, 6, 9),
+                                 Eigen::Vector3d(4, 8, 12)).finished();
+  EXPECT_EQ(decltype(p_AoR_A_expected)::RowsAtCompileTime, 3);
+  EXPECT_EQ(p_AoR_A_expected.cols(), 4);
+  EXPECT_TRUE(CompareMatrices(p_AoR_A, p_AoR_A_expected, kEpsilon));
+
+  // Test that operator* disallows weirdly-sized matrix multiplication.
+  if (kDrakeAssertIsArmed) {
+    Eigen::MatrixXd m_7x8(7, 8);
+    m_7x8 = Eigen::MatrixXd::Identity(7, 8);
+    Eigen::MatrixXd bad_matrix_multiply;
+    EXPECT_THROW(bad_matrix_multiply = X_AB * m_7x8, std::logic_error);
+  }
 }
 
 }  // namespace

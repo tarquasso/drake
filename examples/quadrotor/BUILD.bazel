@@ -20,13 +20,27 @@ drake_cc_library(
     srcs = ["quadrotor_plant.cc"],
     hdrs = ["quadrotor_plant.h"],
     deps = [
-        "//attic/util",
         "//common:default_scalars",
         "//math:geometric_transform",
-        "//math:gradient",
         "//systems/controllers:linear_quadratic_regulator",
         "//systems/framework:leaf_system",
         "//systems/primitives:affine_system",
+    ],
+)
+
+drake_cc_library(
+    name = "quadrotor_geometry",
+    srcs = ["quadrotor_geometry.cc"],
+    hdrs = ["quadrotor_geometry.h"],
+    data = [":models"],
+    deps = [
+        "//common:find_resource",
+        "//geometry:scene_graph",
+        "//math:geometric_transform",
+        "//multibody/parsing",
+        "//multibody/plant",
+        "//systems/framework:diagram_builder",
+        "//systems/framework:leaf_system",
     ],
 )
 
@@ -59,20 +73,16 @@ drake_cc_binary(
     name = "run_quadrotor_lqr",
     srcs = ["run_quadrotor_lqr.cc"],
     add_test_rule = 1,
-    data = [":models"],
     test_rule_args = [
         "-simulation_trials=2",
         "-simulation_real_time_rate=0.0",
     ],
     deps = [
+        ":quadrotor_geometry",
         ":quadrotor_plant",
-        "//attic/multibody:rigid_body_tree",
-        "//attic/multibody:rigid_body_tree_construction",
-        "//attic/multibody/parsers",
-        "//attic/multibody/rigid_body_plant",
-        "//attic/multibody/rigid_body_plant:drake_visualizer",
         "//common:find_resource",
         "//common:is_approx_equal_abstol",
+        "//geometry:geometry_visualization",
         "//lcm",
         "//systems/analysis:simulator",
         "//systems/framework:diagram",
@@ -94,6 +104,14 @@ drake_cc_googletest(
         "//systems/framework:diagram",
         "//systems/framework/test_utilities",
         "//systems/primitives:constant_vector_source",
+    ],
+)
+
+drake_cc_googletest(
+    name = "quadrotor_geometry_test",
+    deps = [
+        ":quadrotor_geometry",
+        ":quadrotor_plant",
     ],
 )
 

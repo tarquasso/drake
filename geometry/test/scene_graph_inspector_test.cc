@@ -49,6 +49,7 @@ GTEST_TEST(SceneGraphInspector, ExerciseEverything) {
   inspector.NumGeometriesWithRole(Role::kUnassigned);
   inspector.GetNumDynamicGeometries();
   inspector.GetNumAnchoredGeometries();
+  inspector.GetCollisionCandidates();
 
   // Source and source-related data methods.
   // Register a source to prevent exceptions being thrown.
@@ -60,8 +61,8 @@ GTEST_TEST(SceneGraphInspector, ExerciseEverything) {
 
   // Frames and their properties.
   // Register a frame to prevent exceptions being thrown.
-  const FrameId frame_id = tester.mutable_state().RegisterFrame(
-      source_id, GeometryFrame("frame", Isometry3<double>::Identity()));
+  const FrameId frame_id =
+      tester.mutable_state().RegisterFrame(source_id, GeometryFrame("frame"));
   inspector.BelongsToSource(frame_id, source_id);
   inspector.GetOwningSourceName(frame_id);
   inspector.GetName(frame_id);

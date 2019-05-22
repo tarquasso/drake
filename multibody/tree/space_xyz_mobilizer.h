@@ -5,7 +5,6 @@
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/common/eigen_types.h"
 #include "drake/multibody/tree/frame.h"
 #include "drake/multibody/tree/mobilizer_impl.h"
@@ -82,6 +81,10 @@ class SpaceXYZMobilizer final : public MobilizerImpl<T, 3, 3> {
   SpaceXYZMobilizer(const Frame<T>& inboard_frame_F,
                    const Frame<T>& outboard_frame_M) :
       MobilizerBase(inboard_frame_F, outboard_frame_M) {}
+
+  bool is_floating() const override { return true; }
+
+  bool has_quaternion_dofs() const override { return false; }
 
   /// Retrieves from `context` the three space x-y-z angles θ₁, θ₂, θ₃ which
   /// describe the state for `this` mobilizer as documented in this class's
@@ -178,7 +181,7 @@ class SpaceXYZMobilizer final : public MobilizerImpl<T, 3, 3> {
   /// Computes the across-mobilizer transform `X_FM(q)` between the inboard
   /// frame F and the outboard frame M as a function of the space x-y-z angles
   /// θ₁, θ₂, θ₃ stored in `context`.
-  Isometry3<T> CalcAcrossMobilizerTransform(
+  math::RigidTransform<T> CalcAcrossMobilizerTransform(
       const systems::Context<T>& context) const override;
 
   /// Computes the across-mobilizer velocity `V_FM(q, v)` of the outboard frame
@@ -284,14 +287,6 @@ class SpaceXYZMobilizer final : public MobilizerImpl<T, 3, 3> {
 };
 
 }  // namespace internal
-
-/// WARNING: This will be removed on or around 2019/03/01.
-template <typename T>
-using SpaceXYZMobilizer
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-    = internal::SpaceXYZMobilizer<T>;
-
 }  // namespace multibody
 }  // namespace drake
 

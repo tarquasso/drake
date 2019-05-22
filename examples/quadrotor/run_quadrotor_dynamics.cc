@@ -44,6 +44,8 @@ class Quadrotor : public systems::Diagram<T> {
   Quadrotor() {
     this->set_name("Quadrotor");
 
+    // TODO(SeanCurtis-TRI): Port this to SceneGraph pending resolution of
+    // #10775.
     auto tree = std::make_unique<RigidBodyTree<T>>();
     ModelInstanceIdTable model_id_table = AddModelInstanceFromUrdfFileToWorld(
         FindResourceOrThrow("drake/examples/quadrotor/quadrotor.urdf"),
@@ -105,7 +107,7 @@ int do_main(int argc, char* argv[]) {
   simulator.reset_integrator<systems::RungeKutta2Integrator<double>>(
       model, max_step_size, &simulator.get_mutable_context());
   simulator.Initialize();
-  simulator.StepTo(FLAGS_duration);
+  simulator.AdvanceTo(FLAGS_duration);
   return 0;
 }
 

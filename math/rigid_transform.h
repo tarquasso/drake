@@ -5,6 +5,7 @@
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_bool.h"
 #include "drake/common/drake_copyable.h"
+#include "drake/common/drake_deprecated.h"
 #include "drake/common/eigen_types.h"
 #include "drake/common/never_destroyed.h"
 #include "drake/math/rotation_matrix.h"
@@ -39,7 +40,22 @@ namespace math {
 /// operator*() methods act like 4x4 matrix multiplication.  Instead, this class
 /// contains a rotation matrix class as well as a 3x1 position vector.  To form
 /// a 4x4 matrix, use GetAsMatrix().  GetAsIsometry() is treated similarly.
+///
 /// @note An isometry is sometimes regarded as synonymous with rigid transform.
+/// The %RigidTransform class has important advantages over Eigen::Isometry.
+/// - %RigidTransform is built on an underlying rigorous 3x3 RotationMatrix
+///   class that has significant functionality for 3D orientation.
+/// - In Debug builds, %RigidTransform requires a valid 3x3 rotation matrix
+///   and a valid (non-NAN) position vector.  Eigen::Isometry does not.
+/// - %RigidTransform catches bugs that are undetected by Eigen::Isometry.
+/// - %RigidTransform has additional functionality and ease-of-use,
+///   resulting in shorter, easier to write, and easier to read code.
+/// - The name Isometry is unfamiliar to many roboticists and dynamicists and
+///   for them Isometry.linear() is (for example) a counter-intuitive method
+///   name to return a rotation matrix.
+///
+/// @note One of the constructors in this class provides an implicit conversion
+/// from an Eigen Translation to %RigidTransform.
 ///
 /// @authors Paul Mitiguy (2018) Original author.
 /// @authors Drake team (see https://drake.mit.edu/credits).
@@ -106,10 +122,24 @@ class RigidTransform {
   }
 
   /// Constructs a %RigidTransform with an identity RotationMatrix and a given
-  /// position vector 'p'.
+  /// position vector `p`.
   /// @param[in] p position vector from frame A's origin to frame B's origin,
   /// expressed in frame A.  In monogram notation p is denoted `p_AoBo_A`.
   explicit RigidTransform(const Vector3<T>& p) { set_translation(p); }
+
+  /// Constructs a %RigidTransform that contains an identity RotationMatrix and
+  /// the position vector underlying the given `translation`.
+  /// @param[in] translation translation-only transform that stores p_AoQ_A, the
+  /// position vector from frame A's origin to a point Q, expressed in frame A.
+  /// @note The constructed %RigidTransform `X_AAq` relates frame A to a frame
+  /// Aq whose basis unit vectors are aligned with Ax, Ay, Az and whose origin
+  /// position is located at point Q.
+  /// @note This constructor provides an implicit conversion from Translation to
+  /// %RigidTransform.
+  RigidTransform(  // NOLINT(runtime/explicit)
+      const Eigen::Translation<T, 3>& translation) {
+    set_translation(translation.translation());
+  }
 
   /// Constructs a %RigidTransform from an Eigen Isometry3.
   /// @param[in] pose Isometry3 that contains an allegedly valid rotation matrix
@@ -117,7 +147,7 @@ class RigidTransform {
   /// origin to frame B's origin.  `p_AoBo_A` must be expressed in frame A.
   /// @throws std::logic_error in debug builds if R_AB is not a proper
   /// orthonormal 3x3 rotation matrix.
-  /// @note no attempt is made to orthogonalize the 3x3 rotation matrix part of
+  /// @note No attempt is made to orthogonalize the 3x3 rotation matrix part of
   /// `pose`.  As needed, use RotationMatrix::ProjectToRotationMatrix().
   explicit RigidTransform(const Isometry3<T>& pose) { SetFromIsometry3(pose); }
 
@@ -136,7 +166,7 @@ class RigidTransform {
   /// origin to frame B's origin.  `p_AoBo_A` must be expressed in frame A.
   /// @throws std::logic_error in debug builds if R_AB is not a proper
   /// orthonormal 3x3 rotation matrix.
-  /// @note no attempt is made to orthogonalize the 3x3 rotation matrix part of
+  /// @note No attempt is made to orthogonalize the 3x3 rotation matrix part of
   /// `pose`.  As needed, use RotationMatrix::ProjectToRotationMatrix().
   void SetFromIsometry3(const Isometry3<T>& pose) {
     set(RotationMatrix<T>(pose.linear()), pose.translation());
@@ -275,6 +305,25 @@ class RigidTransform {
     return RigidTransform<T>(R_BA, R_BA * (-p_AoBo_A_));
   }
 
+#ifndef DRAKE_DOXYGEN_CXX
+  /// Until #9865 is resolved, this operator temporarily allows users mixing the
+  /// use of %RigidTransform with Isometry3.
+  DRAKE_DEPRECATED("2019-06-26",
+                   "Do not mix RigidTransform with Isometry3. Only use "
+                   "RigidTransform per #9865.")
+  RigidTransform<T> operator*(const Isometry3<T>& isometry3) const {
+    return *this * RigidTransform<T>(isometry3);
+  }
+
+  // DO NOT USE. These methods will soon be deprecated as #9865 is resolved.
+  // They are only provided to support backwards compatibility with
+  // Isometry3 as we migrate Drake's codebase to use RigidTransform. New uses of
+  // Isometry3 are discouraged.
+  operator Isometry3<T>() const { return GetAsIsometry3(); }
+  const Matrix3<T>& linear() const { return R_AB_.matrix(); }
+  Matrix4<T> matrix() const { return GetAsMatrix4(); }
+#endif
+
   /// In-place multiply of `this` %RigidTransform `X_AB` by `other`
   /// %RigidTransform `X_BC`.
   /// @param[in] other %RigidTransform that post-multiplies `this`.
@@ -286,21 +335,82 @@ class RigidTransform {
     return *this;
   }
 
-  /// Calculates `this` %RigidTransform `X_AB` multiplied by `other`
-  /// %RigidTransform `X_BC`.
-  /// @param[in] other %RigidTransform that post-multiplies `this`.
-  /// @retval X_AC = X_AB * X_BC
+  /// Multiplies `this` %RigidTransform `X_AB` by the `other` %RigidTransform
+  /// `X_BC` and returns the %RigidTransform `X_AC = X_AB * X_BC`.
   RigidTransform<T> operator*(const RigidTransform<T>& other) const {
     const Vector3<T> p_AoCo_A = *this * other.translation();
     return RigidTransform<T>(rotation() * other.rotation(), p_AoCo_A);
   }
 
-  /// Calculates `this` %RigidTransform `X_AB` multiplied by the position vector
-  /// 'p_BoQ_B` which is from Bo (B's origin) to an arbitrary point Q.
+  /// Multiplies `this` %RigidTransform `X_AB` by the translation-only transform
+  /// `X_BBq` and returns the %RigidTransform `X_ABq = X_AB * X_BBq`.
+  /// @note The rotation matrix in the returned %RigidTransform `X_ABq` is equal
+  /// to the rotation matrix in `X_AB`.  `X_ABq` and `X_AB` only differ by
+  /// origin location.
+  RigidTransform<T> operator*(const Eigen::Translation<T, 3>& X_BBq) const {
+    const RigidTransform<T>& X_AB = *this;
+    const Vector3<T> p_ABq_A = X_AB * X_BBq.translation();
+    return RigidTransform<T>(rotation(), p_ABq_A);
+  }
+
+  /// Multiplies the translation-only transform `X_AAq` by the %RigidTransform
+  /// `X_AqB` and returns the %RigidTransform `X_AB = X_AAq * X_AqB`.
+  /// @note The rotation matrix in the returned %RigidTransform `X_AB` is equal
+  /// to the rotation matrix in `X_AqB`.  `X_AB` and `X_AqB` only differ by
+  /// origin location.
+  friend RigidTransform<T> operator*(const Eigen::Translation<T, 3>& X_AAq,
+      const RigidTransform<T>& X_AqB) {
+    const Vector3<T>& p_AAq_A = X_AAq.translation();
+    const Vector3<T>& p_AqB_A = X_AqB.translation();
+    const Vector3<T>& p_AB_A = p_AAq_A + p_AqB_A;
+    const RotationMatrix<T>& R_AB = X_AqB.rotation();
+    return RigidTransform<T>(R_AB, p_AB_A);
+  }
+
+  /// Multiplies `this` %RigidTransform `X_AB` by the position vector
+  /// `p_BoQ_B` which is from Bo (B's origin) to an arbitrary point Q.
   /// @param[in] p_BoQ_B position vector from Bo to Q, expressed in frame B.
   /// @retval p_AoQ_A position vector from Ao to Q, expressed in frame A.
   Vector3<T> operator*(const Vector3<T>& p_BoQ_B) const {
     return p_AoBo_A_ + R_AB_ * p_BoQ_B;
+  }
+
+  /// Multiplies `this` %RigidTransform `X_AB` by the n position vectors
+  /// `p_BoQ1_B` ... `p_BoQn_B`, where `p_BoQi_B` is the iᵗʰ position vector
+  /// from Bo (frame B's origin) to an arbitrary point Qi, expressed in frame B.
+  /// @param[in] p_BoQ_B `3 x n` matrix with n position vectors `p_BoQi_B`.
+  /// @retval p_AoQ_A `3 x n` matrix with n position vectors `p_AoQi_A`, i.e., n
+  /// position vectors from Ao (frame A's origin) to Qi, expressed in frame A.
+  /// @code{.cc}
+  /// const RollPitchYaw<double> rpy(0.1, 0.2, 0.3);
+  /// const RigidTransform<double> X_AB(rpy, Vector3d(1, 2, 3));
+  /// Eigen::Matrix<double, 3, 2> p_BoQ_B;
+  /// p_BoQ_B.col(0) = Vector3d(4, 5, 6);
+  /// p_BoQ_B.col(1) = Vector3d(9, 8, 7);
+  /// const Eigen::Matrix<double, 3, 2> p_AoQ_A = X_AB * p_BoQ_B;
+  /// @endcode
+  template <typename Derived>
+  Eigen::Matrix<typename Derived::Scalar, 3, Derived::ColsAtCompileTime>
+  operator*(const Eigen::MatrixBase<Derived>& p_BoQ_B) const {
+    if (p_BoQ_B.rows() != 3) {
+      throw std::logic_error(
+          "Error: Inner dimension for matrix multiplication is not 3.");
+    }
+    // Express position vectors in terms of frame A as p_BoQ_A = R_AB * p_BoQ_B.
+    const RotationMatrix<typename Derived::Scalar> &R_AB = rotation();
+    const Eigen::Matrix<typename Derived::Scalar, 3, Derived::ColsAtCompileTime>
+        p_BoQ_A = R_AB.matrix() * p_BoQ_B;
+
+    // Reserve space (on stack on heap) to store the result.
+    const int number_of_position_vectors = p_BoQ_B.cols();
+    Eigen::Matrix<typename Derived::Scalar, 3, Derived::ColsAtCompileTime>
+        p_AoQ_A(3, number_of_position_vectors);
+
+    // Create each returned position vector as p_AoQi_A = p_AoBo_A + p_BoQi_A.
+    for (int i = 0;  i < number_of_position_vectors;  ++i)
+      p_AoQ_A.col(i) = translation() + p_BoQ_A.col(i);
+
+    return p_AoQ_A;
   }
 
   /// Compares each element of `this` to the corresponding element of `other`

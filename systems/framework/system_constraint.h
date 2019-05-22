@@ -9,7 +9,6 @@
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_bool.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/common/drake_optional.h"
 #include "drake/common/drake_throw.h"
 #include "drake/common/eigen_types.h"
@@ -126,8 +125,6 @@ using SystemConstraintCalc =
 /// system will satisfy the following (in)equalities".  Examples could
 /// include conserved quantities or joint limits on a mechanism.
 ///
-/// TODO(hongkai.dai): this class can be used to generate solvers::Constraint.
-///
 /// This class is intentionally similar to, but (so far) independent from
 /// solvers::Constraint. This is primarily because there is no notion of
 /// decision variables in the system classes (yet); rather each individual
@@ -136,6 +133,9 @@ using SystemConstraintCalc =
 /// is being formulated, and must bind the system constraint to those variables
 /// (e.g. by populating the Context with the decision variables and calling
 /// Calc).
+///
+/// We can convert a SystemConstraint to a solvers::Constraint by using
+/// SystemConstraintWrapper or SystemConstraintAdapter.
 ///
 /// @see LeafSystem<T>::DeclareEqualityConstraint and
 ///      LeafSystem<T>::DeclareInequalityConstraint for use cases.
@@ -152,11 +152,6 @@ template <typename T>
 class SystemConstraint final {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SystemConstraint)
-
-  // TODO(jwnimmer-tri) Remove this alias on or about 2019-04-01.
-  using CalcCallback
-      DRAKE_DEPRECATED("Use drake::systems::ContextConstraintCalc instead.")
-      = ContextConstraintCalc<T>;
 
   /// (Advanced) Constructs a default (zero-sized) SystemConstraint.
   ///

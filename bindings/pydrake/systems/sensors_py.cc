@@ -10,9 +10,9 @@
 #include "drake/bindings/pydrake/common/eigen_geometry_pybind.h"
 #include "drake/bindings/pydrake/common/eigen_pybind.h"
 #include "drake/bindings/pydrake/common/type_pack.h"
+#include "drake/bindings/pydrake/common/value_pybind.h"
 #include "drake/bindings/pydrake/documentation_pybind.h"
 #include "drake/bindings/pydrake/pydrake_pybind.h"
-#include "drake/bindings/pydrake/systems/systems_pybind.h"
 #include "drake/common/drake_throw.h"
 #include "drake/common/eigen_types.h"
 #include "drake/systems/sensors/camera_info.h"
@@ -123,6 +123,7 @@ PYBIND11_MODULE(sensors, m) {
       };
 
       py::class_<ImageT> image(m, TemporaryClassName<ImageT>().c_str());
+      AddTemplateClass(m, "Image", image, py_param);
       image  // BR
           .def(py::init<int, int>(), py::arg("width"), py::arg("height"),
               doc.Image.ctor.doc_2args)
@@ -142,12 +143,11 @@ PYBIND11_MODULE(sensors, m) {
       // Constants.
       image.attr("Traits") = traits;
       // - Do not duplicate aliases (e.g. `kNumChannels`) for now.
-      AddTemplateClass(m, "Image", image, py_param);
       // Add type alias for instantiation.
       const std::string suffix = pixel_type_name.substr(1);
       m.attr(("Image" + suffix).c_str()) = image;
       // Add abstract values.
-      pysystems::AddValueInstantiation<ImageT>(m);
+      AddValueInstantiation<ImageT>(m);
     };
     type_visit(instantiation_visitor, PixelTypeList{});
   }
@@ -181,8 +181,8 @@ PYBIND11_MODULE(sensors, m) {
           doc.CameraInfo.intrinsic_matrix.doc);
 
   {
-    constexpr auto& cls_doc = doc.ImageToLcmImageArrayT;
     using Class = ImageToLcmImageArrayT;
+    constexpr auto& cls_doc = doc.ImageToLcmImageArrayT;
     py::class_<Class, LeafSystem<T>> cls(
         m, "ImageToLcmImageArrayT", cls_doc.doc);
     cls  // BR

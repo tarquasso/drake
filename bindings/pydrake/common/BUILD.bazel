@@ -1,7 +1,6 @@
 # -*- python -*-
 
 load("@drake//tools/install:install.bzl", "install")
-load("//tools/lint:lint.bzl", "add_lint_tests")
 load(
     "@drake//tools/skylark:drake_cc.bzl",
     "drake_cc_googletest",
@@ -24,6 +23,7 @@ load(
     "//tools/workspace/pybind11:repository.bzl",
     "generate_pybind11_version_py_file",
 )
+load("//bindings/pydrake:pydrake.bzl", "add_lint_tests_pydrake")
 
 package(default_visibility = [
     "//bindings/pydrake:__subpackages__",
@@ -39,7 +39,10 @@ PACKAGE_INFO = get_pybind_package_info("//bindings")
 # `libdrake.so`.
 drake_pybind_library(
     name = "_init_py",
-    cc_deps = ["//bindings/pydrake:documentation_pybind"],
+    cc_deps = [
+        "//bindings/pydrake:documentation_pybind",
+        "//bindings/pydrake/common:deprecation_pybind",
+    ],
     cc_so_name = "_module_py",
     cc_srcs = ["module_py.cc"],
     package_info = PACKAGE_INFO,
@@ -80,7 +83,10 @@ drake_cc_library(
     hdrs = ["wrap_pybind.h"],
     declare_installed_headers = 0,
     visibility = ["//visibility:public"],
-    deps = [":wrap_function"],
+    deps = [
+        ":wrap_function",
+        "//:drake_shared_library",
+    ],
 )
 
 drake_py_library(
@@ -97,6 +103,33 @@ drake_cc_library(
     declare_installed_headers = 0,
     visibility = ["//visibility:public"],
     deps = ["//bindings/pydrake:pydrake_pybind"],
+)
+
+drake_cc_library(
+    name = "default_scalars_pybind",
+    hdrs = ["default_scalars_pybind.h"],
+    declare_installed_headers = 0,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":type_pack",
+        "//:drake_shared_library",
+        "//bindings/pydrake:autodiff_types_pybind",
+        "//bindings/pydrake:pydrake_pybind",
+        "//bindings/pydrake:symbolic_types_pybind",
+    ],
+)
+
+# N.B. Any C++ libraries that include this must include `cpp_template_py` when
+# being used in Python.
+drake_cc_library(
+    name = "value_pybind",
+    hdrs = ["value_pybind.h"],
+    declare_installed_headers = 0,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:drake_shared_library",
+        "//bindings/pydrake/common:cpp_template_pybind",
+    ],
 )
 
 drake_cc_library(
@@ -123,10 +156,20 @@ drake_cc_library(
 
 drake_pybind_library(
     name = "eigen_geometry_py",
-    cc_deps = [":eigen_geometry_pybind"],
+    cc_deps = [
+        ":cpp_template_pybind",
+        ":default_scalars_pybind",
+        ":eigen_geometry_pybind",
+        ":type_pack",
+    ],
     cc_srcs = ["eigen_geometry_py.cc"],
     package_info = PACKAGE_INFO,
-    py_deps = [":module_py"],
+    py_deps = [
+        ":module_py",
+        ":cpp_template_py",
+        "//bindings/pydrake:autodiffutils_py",
+        "//bindings/pydrake:symbolic_py",
+    ],
 )
 
 # ODR does not matter, because the singleton will be stored in Python.
@@ -187,6 +230,7 @@ drake_cc_library(
     hdrs = ["drake_optional_pybind.h"],
     declare_installed_headers = 0,
     visibility = ["//visibility:public"],
+    deps = ["//:drake_shared_library"],
 )
 
 drake_cc_library(
@@ -194,6 +238,7 @@ drake_cc_library(
     hdrs = ["drake_variant_pybind.h"],
     declare_installed_headers = 0,
     visibility = ["//visibility:public"],
+    deps = ["//:drake_shared_library"],
 )
 
 drake_cc_library(
@@ -325,6 +370,13 @@ drake_py_unittest(
 )
 
 drake_py_unittest(
+    name = "numpy_compare_test",
+    deps = [
+        "//bindings/pydrake/common/test_utilities:numpy_compare_py",
+    ],
+)
+
+drake_py_unittest(
     name = "cpp_const_test",
     deps = [
         ":cpp_const_py",
@@ -389,6 +441,7 @@ drake_py_unittest(
     deps = [
         ":eigen_geometry_py",
         ":eigen_geometry_test_util_py",
+        "//bindings/pydrake/common/test_utilities:numpy_compare_py",
     ],
 )
 
@@ -449,7 +502,4 @@ drake_py_unittest(
     ],
 )
 
-add_lint_tests(
-    cpplint_data = ["//bindings/pydrake:.clang-format"],
-    enable_clang_format_lint = True,
-)
+add_lint_tests_pydrake()

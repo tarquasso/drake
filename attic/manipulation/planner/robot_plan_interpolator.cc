@@ -171,8 +171,7 @@ void RobotPlanInterpolator::DoCalcUnrestrictedUpdate(
   PlanData& plan =
       state->get_mutable_abstract_state<PlanData>(kAbsStateIdxPlan);
   const robot_plan_t& plan_input =
-      this->EvalAbstractInput(context, plan_input_port_)
-          ->GetValue<robot_plan_t>();
+      get_plan_input_port().Eval<robot_plan_t>(context);
 
   // I (sam.creasey) wish I could think of a more effective way to
   // determine that a new message has arrived, but unfortunately
@@ -182,12 +181,7 @@ void RobotPlanInterpolator::DoCalcUnrestrictedUpdate(
   if (encoded_msg != plan.encoded_msg) {
     plan.encoded_msg.swap(encoded_msg);
     if (plan_input.num_states == 0) {
-      // The plan is empty.  Encode a plan for the current measured
-      // position.
-      const systems::BasicVector<double>* state_input =
-          this->EvalVectorInput(context, state_input_port_);
-      DRAKE_DEMAND(state_input);
-
+      // The plan is empty.  Encode a plan for the current planned position.
       const double current_plan_time = context.get_time() - plan.start_time;
       MakeFixedPlan(context.get_time(),
                     plan.pp.value(current_plan_time),

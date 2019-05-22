@@ -10,19 +10,14 @@ namespace systems {
 
 std::unique_ptr<ContextBase> ContextBase::Clone() const {
   std::unique_ptr<ContextBase> clone_ptr(CloneWithoutPointers(*this));
-
-  // Verify that the most-derived Context didn't forget to override
-  // DoCloneWithoutPointers().
-  const ContextBase& source = *this;  // Deref here to avoid typeid warning.
   ContextBase& clone = *clone_ptr;
-  DRAKE_DEMAND(typeid(source) == typeid(clone));
 
   // Create a complete mapping of tracker pointers.
   DependencyTracker::PointerMap tracker_map;
   BuildTrackerPointerMap(*this, clone, &tracker_map);
 
   // Then do a pointer fixup pass.
-  FixContextPointers(source, tracker_map, &clone);
+  FixContextPointers(*this, tracker_map, &clone);
   return clone_ptr;
 }
 
@@ -50,7 +45,7 @@ void ContextBase::AddInputPort(
     InputPortIndex expected_index, DependencyTicket ticket,
     std::function<void(const AbstractValue&)> fixed_input_type_checker) {
   DRAKE_DEMAND(expected_index.is_valid() && ticket.is_valid());
-  DRAKE_DEMAND(expected_index == get_num_input_ports());
+  DRAKE_DEMAND(expected_index == num_input_ports());
   DRAKE_DEMAND(input_port_tickets_.size() == input_port_values_.size());
   DRAKE_DEMAND(input_port_tickets_.size() == input_port_type_checkers_.size());
   if (!fixed_input_type_checker) {
@@ -70,7 +65,7 @@ void ContextBase::AddOutputPort(
     OutputPortIndex expected_index, DependencyTicket ticket,
     const internal::OutputPortPrerequisite& prerequisite) {
   DRAKE_DEMAND(expected_index.is_valid() && ticket.is_valid());
-  DRAKE_DEMAND(expected_index == get_num_output_ports());
+  DRAKE_DEMAND(expected_index == num_output_ports());
   auto& yi_tracker = graph_.CreateNewDependencyTracker(
       ticket, "y_" + std::to_string(expected_index));
   output_port_tickets_.push_back(ticket);
@@ -87,7 +82,7 @@ void ContextBase::AddOutputPort(
 void ContextBase::SetFixedInputPortValue(
     InputPortIndex index,
     std::unique_ptr<FixedInputPortValue> port_value) {
-  DRAKE_DEMAND(0 <= index && index < get_num_input_ports());
+  DRAKE_DEMAND(0 <= index && index < num_input_ports());
   DRAKE_DEMAND(port_value != nullptr);
 
   // Fail-fast if the user supplied the wrong type or size.

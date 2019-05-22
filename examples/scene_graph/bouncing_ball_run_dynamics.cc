@@ -89,10 +89,10 @@ int do_main() {
   init_ball(bouncing_ball1, 0.3, 0.);
   init_ball(bouncing_ball2, 0.3, 0.3);
 
-  simulator.get_mutable_integrator()->set_maximum_step_size(0.002);
+  simulator.get_mutable_integrator().set_maximum_step_size(0.002);
   simulator.set_target_realtime_rate(1.f);
   simulator.Initialize();
-  simulator.StepTo(FLAGS_simulation_time);
+  simulator.AdvanceTo(FLAGS_simulation_time);
 
   return 0;
 }

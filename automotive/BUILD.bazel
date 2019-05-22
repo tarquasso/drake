@@ -19,7 +19,6 @@ load(
 load(
     "@drake//tools/vector_gen:vector_gen.bzl",
     "drake_cc_vector_gen_library",
-    "drake_cc_vector_gen_translator_library",
 )
 load("//tools/lint:lint.bzl", "add_lint_tests")
 
@@ -36,7 +35,6 @@ drake_cc_package_library(
         ":curve2",
         ":driving_command_mux",
         ":dynamic_bicycle_car",
-        ":generated_translators",
         ":generated_vectors",
         ":idm_controller",
         ":idm_planner",
@@ -44,7 +42,6 @@ drake_cc_package_library(
         ":maliput_railcar",
         ":mobil_planner",
         ":multilane_onramp_merge",
-        ":phase_based_right_of_way_state_provider",
         ":pose_selector",
         ":pure_pursuit",
         ":pure_pursuit_controller",
@@ -55,7 +52,6 @@ drake_cc_package_library(
         ":trajectory",
         ":trajectory_car",
         ":trajectory_follower",
-        ":trivial_right_of_way_state_provider",
     ],
 )
 
@@ -84,17 +80,6 @@ drake_cc_vector_gen_library(
         "simple_car_params.named_vector",
         "trajectory_car_params.named_vector",
     ] + _LCM_ENABLED_NAMED_VECTORS,
-)
-
-drake_cc_vector_gen_translator_library(
-    name = "generated_translators",
-    srcs = _LCM_ENABLED_NAMED_VECTORS,
-    deprecation = "The LcmAndVectorBaseTranslator and its related code are deprecated, and will be removed on 2019-05-01.",  # noqa
-    tags = ["manual"],  # Avoid 'build //...' yelling at us.
-    deps = [
-        ":generated_vectors",
-        "//lcmtypes:automotive",
-    ],
 )
 
 drake_cc_library(
@@ -400,34 +385,6 @@ drake_cc_library(
 )
 
 drake_cc_library(
-    name = "phase_based_right_of_way_state_provider",
-    srcs = [
-        "phase_based_right_of_way_state_provider.cc",
-    ],
-    hdrs = [
-        "phase_based_right_of_way_state_provider.h",
-    ],
-    deps = [
-        "//automotive/maliput/api",
-        "//common:essential",
-    ],
-)
-
-drake_cc_library(
-    name = "trivial_right_of_way_state_provider",
-    srcs = [
-        "trivial_right_of_way_state_provider.cc",
-    ],
-    hdrs = [
-        "trivial_right_of_way_state_provider.h",
-    ],
-    deps = [
-        "//automotive/maliput/api",
-        "//common:essential",
-    ],
-)
-
-drake_cc_library(
     name = "automotive_simulator",
     srcs = ["automotive_simulator.cc"],
     hdrs = ["automotive_simulator.h"],
@@ -441,7 +398,6 @@ drake_cc_library(
         ":pure_pursuit_controller",
         ":simple_car",
         ":trajectory_car",
-        ":trivial_right_of_way_state_provider",
         "//automotive/maliput/api",
         "//automotive/maliput/utility",
         "//common:temp_directory",
@@ -451,7 +407,6 @@ drake_cc_library(
         "//lcmtypes:lcmtypes_drake_cc",
         "//systems/analysis",
         "//systems/lcm:lcm_pubsub_system",
-        "//systems/lcm:lcmt_drake_signal_translator",
         "//systems/primitives:constant_value_source",
         "//systems/rendering:pose_aggregator",
         "//systems/rendering:pose_bundle_to_draw_message",
@@ -735,24 +690,8 @@ drake_cc_googletest(
         ":simple_car",
         "//common/proto:call_matlab",
         "//common/test_utilities:eigen_matrix_compare",
+        "//solvers:solve",
         "//systems/trajectory_optimization:direct_collocation",
-    ],
-)
-
-drake_cc_googletest(
-    name = "phase_based_right_of_way_state_provider_test",
-    deps = [
-        ":phase_based_right_of_way_state_provider",
-        "//automotive/maliput/simple_phase_book",
-        "//automotive/maliput/simple_phase_provider",
-    ],
-)
-
-drake_cc_googletest(
-    name = "trivial_right_of_way_state_provider_test",
-    deps = [
-        ":trivial_right_of_way_state_provider",
-        "//automotive/maliput/api/test_utilities:rules_test_utilities",
     ],
 )
 

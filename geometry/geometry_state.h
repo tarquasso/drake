@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -123,6 +124,9 @@ class GeometryState {
 
   /** Implementation of SceneGraphInspector::GetNumAnchoredGeometries().  */
   int GetNumAnchoredGeometries() const;
+
+  /** Implementation of SceneGraphInspector::GetCollisionCandidates().  */
+  std::set<std::pair<GeometryId, GeometryId>> GetCollisionCandidates() const;
 
   //@}
 
@@ -388,6 +392,12 @@ class GeometryState {
         geometry_index_to_id_map_);
   }
 
+  /** See QueryObject::ComputeContactSurfaces() for documentation.  */
+  std::vector<ContactSurface<T>> ComputeContactSurfaces() const {
+    return geometry_engine_->ComputeContactSurfaces(
+        geometry_index_to_id_map_);
+  }
+
   //@}
 
   /** @name               Proximity filters
@@ -415,37 +425,28 @@ class GeometryState {
   //---------------------------------------------------------------------------
   /** @name                Signed Distance Queries
 
-  Refer to @ref signed_distance_query "Signed Distance Queries" for more details.
-  */
+   Refer to @ref signed_distance_query "Signed Distance Queries" for more
+   details.  */
 
   //@{
 
-  /**
-   * Computes the signed distance together with the witness points across all
-   * pairs of geometries in the world. Reports both the separating geometries
-   * and penetrating geometries.
-   * @retval witness_pairs A vector of reporting the signed distance
-   * characterized as witness point pairs. Notice that this is an O(N²)
-   * operation, where N is the number of geometries in the world. We report the
-   * distance between dynamic objects, or between a dynamic object and an
-   * anchored object. We DO NOT report the distance between two anchored
-   * objects.
-   */
-  std::vector<SignedDistancePair<double>>
-  ComputeSignedDistancePairwiseClosestPoints() const {
+  /** Supporting function for
+   QueryObject::ComputeSignedDistancePairwiseClosestPoints().  */
+  std::vector<SignedDistancePair<T>>
+  ComputeSignedDistancePairwiseClosestPoints(const double max_distance) const {
     return geometry_engine_->ComputeSignedDistancePairwiseClosestPoints(
-        geometry_index_to_id_map_);
+        geometry_index_to_id_map_, X_WG_, max_distance);
   }
 
-  /** Performs work in support of QueryObject::ComputeSignedDistanceToPoint().
-   */
-  std::vector<SignedDistanceToPoint<double>>
+  /** Supporting function for QueryObject::ComputeSignedDistanceToPoint().  */
+  std::vector<SignedDistanceToPoint<T>>
   ComputeSignedDistanceToPoint(
-      const Vector3<double> &p_WQ,
+      const Vector3<T> &p_WQ,
       const double threshold) const {
     return geometry_engine_->ComputeSignedDistanceToPoint(
-        p_WQ, geometry_index_to_id_map_, threshold);
+        p_WQ, geometry_index_to_id_map_, X_WG_, threshold);
   }
+
   //@}
 
   /** @name Scalar conversion  */
@@ -538,16 +539,19 @@ class GeometryState {
 
   // Sets the kinematic poses for the frames indicated by the given ids.
   // @param poses The frame id and pose values.
+  // @pre source_id is a registered source.
   // @throws std::logic_error  If the ids are invalid as defined by
   // ValidateFrameIds().
-  void SetFramePoses(const FramePoseVector<T>& poses);
+  void SetFramePoses(SourceId source_id, const FramePoseVector<T>& poses);
 
   // Confirms that the set of ids provided include _all_ of the frames
   // registered to the set's source id and that no extra frames are included.
   // @param values The kinematics values (ids and values) to validate.
+  // @pre source_id is a registered source.
   // @throws std::runtime_error if the set is inconsistent with known topology.
   template <typename ValueType>
-  void ValidateFrameIds(const FrameKinematicsVector<ValueType>& values) const;
+  void ValidateFrameIds(SourceId source_id,
+                        const FrameKinematicsVector<ValueType>& values) const;
 
   // Method that performs any final book-keeping/updating on the state after
   // _all_ of the state's frames have had their poses updated.
@@ -707,6 +711,7 @@ class GeometryState {
   // frame Fₖ, and the world frame W is the parent of frame Fₙ.
   // In other words, it is the full evaluation of the kinematic chain from the
   // geometry to the world frame.
+  // TODO(SeanCurtis-TRI): Rename this to X_WGs_ to reflect multiplicity.
   std::vector<Isometry3<T>> X_WG_;
 
   // The pose of each frame relative to the _world_ frame.

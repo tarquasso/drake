@@ -28,6 +28,7 @@ GTEST_TEST(CompassGaitTest, TestEnergyConservedInSwing) {
   CompassGait<Expression> cg;
 
   auto context = cg.CreateDefaultContext();
+  cg.get_input_port(0).FixValue(context.get(), Vector1<Expression>(0.0));
   CompassGaitContinuousState<Expression>& state =
       cg.get_mutable_continuous_state(context.get());
 
@@ -53,6 +54,38 @@ GTEST_TEST(CompassGaitTest, TestEnergyConservedInSwing) {
 
     EXPECT_NEAR(energy_dot.Evaluate(e), 0.0, 2e-13);
   }
+}
+
+GTEST_TEST(CompassGaitTest, TestHipTorque) {
+  // Position the compass gait with the swing leg horizontal (straight
+  // forward), and the center of mass over the foot.  This should be a fixed
+  // point with the torque balancing the swing leg:
+  //  hip_torque = mass_leg * gravity * center_of_mass_leg.
+  // x position of the center of mass = 0 =>
+  //  sin(stance) * (mass_leg * center_of_mass_leg
+  //    + (mass_leg + mass_hip) * length_leg) = mass_leg * center_of_mass_leg
+
+  CompassGait<double> cg;
+
+  auto context = cg.CreateDefaultContext();
+  const CompassGaitParams<double>& params = cg.get_parameters(*context);
+  cg.get_input_port(0).FixValue(
+      context.get(), Vector1<double>(params.mass_leg() * params.gravity() *
+                                     params.center_of_mass_leg()));
+  CompassGaitContinuousState<double>& state =
+      cg.get_mutable_continuous_state(context.get());
+  state.set_stance(std::asin(
+      params.mass_leg() * params.center_of_mass_leg() /
+      (params.mass_leg() * params.center_of_mass_leg() +
+       (params.mass_leg() + params.mass_hip()) * params.length_leg())));
+  state.set_swing(M_PI_2);
+  state.set_stancedot(0.0);
+  state.set_swingdot(0.0);
+
+  const VectorX<double> derivatives =
+      cg.EvalTimeDerivatives(*context).CopyToVector();
+
+  EXPECT_TRUE(CompareMatrices(derivatives, Eigen::Vector4d::Zero(), 1e-15));
 }
 
 GTEST_TEST(CompassGaitTest, TestCollisionGuard) {
@@ -184,9 +217,9 @@ GTEST_TEST(CompassGaitTest, TestMinimalStateOutput) {
       cg.get_mutable_continuous_state(context.get());
 
   auto output = cg.get_minimal_state_output_port().Allocate();
-  EXPECT_NO_THROW(output->GetValueOrThrow<systems::BasicVector<double>>());
+  EXPECT_NO_THROW(output->get_value<systems::BasicVector<double>>());
   const systems::BasicVector<double>& minimal_state =
-      output->GetValueOrThrow<systems::BasicVector<double>>();
+      output->get_value<systems::BasicVector<double>>();
 
   state.set_stance(1.);
   state.set_swing(2.);
@@ -196,6 +229,8 @@ GTEST_TEST(CompassGaitTest, TestMinimalStateOutput) {
   cg.get_minimal_state_output_port().Calc(*context, output.get());
   EXPECT_TRUE(CompareMatrices(minimal_state.CopyToVector(),
                               state.CopyToVector(), 1e-14));
+  EXPECT_FALSE(
+      cg.HasDirectFeedthrough(cg.get_minimal_state_output_port().get_index()));
 }
 
 GTEST_TEST(CompassGaitTest, TestFloatBaseOutput) {
@@ -206,9 +241,9 @@ GTEST_TEST(CompassGaitTest, TestFloatBaseOutput) {
   const CompassGaitParams<double>& params = cg.get_parameters(*context);
 
   auto output = cg.get_floating_base_state_output_port().Allocate();
-  EXPECT_NO_THROW(output->GetValueOrThrow<systems::BasicVector<double>>());
+  EXPECT_NO_THROW(output->get_value<systems::BasicVector<double>>());
   const systems::BasicVector<double>& floating_base_state =
-      output->GetValueOrThrow<systems::BasicVector<double>>();
+      output->get_value<systems::BasicVector<double>>();
 
   // Standing on the left with the hip straight above the toe.
   cg.set_left_leg_is_stance(true, &context->get_mutable_state());
@@ -246,6 +281,8 @@ GTEST_TEST(CompassGaitTest, TestFloatBaseOutput) {
   cg.get_floating_base_state_output_port().Calc(*context, output.get());
   EXPECT_TRUE(
       CompareMatrices(floating_base_state.CopyToVector(), expected, 1e-14));
+  EXPECT_FALSE(cg.HasDirectFeedthrough(
+      cg.get_floating_base_state_output_port().get_index()));
 }
 
 }  // namespace

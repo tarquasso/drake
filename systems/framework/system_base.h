@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -145,7 +146,7 @@ class SystemBase : public internal::SystemMessageInterface {
 
   @pre `port_index` selects an existing input port of this System.
   @pre the port's value must be retrievable from the stored abstract value
-       using `AbstractValue::GetValue<V>`.
+       using `AbstractValue::get_value<V>`.
 
   @tparam V The type of data expected. */
   template <typename V>
@@ -160,7 +161,7 @@ class SystemBase : public internal::SystemMessageInterface {
       return nullptr;  // An unconnected port.
 
     // We have a value, is it a V?
-    const V* const value = abstract_value->MaybeGetValue<V>();
+    const V* const value = abstract_value->maybe_get_value<V>();
     if (value == nullptr) {
       ThrowInputPortHasWrongType(__func__, port, NiceTypeName::Get<V>(),
                                  abstract_value->GetNiceTypeName());
@@ -171,14 +172,14 @@ class SystemBase : public internal::SystemMessageInterface {
   //@}
 
   /** Returns the number of input ports currently allocated in this System.
-  These are indexed from 0 to %get_num_input_ports()-1. */
-  int get_num_input_ports() const {
+  These are indexed from 0 to %num_input_ports()-1. */
+  int num_input_ports() const {
     return static_cast<int>(input_ports_.size());
   }
 
   /** Returns the number of output ports currently allocated in this System.
-  These are indexed from 0 to %get_num_output_ports()-1. */
-  int get_num_output_ports() const {
+  These are indexed from 0 to %num_output_ports()-1. */
+  int num_output_ports() const {
     return static_cast<int>(output_ports_.size());
   }
 
@@ -196,7 +197,7 @@ class SystemBase : public internal::SystemMessageInterface {
 
   /** Returns the total dimension of all of the vector-valued input ports (as if
   they were muxed). */
-  int get_num_total_inputs() const {
+  int num_total_inputs() const {
     int count = 0;
     for (const auto& in : input_ports_) count += in->size();
     return count;
@@ -204,11 +205,21 @@ class SystemBase : public internal::SystemMessageInterface {
 
   /** Returns the total dimension of all of the vector-valued output ports (as
   if they were muxed). */
-  int get_num_total_outputs() const {
+  int num_total_outputs() const {
     int count = 0;
     for (const auto& out : output_ports_) count += out->size();
     return count;
   }
+
+  /** Reports all direct feedthroughs from input ports to output ports. For
+  a system with m input ports: `I = i₀, i₁, ..., iₘ₋₁`, and n output ports,
+  `O = o₀, o₁, ..., oₙ₋₁`, the return map will contain pairs (u, v) such that
+
+  - 0 ≤ u < m,
+  - 0 ≤ v < n,
+  - and there _might_ be a direct feedthrough from input iᵤ to each output oᵥ.
+  */
+  virtual std::multimap<int, int> GetDirectFeedthroughs() const = 0;
 
   /** Returns the number nc of cache entries currently allocated in this System.
   These are indexed from 0 to nc-1. */
@@ -216,8 +227,16 @@ class SystemBase : public internal::SystemMessageInterface {
     return static_cast<int>(cache_entries_.size());
   }
 
-  /** Return a reference to a CacheEntry given its `index`. */
+  /** Returns a reference to a CacheEntry given its `index`. */
   const CacheEntry& get_cache_entry(CacheIndex index) const {
+    DRAKE_ASSERT(0 <= index && index < num_cache_entries());
+    return *cache_entries_[index];
+  }
+
+  /** (Advanced) Returns a mutable reference to a CacheEntry given its `index`.
+  Note that you do not need mutable access to a CacheEntry to modify its value
+  in a Context, so most users should not use this method. */
+  CacheEntry& get_mutable_cache_entry(CacheIndex index) {
     DRAKE_ASSERT(0 <= index && index < num_cache_entries());
     return *cache_entries_[index];
   }
@@ -614,8 +633,8 @@ class SystemBase : public internal::SystemMessageInterface {
   /** Returns a ticket indicating dependence on input port uᵢ indicated
   by `index`.
   @pre `index` selects an existing input port of this System. */
-  DependencyTicket input_port_ticket(InputPortIndex index) {
-    DRAKE_DEMAND(0 <= index && index < get_num_input_ports());
+  DependencyTicket input_port_ticket(InputPortIndex index) const {
+    DRAKE_DEMAND(0 <= index && index < num_input_ports());
     return input_ports_[index]->ticket();
   }
 
@@ -639,17 +658,17 @@ class SystemBase : public internal::SystemMessageInterface {
   by `index`. Note that cache entries are _not_ included in the `all_sources`
   ticket so must be listed separately.
   @pre `index` selects an existing cache entry in this System. */
-  DependencyTicket cache_entry_ticket(CacheIndex index) {
+  DependencyTicket cache_entry_ticket(CacheIndex index) const {
     DRAKE_DEMAND(0 <= index && index < num_cache_entries());
     return cache_entries_[index]->ticket();
   }
 
   /** Returns a ticket indicating dependence on all source values that may
   affect configuration-dependent computations. In particular, this category
-  _does not_ include time, generalized velocities v, or input ports.
-  Generalized coordinates q are included, as well as any discrete state
-  variables that have been declared as configuration variables, and
-  configuration-affecting parameters. Finally we assume that
+  _does not_ include time, generalized velocities v, miscellaneous continuous
+  state variables z, or input ports. Generalized coordinates q are included, as
+  well as any discrete state variables that have been declared as configuration
+  variables, and configuration-affecting parameters. Finally we assume that
   the accuracy setting may affect some configuration-dependent computations.
   Examples: a parameter that affects length may change the computation of an
   end-effector location. A change in accuracy requirement may require
@@ -658,8 +677,8 @@ class SystemBase : public internal::SystemMessageInterface {
 
   @note Currently there is no way to declare specific variables and parameters
   to be configuration-affecting so we include all state variables and
-  parameters except for generalized velocities v. */
-  // TODO(sherm1) Remove the above bug notice once #9171 is resolved.
+  parameters except for state variables v and z. */
+  // TODO(sherm1) Remove the above note once #9171 is resolved.
   // The configuration_tracker implementation in ContextBase must be kept
   // up to date with the above API contract.
   static DependencyTicket configuration_ticket() {
@@ -674,8 +693,8 @@ class SystemBase : public internal::SystemMessageInterface {
 
   @note Currently there is no way to declare specific variables and parameters
   to be configuration- or velocity-affecting so we include all state variables
-  and parameters. */
-  // TODO(sherm1) Remove the above bug notice once #9171 is resolved.
+  and parameters except for state variables z. */
+  // TODO(sherm1) Remove the above note once #9171 is resolved.
   static DependencyTicket kinematics_ticket() {
     return DependencyTicket(internal::kKinematicsTicket);
   }
@@ -719,8 +738,8 @@ class SystemBase : public internal::SystemMessageInterface {
   port indicated by `index`. No user-definable quantities in a system can
   meaningfully depend on that system's own output ports.
   @pre `index` selects an existing output port of this System. */
-  DependencyTicket output_port_ticket(OutputPortIndex index) {
-    DRAKE_DEMAND(0 <= index && index < get_num_output_ports());
+  DependencyTicket output_port_ticket(OutputPortIndex index) const {
+    DRAKE_DEMAND(0 <= index && index < num_output_ports());
     return output_ports_[index]->ticket();
   }
 
@@ -741,17 +760,30 @@ class SystemBase : public internal::SystemMessageInterface {
     return static_cast<int>(numeric_parameter_tickets_.size());
   }
 
-  DRAKE_DEPRECATED("Use num_numeric_parameter_groups().  This method will be"
-                   " removed after 2/15/19.")
-  int num_numeric_parameters() const {
-    return num_numeric_parameter_groups();
-  }
-
   /** Returns the number of declared abstract parameters. */
   int num_abstract_parameters() const {
     return static_cast<int>(abstract_parameter_tickets_.size());
   }
   //@}
+
+#ifndef DRAKE_DOXYGEN_CXX
+  DRAKE_DEPRECATED("2019-07-01", "Use num_total_inputs() instead.")
+  int get_num_total_inputs() const {
+    return num_total_inputs();
+  }
+  DRAKE_DEPRECATED("2019-07-01", "Use num_total_outputs() instead.")
+  int get_num_total_outputs() const {
+    return num_total_outputs();
+  }
+  DRAKE_DEPRECATED("2019-07-01", "Use num_input_ports() instead.")
+  int get_num_input_ports() const {
+    return num_input_ports();
+  }
+  DRAKE_DEPRECATED("2019-07-01", "Use num_output_ports() instead.")
+  int get_num_output_ports() const {
+    return num_output_ports();
+  }
+#endif
 
  protected:
   /** (Internal use only) Default constructor. */
@@ -767,11 +799,11 @@ class SystemBase : public internal::SystemMessageInterface {
   void AddInputPort(std::unique_ptr<InputPortBase> port) {
     DRAKE_DEMAND(port != nullptr);
     DRAKE_DEMAND(&port->get_system_base() == this);
-    DRAKE_DEMAND(port->get_index() == get_num_input_ports());
+    DRAKE_DEMAND(port->get_index() == num_input_ports());
     DRAKE_DEMAND(!port->get_name().empty());
 
     // Check that name is unique.
-    for (InputPortIndex i{0}; i < get_num_input_ports(); i++) {
+    for (InputPortIndex i{0}; i < num_input_ports(); i++) {
       if (port->get_name() == get_input_port_base(i).get_name()) {
         throw std::logic_error("System " + GetSystemName() +
             " already has an input port named " +
@@ -792,11 +824,11 @@ class SystemBase : public internal::SystemMessageInterface {
   void AddOutputPort(std::unique_ptr<OutputPortBase> port) {
     DRAKE_DEMAND(port != nullptr);
     DRAKE_DEMAND(&port->get_system_base() == this);
-    DRAKE_DEMAND(port->get_index() == get_num_output_ports());
+    DRAKE_DEMAND(port->get_index() == num_output_ports());
     DRAKE_DEMAND(!port->get_name().empty());
 
     // Check that name is unique.
-    for (OutputPortIndex i{0}; i < get_num_output_ports(); i++) {
+    for (OutputPortIndex i{0}; i < num_output_ports(); i++) {
       if (port->get_name() == get_output_port_base(i).get_name()) {
         throw std::logic_error("System " + GetSystemName() +
                                " already has an output port named " +
@@ -815,7 +847,7 @@ class SystemBase : public internal::SystemMessageInterface {
       variant<std::string, UseDefaultName> given_name) const {
     const std::string result =
         given_name == kUseDefaultName
-           ? std::string("u") + std::to_string(get_num_input_ports())
+           ? std::string("u") + std::to_string(num_input_ports())
            : get<std::string>(std::move(given_name));
     DRAKE_DEMAND(!result.empty());
     return result;
@@ -829,7 +861,7 @@ class SystemBase : public internal::SystemMessageInterface {
       variant<std::string, UseDefaultName> given_name) const {
     const std::string result =
         given_name == kUseDefaultName
-           ? std::string("y") + std::to_string(get_num_output_ports())
+           ? std::string("y") + std::to_string(num_output_ports())
            : get<std::string>(std::move(given_name));
     DRAKE_DEMAND(!result.empty());
     return result;
@@ -968,7 +1000,8 @@ class SystemBase : public internal::SystemMessageInterface {
   the input port had some value type that was wrong. */
   [[noreturn]] static void ThrowInputPortHasWrongType(
       const char* func, const std::string& system_pathname, InputPortIndex,
-      const std::string& expected_type, const std::string& actual_type);
+      const std::string& port_name, const std::string& expected_type,
+      const std::string& actual_type);
 
   /** Throws std::logic_error because someone called API method `func`, that
   requires this input port to be evaluatable, but the port was neither
@@ -985,13 +1018,13 @@ class SystemBase : public internal::SystemMessageInterface {
     if (port_index < 0)
       ThrowNegativePortIndex(func, port_index);
     const InputPortIndex port(port_index);
-    if (port_index >= get_num_input_ports())
+    if (port_index >= num_input_ports())
       ThrowInputPortIndexOutOfRange(func, port);
     return *input_ports_[port];
   }
 
   /** (Internal use only) Returns the OutputPortBase at index `port_index`,
-  throwing std::out_of_range we don't like the port index. The name of the
+  throwing std::out_of_range if we don't like the port index. The name of the
   public API method that received the bad index is provided in `func` and is
   included in the error message. */
   const OutputPortBase& GetOutputPortBaseOrThrow(const char* func,
@@ -999,7 +1032,7 @@ class SystemBase : public internal::SystemMessageInterface {
     if (port_index < 0)
       ThrowNegativePortIndex(func, port_index);
     const OutputPortIndex port(port_index);
-    if (port_index >= get_num_output_ports())
+    if (port_index >= num_output_ports())
       ThrowOutputPortIndexOutOfRange(func, port);
     return *output_ports_[port_index];
   }
@@ -1114,7 +1147,7 @@ const CacheEntry& SystemBase::DeclareCacheEntry(
   auto calc_callback = [this_ptr, calc](const ContextBase& context,
                                         AbstractValue* result) {
     const auto& typed_context = dynamic_cast<const MyContext&>(context);
-    ValueType& typed_result = result->GetMutableValue<ValueType>();
+    ValueType& typed_result = result->get_mutable_value<ValueType>();
     (this_ptr->*calc)(typed_context, &typed_result);
   };
   // Invoke the general signature above.
@@ -1151,7 +1184,7 @@ const CacheEntry& SystemBase::DeclareCacheEntry(
   auto calc_callback = [this_ptr, calc](const ContextBase& context,
                                         AbstractValue* result) {
     const auto& typed_context = dynamic_cast<const MyContext&>(context);
-    ValueType& typed_result = result->GetMutableValue<ValueType>();
+    ValueType& typed_result = result->get_mutable_value<ValueType>();
     (this_ptr->*calc)(typed_context, &typed_result);
   };
   auto& entry = DeclareCacheEntry(
@@ -1183,7 +1216,7 @@ const CacheEntry& SystemBase::DeclareCacheEntry(
   auto calc_callback = [this_ptr, calc](const ContextBase& context,
                                         AbstractValue* result) {
     const auto& typed_context = dynamic_cast<const MyContext&>(context);
-    ValueType& typed_result = result->GetMutableValue<ValueType>();
+    ValueType& typed_result = result->get_mutable_value<ValueType>();
     typed_result = (this_ptr->*calc)(typed_context);
   };
   auto& entry = DeclareCacheEntry(

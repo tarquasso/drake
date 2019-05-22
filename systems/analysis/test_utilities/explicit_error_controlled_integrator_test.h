@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "drake/common/unused.h"
 #include "drake/systems/analysis/test_utilities/my_spring_mass_system.h"
+#include "drake/systems/analysis/test_utilities/pleides_system.h"
 
 namespace drake {
 namespace systems {
@@ -44,7 +46,7 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ReqInitialStepTarget) {
 }
 
 TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ContextAccess) {
-  this->integrator->get_mutable_context()->set_time(3.);
+  this->integrator->get_mutable_context()->SetTime(3.);
   EXPECT_EQ(this->integrator->get_context().get_time(), 3.);
   EXPECT_EQ(this->context->get_time(), 3.);
 }
@@ -61,7 +63,7 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ErrorEstSupport) {
 // Verifies that the stepping works with relatively small
 // magnitude step sizes.
 TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, MagDisparity) {
-  this->context->set_time(0.0);
+  this->context->SetTime(0.0);
 
   // Set integrator parameters.
   this->integrator->set_maximum_step_size(0.1);
@@ -159,11 +161,15 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, BulletProofSetup) {
 }
 
 // Tests the error estimation capabilities.
-TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ErrEst) {
+TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ErrEstOrder) {
   // Setup the initial position and initial velocity.
   const double initial_position = 0.1;
   const double initial_velocity = 0.01;
   const double omega = std::sqrt(this->kSpringK / this->kMass);
+
+  // Pick a step size that is much smaller than the period of vibration.
+  const double period_of_vibration = 2.0 * M_PI / omega;
+  const double h = period_of_vibration / 512.0;
 
   // Set initial conditions.
   this->spring_mass->set_position(this->integrator->get_mutable_context(),
@@ -176,40 +182,68 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, ErrEst) {
   const double c2 = initial_velocity / omega;
 
   // Set integrator parameters: do no error control.
-  this->integrator->set_maximum_step_size(this->kBigDt);
+  this->integrator->set_maximum_step_size(h);
   this->integrator->set_fixed_step_mode(true);
 
   // Initialize the integrator.
   this->integrator->Initialize();
 
-  // Take a single step of size this->kBigDt.
-  const double t_final = this->context->get_time() + this->kBigDt;
-  this->integrator->IntegrateNoFurtherThanTime(t_final, t_final, t_final);
+  // Take a single step of size h.
+  ASSERT_EQ(this->context->get_time(), 0.0);
+  const double t_final = this->context->get_time() + h;
+  ASSERT_TRUE(this->integrator->IntegrateWithSingleFixedStepToTime(t_final));
 
-  // Verify that a step of this->kBigDt was taken.
-  EXPECT_NEAR(this->context->get_time(), this->kBigDt,
+  // Verify that a step of h was taken.
+  EXPECT_NEAR(this->context->get_time(), h,
               std::numeric_limits<double>::epsilon());
 
   // Get the true solution.
-  const double x_true = c1 * std::cos(omega * this->kBigDt) +
-      c2 * std::sin(omega * this->kBigDt);
+  const double x_true = c1 * std::cos(omega * h) + c2 * std::sin(omega * h);
 
   // Get the integrator's solution.
-  const double kXApprox = this->context->get_continuous_state_vector().
+  const double x_approx_h = this->context->get_continuous_state_vector().
       GetAtIndex(0);
 
-  // Get the error estimate.
-  const double err_est =
+  // Get the error estimate and the error in the error estimate.
+  const double err_est_h =
       this->integrator->get_error_estimate()->get_vector().GetAtIndex(0);
+  const double err_est_h_err = std::abs(err_est_h - (x_true - x_approx_h));
 
-  // Verify that difference between integration result and true result is
-  // captured by the error estimate. The 0.2 below indicates that the error
-  // estimate is quite conservative.
-  EXPECT_NEAR(kXApprox, x_true, err_est * 0.2);
+  // Compute the same solution using two half-steps.
+  this->context->SetTime(0);
+  this->spring_mass->set_position(this->integrator->get_mutable_context(),
+      initial_position);
+  this->spring_mass->set_velocity(this->integrator->get_mutable_context(),
+      initial_velocity);
+  this->integrator->Initialize();
+  ASSERT_TRUE(this->integrator->IntegrateWithSingleFixedStepToTime(
+      t_final / 2.0));
+  ASSERT_TRUE(this->integrator->IntegrateWithSingleFixedStepToTime(t_final));
+  EXPECT_NEAR(this->context->get_time(), h,
+              std::numeric_limits<double>::epsilon());
+  const double x_approx_2h_h = this->context->get_continuous_state_vector().
+      GetAtIndex(0);
+  const double err_est_2h_h =
+      this->integrator->get_error_estimate()->get_vector().GetAtIndex(0);
+  const double err_est_2h_h_err = std::abs(err_est_2h_h -
+      (x_true - x_approx_2h_h));
+
+  // Verify that the error in the error estimate dropped in accordance with the
+  // order of the error estimator. Theory indicates that asymptotic error in
+  // the estimate is bound by K*h^order, where K is some constant and h is
+  // sufficiently small. We assume a value for K of 4.0 below, and we check that
+  // the improvement in the error estimate is not as good as K*h^(order+1).
+  // The K and h might need to be redetermined for a different problem or
+  // for untested error-controlled integrators.
+  const double K = 4.0;
+  const int err_est_order = this->integrator->get_error_estimate_order();
+  EXPECT_LE(err_est_2h_h_err, K * err_est_h_err / std::pow(2.0, err_est_order));
+  EXPECT_GE(K * err_est_2h_h_err,
+      err_est_h_err / std::pow(2.0, err_est_order + 1));
 }
 
 // Integrate a purely continuous system with no sampling using error control.
-// d^2x/dt^2 = -kx/m
+// d^2x/h^2 = -kx/m
 // solution to this ODE: x(t) = c1*cos(omega*t) + c2*sin(omega*t)
 // where omega = sqrt(k/m)
 // x'(t) = -c1*sin(omega*t)*omega + c2*cos(omega*t)*omega
@@ -270,7 +304,7 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, SpringMassStepEC) {
   this->integrator->Initialize();
 
   // Set initial conditions.
-  this->integrator->get_mutable_context()->set_time(0.);
+  this->integrator->get_mutable_context()->SetTime(0.);
   this->spring_mass->set_position(this->integrator->get_mutable_context(),
                              initial_position);
   this->spring_mass->set_velocity(this->integrator->get_mutable_context(),
@@ -343,7 +377,7 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, StepToCurrentTimeNoOp) {
 
   // Must do fixed stepping for the last test.
   this->integrator->set_fixed_step_mode(true);
-  this->integrator->IntegrateWithSingleFixedStepToTime(t_final);
+  ASSERT_TRUE(this->integrator->IntegrateWithSingleFixedStepToTime(t_final));
   EXPECT_EQ(this->context->get_time(), t_final);
   for (int i = 0; i < x_final.size(); ++i)
     EXPECT_EQ(x_final[i], this->context->get_continuous_state_vector()[i]);
@@ -403,8 +437,9 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, IllegalFixedStep) {
   this->integrator->Initialize();
 
   ASSERT_EQ(this->context->get_time(), 0.0);
-  EXPECT_THROW(this->integrator->IntegrateWithSingleFixedStepToTime(1e-8),
-               std::logic_error);
+  EXPECT_THROW(unused(
+      this->integrator->IntegrateWithSingleFixedStepToTime(1e-8)),
+          std::logic_error);
 }
 
 // Verifies statistics validity for error controlled integrator.
@@ -442,8 +477,65 @@ TYPED_TEST_P(ExplicitErrorControlledIntegratorTest, CheckStat) {
 
 REGISTER_TYPED_TEST_CASE_P(ExplicitErrorControlledIntegratorTest,
     ReqInitialStepTarget, ContextAccess, ErrorEstSupport, MagDisparity, Scaling,
-    BulletProofSetup, ErrEst, SpringMassStepEC, MaxStepSizeRespected,
+    BulletProofSetup, ErrEstOrder, SpringMassStepEC, MaxStepSizeRespected,
     IllegalFixedStep, CheckStat, StepToCurrentTimeNoOp);
+
+// T is the integrator type (e.g., RungeKutta3Integrator<double>).
+template <class T>
+struct PleidesTest : public ::testing::Test {
+ public:
+  PleidesTest() {
+    // Create the Pleides system.
+    pleides = std::make_unique<analysis::test::PleidesSystem>();
+    context = pleides->CreateDefaultContext();
+
+    // Create the integrator.
+    integrator = std::make_unique<T>(*pleides, context.get());
+  }
+
+  std::unique_ptr<analysis::test::PleidesSystem> pleides;
+  std::unique_ptr<Context<double>> context;
+  std::unique_ptr<IntegratorBase<double>> integrator;
+};
+
+TYPED_TEST_CASE_P(PleidesTest);
+
+// Verifies that the Pleides system can be integrated accurately.
+TYPED_TEST_P(PleidesTest, Pleides) {
+  // Set integrator to use variable-step (not fixed-step) with a tight accuracy
+  // requirement for each variable step. Due to step size cutting, a variable
+  // step can be substantially smaller than the initial step size. By default,
+  // the initial step size is 1/10 of maximum step size (chosen below). We
+  // request semi-tight accuracy, allowing us to use this test for various
+  // error controlled integrators.
+  this->integrator->set_maximum_step_size(0.1);
+  this->integrator->set_fixed_step_mode(false);
+  const double requested_local_accuracy = 1e-7;
+  this->integrator->set_target_accuracy(requested_local_accuracy);
+
+  // kTolerance = 100 is a heuristic derived from simulation experiments and
+  // based on the fact that all tests pass within a tolerance of 25. The
+  // extra factor of 4 (2 bits) helps ensure the tests also pass on
+  // various compilers and computer architectures.
+  const double kTolerance = 100 * requested_local_accuracy;
+
+  // Initialize the integrator.
+  this->integrator->Initialize();
+
+  // Simulate to the designated time.
+  const double t_final = this->pleides->get_end_time();
+  this->integrator->IntegrateWithMultipleStepsToTime(t_final);
+
+  // Check the result.
+  const VectorX<double> q = this->context->get_continuous_state().
+    get_generalized_position().CopyToVector();
+  const VectorX<double> q_des = analysis::test::PleidesSystem::GetSolution(
+        this->context->get_time());
+  for (int i = 0; i < q.size(); ++i)
+    EXPECT_NEAR(q[i], q_des[i], kTolerance) << i;
+}
+
+REGISTER_TYPED_TEST_CASE_P(PleidesTest, Pleides);
 
 }  // namespace analysis_test
 }  // namespace systems

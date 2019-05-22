@@ -60,13 +60,6 @@ class SceneGraphTester {
   SceneGraphTester() = delete;
 
   template <typename T>
-  static bool HasDirectFeedthrough(const SceneGraph<T>& scene_graph,
-                                   int input_port, int output_port) {
-    return scene_graph.DoHasDirectFeedthrough(input_port, output_port)
-        .value_or(true);
-  }
-
-  template <typename T>
   static void FullPoseUpdate(const SceneGraph<T>& scene_graph,
                              const GeometryContext<T>& context) {
     scene_graph.FullPoseUpdate(context);
@@ -218,17 +211,15 @@ TEST_F(SceneGraphTest, TopologyAfterAllocation) {
 
   // Attach frame to world.
   DRAKE_EXPECT_THROWS_MESSAGE(
-      scene_graph_.RegisterFrame(
-          id, GeometryFrame("frame", Isometry3<double>::Identity())),
+      scene_graph_.RegisterFrame(id, GeometryFrame("frame")),
       std::logic_error,
       "The call to RegisterFrame is invalid; a context has already been "
       "allocated.");
 
   // Attach frame to another frame.
   DRAKE_EXPECT_THROWS_MESSAGE(
-      scene_graph_.RegisterFrame(
-          id, FrameId::get_new_id(),
-          GeometryFrame("frame", Isometry3<double>::Identity())),
+      scene_graph_.RegisterFrame(id, FrameId::get_new_id(),
+          GeometryFrame("frame")),
       std::logic_error,
       "The call to RegisterFrame is invalid; a context has already been "
       "allocated.");
@@ -260,16 +251,10 @@ TEST_F(SceneGraphTest, TopologyAfterAllocation) {
 // Confirms that the direct feedthrough logic is correct -- there is total
 // direct feedthrough.
 TEST_F(SceneGraphTest, DirectFeedThrough) {
-  SourceId id = scene_graph_.RegisterSource();
-  std::vector<int> input_ports{
-      scene_graph_.get_source_pose_port(id).get_index()};
-  for (int input_port_id : input_ports) {
-    EXPECT_TRUE(SceneGraphTester::HasDirectFeedthrough(
-        scene_graph_, input_port_id,
-        scene_graph_.get_query_output_port().get_index()));
-  }
-  // TODO(SeanCurtis-TRI): Update when the pose bundle output is added; it has
-  // direct feedthrough as well.
+  scene_graph_.RegisterSource();
+  EXPECT_EQ(scene_graph_.GetDirectFeedthroughs().size(),
+            scene_graph_.num_input_ports() *
+                scene_graph_.num_output_ports());
 }
 
 // Test the functionality that accumulates the values from the input ports.
@@ -326,8 +311,8 @@ TEST_F(SceneGraphTest, TransmogrifyPorts) {
       scene_graph_.ToAutoDiffXd();
   SceneGraph<AutoDiffXd>& scene_graph_ad =
       *dynamic_cast<SceneGraph<AutoDiffXd>*>(system_ad.get());
-  EXPECT_EQ(scene_graph_ad.get_num_input_ports(),
-            scene_graph_.get_num_input_ports());
+  EXPECT_EQ(scene_graph_ad.num_input_ports(),
+            scene_graph_.num_input_ports());
   EXPECT_EQ(scene_graph_ad.get_source_pose_port(s_id).get_index(),
             scene_graph_.get_source_pose_port(s_id).get_index());
   std::unique_ptr<systems::Context<AutoDiffXd>> context_ad =
@@ -388,9 +373,9 @@ TEST_F(SceneGraphTest, ModelInspector) {
   ASSERT_TRUE(scene_graph_.SourceIsRegistered(source_id));
 
   FrameId frame_1 = scene_graph_.RegisterFrame(
-      source_id, GeometryFrame{"f1", Isometry3d::Identity()});
+      source_id, GeometryFrame{"f1"});
   FrameId frame_2 = scene_graph_.RegisterFrame(
-      source_id, GeometryFrame{"f2", Isometry3d::Identity()});
+      source_id, GeometryFrame{"f2"});
 
   // Note: all these geometries have the same *name* -- but because they are
   // affixed to different nodes, that should be alright.
@@ -426,15 +411,11 @@ class GeometrySourceSystem : public systems::LeafSystem<double> {
     // Register with SceneGraph.
     source_id_ = scene_graph->RegisterSource();
     FrameId f_id = scene_graph->RegisterFrame(
-        source_id_, GeometryFrame("frame", Isometry3<double>::Identity()));
+        source_id_, GeometryFrame("frame"));
     frame_ids_.push_back(f_id);
 
     // Set up output port now that the frame is registered.
-    std::vector<FrameId> all_ids{f_id};
-    all_ids.insert(all_ids.end(), extra_frame_ids_.begin(),
-                   extra_frame_ids_.end());
     this->DeclareAbstractOutputPort(
-        FramePoseVector<double>(source_id_, all_ids),
         &GeometrySourceSystem::CalcFramePoseOutput);
   }
   SourceId get_source_id() const { return source_id_; }
@@ -446,7 +427,7 @@ class GeometrySourceSystem : public systems::LeafSystem<double> {
   // will *not* automatically get a pose.
   void add_extra_frame(bool add_to_output = true) {
     FrameId frame_id = scene_graph_->RegisterFrame(
-        source_id_, GeometryFrame("frame", Isometry3<double>::Identity()));
+        source_id_, GeometryFrame("frame"));
     if (add_to_output) extra_frame_ids_.push_back(frame_id);
   }
   // Method used to bring frame ids and poses out of sync. Adds a pose in
@@ -457,11 +438,6 @@ class GeometrySourceSystem : public systems::LeafSystem<double> {
   // Populate with the pose data.
   void CalcFramePoseOutput(const Context<double>& context,
                            FramePoseVector<double>* poses) const {
-    const int frame_count =
-        static_cast<int>(frame_ids_.size() + extra_frame_ids_.size());
-    DRAKE_DEMAND(poses->size() == frame_count);
-    DRAKE_DEMAND(poses->source_id() == source_id_);
-
     poses->clear();
 
     const int base_count = static_cast<int>(frame_ids_.size());
@@ -598,8 +574,6 @@ GTEST_TEST(SceneGraphVisualizationTest, NoWorldInPoseVector) {
                                                      &poses));
   }
 
-  const Isometry3<double> kIdentity = Isometry3<double>::Identity();
-
   // Case: Registered source with anchored geometry and frame but no dynamic
   // geometry --> empty pose vector; only frames with dynamic geometry with an
   // illustration role are included.
@@ -611,15 +585,15 @@ GTEST_TEST(SceneGraphVisualizationTest, NoWorldInPoseVector) {
         make_unique<GeometryInstance>(Isometry3<double>::Identity(),
                                       make_unique<Sphere>(1.0), "sphere"));
     FrameId f_id =
-        scene_graph.RegisterFrame(s_id, GeometryFrame("f", kIdentity));
+        scene_graph.RegisterFrame(s_id, GeometryFrame("f"));
     PoseBundle<double> poses = SceneGraphTester::MakePoseBundle(scene_graph);
     // The frame has no illustration geometry, so it is not part of the pose
     // bundle.
     EXPECT_EQ(0, poses.get_num_poses());
     auto context = scene_graph.AllocateContext();
-    FramePoseVector<double> pose_vector(s_id, {f_id});
-    context->FixInputPort(scene_graph.get_source_pose_port(s_id).get_index(),
-                          Value<FramePoseVector<double>>(pose_vector));
+    const FramePoseVector<double> pose_vector{{
+        f_id, Isometry3<double>::Identity()}};
+    scene_graph.get_source_pose_port(s_id).FixValue(context.get(), pose_vector);
     EXPECT_NO_THROW(
         SceneGraphTester::CalcPoseBundle(scene_graph, *context, &poses));
   }

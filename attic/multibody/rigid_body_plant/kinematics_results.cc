@@ -82,7 +82,7 @@ void KinematicsResults<T>::UpdateFromContext(const Context<T>& context) {
   const int nv = tree_->get_num_velocities();
 
   VectorX<T> x;
-  if (context.get_state().get_continuous_state().size() > 0) {
+  if (context.num_continuous_states() > 0) {
     // TODO(amcastro-tri): provide nicer accessor to an Eigen representation for
     // LeafSystems.
     x = dynamic_cast<const BasicVector<T>&>(
@@ -115,6 +115,5 @@ Eigen::VectorBlock<const VectorX<T>> KinematicsResults<T>::get_joint_velocity(
 }  // namespace systems
 }  // namespace drake
 
-// Explicitly instantiates on the most common scalar types.
 DRAKE_DEFINE_CLASS_TEMPLATE_INSTANTIATIONS_ON_DEFAULT_NONSYMBOLIC_SCALARS(
     class ::drake::systems::KinematicsResults)

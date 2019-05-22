@@ -43,7 +43,7 @@ class BouncingBall final : public systems::LeafSystem<T> {
                                   &BouncingBall::CopyStateOut);
 
     // Declare the witness function.
-    signed_distance_witness_ = this->DeclareWitnessFunction(
+    signed_distance_witness_ = this->MakeWitnessFunction(
         "Signed distance",
         systems::WitnessFunctionDirection::kPositiveThenNonPositive,
         &BouncingBall::CalcSignedDistance,
@@ -99,9 +99,9 @@ class BouncingBall final : public systems::LeafSystem<T> {
   void SetDefaultState(const systems::Context<T>&,
                        systems::State<T>* state) const override {
     DRAKE_DEMAND(state != nullptr);
-    Vector2<T> x0;
-    x0 << 10.0, 0.0;  // initial state values.
-    state->get_mutable_continuous_state().SetFromVector(x0);
+    Vector2<T> xc0;
+    xc0 << 10.0, 0.0;  // initial state values.
+    state->get_mutable_continuous_state().SetFromVector(xc0);
   }
 
   // Updates the velocity discontinuously to reverse direction. This method
@@ -118,7 +118,7 @@ class BouncingBall final : public systems::LeafSystem<T> {
         context.get_continuous_state().get_vector();
 
     // Copy the present state to the new one.
-    next_state->CopyFrom(context.get_state());
+    next_state->SetFrom(context.get_state());
 
     // Verify that velocity is non-positive.
     DRAKE_DEMAND(cstate.GetAtIndex(1) <= 0.0);

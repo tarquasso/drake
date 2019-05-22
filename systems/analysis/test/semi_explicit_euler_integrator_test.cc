@@ -23,12 +23,13 @@ GTEST_TEST(IntegratorTest, ContextAccess) {
 
   // Create a context.
   auto context = spring_mass.CreateDefaultContext();
+  context->EnableCaching();
 
   // Create the integrator.
   SemiExplicitEulerIntegrator<double> integrator(
       spring_mass, dt, context.get());  // Use default Context.
 
-  integrator.get_mutable_context()->set_time(3.);
+  integrator.get_mutable_context()->SetTime(3.);
   EXPECT_EQ(integrator.get_context().get_time(), 3.);
   EXPECT_EQ(context->get_time(), 3.);
   integrator.reset_context(nullptr);
@@ -44,6 +45,7 @@ GTEST_TEST(IntegratorTest, AccuracyEstAndErrorControl) {
   SpringMassSystem<double> spring_mass(1., 1., 0.);
   const double dt = 1e-3;
   auto context = spring_mass.CreateDefaultContext();
+  context->EnableCaching();
   SemiExplicitEulerIntegrator<double> integrator(
       spring_mass, dt, context.get());
 
@@ -68,6 +70,7 @@ GTEST_TEST(IntegratorTest, RigidBody) {
 
   // Set free_body to have zero translation, zero rotation, and zero velocity.
   auto context = plant.CreateDefaultContext();
+  context->EnableCaching();
   plant.SetDefaultState(*context, &context->get_mutable_state());
 
   // Update the velocity.
@@ -91,7 +94,7 @@ GTEST_TEST(IntegratorTest, RigidBody) {
       CopyToVector();
 
   // Re-integrate with semi-explicit Euler.
-  context->set_time(0.);
+  context->SetTime(0.);
   plant.SetDefaultState(*context, &context->get_mutable_state());
   plant.SetVelocities(context.get(), generalized_velocities);
   SemiExplicitEulerIntegrator<double> see(plant, small_dt, context.get());
@@ -125,6 +128,7 @@ GTEST_TEST(IntegratorTest, SpringMassStep) {
 
   // Create a context.
   auto context = spring_mass.CreateDefaultContext();
+  context->EnableCaching();
 
   // Setup the integration size and infinity.
   const double dt = 1e-6;

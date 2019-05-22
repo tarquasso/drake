@@ -1,13 +1,16 @@
 from __future__ import absolute_import, division, print_function
 
 import pydrake.math as mut
+import pydrake.math._test as mtest
 from pydrake.math import (BarycentricMesh, wrap_to)
 from pydrake.common.eigen_geometry import Isometry3, Quaternion, AngleAxis
 
-import unittest
-import numpy as np
-
+import copy
 import math
+import unittest
+
+import numpy as np
+import six
 
 
 class TestBarycentricMesh(unittest.TestCase):
@@ -102,6 +105,7 @@ class TestMath(unittest.TestCase):
         X_I = np.eye(4)
         check_equality(mut.RigidTransform(), X_I)
         check_equality(mut.RigidTransform(other=mut.RigidTransform()), X_I)
+        check_equality(copy.copy(mut.RigidTransform()), X_I)
         R_I = mut.RotationMatrix()
         p_I = np.zeros(3)
         rpy_I = mut.RollPitchYaw(0, 0, 0)
@@ -131,6 +135,16 @@ class TestMath(unittest.TestCase):
         self.assertIsInstance(
             X.multiply(other=mut.RigidTransform()), mut.RigidTransform)
         self.assertIsInstance(X.multiply(p_BoQ_B=p_I), np.ndarray)
+        if six.PY3:
+            self.assertIsInstance(
+                eval("X @ mut.RigidTransform()"), mut.RigidTransform)
+            self.assertIsInstance(eval("X @ [0, 0, 0]"), np.ndarray)
+
+    def test_isometry_implicit(self):
+        # Explicitly disabled, to mirror C++ API.
+        with self.assertRaises(TypeError):
+            self.assertTrue(mtest.TakeRigidTransform(Isometry3()))
+        self.assertTrue(mtest.TakeIsometry3(mut.RigidTransform()))
 
     def test_rotation_matrix(self):
         # - Constructors.
@@ -138,6 +152,7 @@ class TestMath(unittest.TestCase):
         self.assertTrue(np.allclose(
             mut.RotationMatrix(other=R).matrix(), np.eye(3)))
         self.assertTrue(np.allclose(R.matrix(), np.eye(3)))
+        self.assertTrue(np.allclose(copy.copy(R).matrix(), np.eye(3)))
         self.assertTrue(np.allclose(
             mut.RotationMatrix.Identity().matrix(), np.eye(3)))
         R = mut.RotationMatrix(R=np.eye(3))
@@ -154,6 +169,9 @@ class TestMath(unittest.TestCase):
         # - Inverse.
         R_I = R.inverse().multiply(R)
         self.assertTrue(np.allclose(R_I.matrix(), np.eye(3)))
+        if six.PY3:
+            self.assertTrue(np.allclose(
+                eval("R.inverse() @ R").matrix(), np.eye(3)))
 
     def test_roll_pitch_yaw(self):
         # - Constructors.
@@ -167,6 +185,8 @@ class TestMath(unittest.TestCase):
             (0, 0, 0))
         rpy = mut.RollPitchYaw(R=mut.RotationMatrix())
         self.assertTrue(np.allclose(rpy.vector(), [0, 0, 0]))
+        rpy = mut.RollPitchYaw(matrix=np.eye(3))
+        self.assertTrue(np.allclose(rpy.vector(), [0, 0, 0]))
         q_I = Quaternion()
         rpy_q_I = mut.RollPitchYaw(quaternion=q_I)
         self.assertTrue(np.allclose(rpy_q_I.vector(), [0, 0, 0]))
@@ -174,8 +194,53 @@ class TestMath(unittest.TestCase):
         self.assertTrue(np.allclose(rpy.ToQuaternion().wxyz(), q_I.wxyz()))
         R = rpy.ToRotationMatrix().matrix()
         self.assertTrue(np.allclose(R, np.eye(3)))
+        # - Converting changes in orientation
+        self.assertTrue(np.allclose(rpy.CalcRotationMatrixDt(rpyDt=[0, 0, 0]),
+                                    np.zeros((3, 3))))
+        self.assertTrue(np.allclose(
+            rpy.CalcAngularVelocityInParentFromRpyDt(rpyDt=[0, 0, 0]),
+            [0, 0, 0]))
+        self.assertTrue(np.allclose(
+            rpy.CalcAngularVelocityInChildFromRpyDt(rpyDt=[0, 0, 0]),
+            [0, 0, 0]))
+        self.assertTrue(np.allclose(
+            rpy.CalcRpyDtFromAngularVelocityInParent(w_AD_A=[0, 0, 0]),
+            [0, 0, 0]))
+        self.assertTrue(np.allclose(
+            rpy.CalcRpyDDtFromRpyDtAndAngularAccelInParent(
+                rpyDt=[0, 0, 0], alpha_AD_A=[0, 0, 0]), [0, 0, 0]))
+        self.assertTrue(np.allclose(rpy.CalcRpyDDtFromAngularAccelInChild(
+            rpyDt=[0, 0, 0], alpha_AD_D=[0, 0, 0]), [0, 0, 0]))
 
     def test_orthonormal_basis(self):
         R = mut.ComputeBasisFromAxis(axis_index=0, axis_W=[1, 0, 0])
         self.assertAlmostEqual(np.linalg.det(R), 1.0)
         self.assertTrue(np.allclose(R.dot(R.T), np.eye(3)))
+
+    def test_quadratic_form(self):
+        Q = np.diag([1., 2., 3.])
+        X = mut.DecomposePSDmatrixIntoXtransposeTimesX(Q, 1e-8)
+        np.testing.assert_array_almost_equal(X, np.sqrt(Q))
+        b = np.zeros(3)
+        c = 4.
+        R, d = mut.DecomposePositiveQuadraticForm(Q, b, c)
+        self.assertEqual(np.size(R, 0), 4)
+        self.assertEqual(np.size(R, 1), 3)
+        self.assertEqual(len(d), 4)
+
+    def test_riccati_lyapunov(self):
+        A = 0.1*np.eye(2)
+        B = np.eye(2)
+        Q = np.eye(2)
+        R = np.eye(2)
+
+        mut.ContinuousAlgebraicRiccatiEquation(A=A, B=B, Q=Q, R=R)
+        mut.RealContinuousLyapunovEquation(A=A, Q=Q)
+        mut.RealDiscreteLyapunovEquation(A=A, Q=Q)
+
+        A = np.array([[1, 1], [0, 1]])
+        B = np.array([[0], [1]])
+        Q = np.array([[1, 0], [0, 0]])
+        R = [0.3]
+
+        mut.DiscreteAlgebraicRiccatiEquation(A=A, B=B, Q=Q, R=R)

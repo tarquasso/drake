@@ -30,7 +30,6 @@
 
 #include "drake/common/drake_assert.h"
 #include "drake/common/drake_copyable.h"
-#include "drake/common/drake_deprecated.h"
 #include "drake/common/drake_throw.h"
 #include "drake/multibody/tree/multibody_tree_indexes.h"
 
@@ -65,6 +64,8 @@ struct BodyTopology {
     if (body_frame != other.body_frame) return false;
     if (level != other.level) return false;
     if (body_node != other.body_node) return false;
+    if (is_floating != other.is_floating) return false;
+    if (has_quaternion_dofs != other.has_quaternion_dofs) return false;
     return true;
   }
 
@@ -98,6 +99,16 @@ struct BodyTopology {
 
   /// Index to the tree body node in the MultibodyTree.
   BodyNodeIndex body_node;
+
+  /// `true` if this topology corresponds to a floating body in space.
+  bool is_floating{false};
+
+  /// `true` if this topology corresponds to a floating body with rotations
+  /// parametrized by a quaternion.
+  bool has_quaternion_dofs{false};
+
+  int floating_positions_start{-1};
+  int floating_velocities_start{-1};
 };
 
 /// Data structure to store the topological information associated with a
@@ -499,6 +510,12 @@ class MultibodyTreeTopology {
     return bodies_[index];
   }
 
+  /// Mutable version of get_body().
+  BodyTopology& get_mutable_body(BodyIndex index) {
+    DRAKE_ASSERT(index < num_bodies());
+    return bodies_[index];
+  }
+
   /// Returns a constant reference to the corresponding BodyTopology given a
   /// BodyIndex.
   const MobilizerTopology& get_mobilizer(MobilizerIndex index) const {
@@ -844,6 +861,18 @@ class MultibodyTreeTopology {
     DRAKE_DEMAND(position_index == num_positions_);
     DRAKE_DEMAND(velocity_index == num_states_);
 
+    // Update position/velocity indexes for free bodies so that they are easily
+    // accessible.
+    for (BodyTopology& body : bodies_) {
+      if (body.is_floating) {
+        DRAKE_DEMAND(body.inboard_mobilizer.is_valid());
+        const MobilizerTopology& mobilizer =
+            get_mobilizer(body.inboard_mobilizer);
+        body.floating_positions_start = mobilizer.positions_start;
+        body.floating_velocities_start = mobilizer.velocities_start;
+      }
+    }
+
     // We are done with a successful Finalize() and we mark it as so.
     // Do not add any more code after this!
     is_valid_ = true;
@@ -1035,41 +1064,5 @@ class MultibodyTreeTopology {
 };
 
 }  // namespace internal
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::BodyTopology BodyTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::FrameTopology FrameTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::MobilizerTopology MobilizerTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::ForceElementTopology ForceElementTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::JointActuatorTopology JointActuatorTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::BodyNodeTopology BodyNodeTopology;
-
-/// WARNING: This will be removed on or around 2019/03/01.
-DRAKE_DEPRECATED(
-    "This public alias is deprecated, and will be removed around 2019/03/01.")
-typedef internal::MultibodyTreeTopology MultibodyTreeTopology;
-
 }  // namespace multibody
 }  // namespace drake

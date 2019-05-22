@@ -76,7 +76,7 @@ int DoMain() {
       false /* no feedforward acceleration */);
 
   // Wire up Kuka plant to controller.
-  builder.Connect(kuka_plant.get_continuous_state_output_port(),
+  builder.Connect(kuka_plant.get_state_output_port(),
                   controller->get_input_port_estimated_state());
   builder.Connect(controller->get_output_port_control(),
                   kuka_plant.get_actuation_input_port());
@@ -101,9 +101,9 @@ int DoMain() {
   systems::Simulator<double> simulator(*diagram);
   simulator.Initialize();
   simulator.set_target_realtime_rate(1.0);
-  simulator.get_mutable_integrator()->set_target_accuracy(1e-3);
+  simulator.get_mutable_integrator().set_target_accuracy(1e-3);
 
-  simulator.StepTo(FLAGS_simulation_sec);
+  simulator.AdvanceTo(FLAGS_simulation_sec);
   return 0;
 }
 

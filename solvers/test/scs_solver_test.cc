@@ -4,6 +4,7 @@
 
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/test/exponential_cone_program_examples.h"
 #include "drake/solvers/test/linear_program_examples.h"
 #include "drake/solvers/test/mathematical_program_test_util.h"
 #include "drake/solvers/test/quadratic_program_examples.h"
@@ -201,6 +202,30 @@ INSTANTIATE_TEST_CASE_P(
     SCSTest, TestFindSpringEquilibrium,
     ::testing::ValuesIn(GetFindSpringEquilibriumProblems()));
 
+GTEST_TEST(TestSOCP, MaximizeGeometricMeanTrivialProblem1) {
+  MaximizeGeometricMeanTrivialProblem1 prob;
+  ScsSolver solver;
+  if (solver.available()) {
+    const auto result = solver.Solve(prob.prog(), {}, {});
+    prob.CheckSolution(result, 4E-6);
+  }
+}
+
+GTEST_TEST(TestSOCP, MaximizeGeometricMeanTrivialProblem2) {
+  MaximizeGeometricMeanTrivialProblem2 prob;
+  ScsSolver solver;
+  if (solver.available()) {
+    const auto result = solver.Solve(prob.prog(), {}, {});
+    // On Mac the accuracy is about 2.1E-6. On Linux it is about 2E-6.
+    prob.CheckSolution(result, 2.1E-6);
+  }
+}
+
+GTEST_TEST(TestSOCP, SmallestEllipsoidCoveringProblem) {
+  ScsSolver solver;
+  SolveAndCheckSmallestEllipsoidCoveringProblems(solver, 4E-6);
+}
+
 TEST_P(QuadraticProgramTest, TestQP) {
   ScsSolver solver;
   if (solver.available()) {
@@ -250,6 +275,48 @@ GTEST_TEST(TestSemidefiniteProgram, EigenvalueProblem) {
   }
 }
 
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithSecondOrderConeExample1) {
+  ScsSolver scs_solver;
+  if (scs_solver.available()) {
+    SolveSDPwithSecondOrderConeExample1(scs_solver, 1E-5);
+  }
+}
+
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithSecondOrderConeExample2) {
+  ScsSolver scs_solver;
+  if (scs_solver.available()) {
+    SolveSDPwithSecondOrderConeExample2(scs_solver, 1E-5);
+  }
+}
+
+GTEST_TEST(TestSemidefiniteProgram, SolveSDPwithOverlappingVariables) {
+  ScsSolver scs_solver;
+  if (scs_solver.available()) {
+    SolveSDPwithOverlappingVariables(scs_solver, 1E-5);
+  }
+}
+
+GTEST_TEST(TestExponentialConeProgram, ExponentialConeTrivialExample) {
+  ScsSolver solver;
+  if (solver.available()) {
+    ExponentialConeTrivialExample(solver, 1E-5);
+  }
+}
+
+GTEST_TEST(TestExponentialConeProgram, MinimizeKLDivengence) {
+  ScsSolver scs_solver;
+  if (scs_solver.available()) {
+    MinimizeKLDivergence(scs_solver, 1E-5);
+  }
+}
+
+GTEST_TEST(TestExponentialConeProgram, MinimalEllipsoidConveringPoints) {
+  ScsSolver scs_solver;
+  if (scs_solver.available()) {
+    MinimalEllipsoidCoveringPoints(scs_solver, 1E-5);
+  }
+}
+
 GTEST_TEST(TestScs, SetOptions) {
   MathematicalProgram prog;
   auto x = prog.NewContinuousVariables<2>();
@@ -258,17 +325,15 @@ GTEST_TEST(TestScs, SetOptions) {
 
   ScsSolver solver;
   auto result = solver.Solve(prog, {}, {});
-  const int iter_solve =
-      result.get_solver_details().GetValue<ScsSolverDetails>().iter;
-  const int solved_status =
-      result.get_solver_details().GetValue<ScsSolverDetails>().scs_status;
+  const int iter_solve = result.get_solver_details<ScsSolver>().iter;
+  const int solved_status = result.get_solver_details<ScsSolver>().scs_status;
   DRAKE_DEMAND(iter_solve >= 2);
   SolverOptions solver_options;
   // Now we require that SCS can only take half of the iterations before
   // termination. We expect now SCS cannot solve the problem.
   solver_options.SetOption(solver.solver_id(), "max_iters", iter_solve / 2);
   solver.Solve(prog, {}, solver_options, &result);
-  EXPECT_NE(result.get_solver_details().GetValue<ScsSolverDetails>().scs_status,
+  EXPECT_NE(result.get_solver_details<ScsSolver>().scs_status,
             solved_status);
 }
 }  // namespace test

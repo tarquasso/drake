@@ -7,7 +7,6 @@
 #include "drake/bindings/pydrake/documentation_pybind.h"
 #include "drake/bindings/pydrake/pydrake_pybind.h"
 #include "drake/bindings/pydrake/systems/lcm_py_bind_cpp_serializers.h"
-#include "drake/bindings/pydrake/systems/systems_pybind.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcm/drake_lcm_interface.h"
 #include "drake/systems/lcm/connect_lcm_scope.h"
@@ -24,6 +23,11 @@ using lcm::DrakeLcmInterface;
 using pysystems::pylcm::BindCppSerializers;
 using systems::lcm::LcmMessageToTimeInterface;
 using systems::lcm::SerializerInterface;
+
+constexpr const char* const kLcmDrivenLoopDeprecationString =
+    "LcmDrivenLoop is deprecated with no direct replacement; see "
+    "https://github.com/RobotLocomotion/drake/pull/11281 for suggestions. "
+    "This class will be removed on 2019-08-01.";
 
 namespace {
 
@@ -68,6 +72,8 @@ class PySerializerInterface : public py::wrapper<SerializerInterface> {
   }
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 class PyLcmMessageToTimeInterface
     : public py::wrapper<LcmMessageToTimeInterface> {
  public:
@@ -80,6 +86,7 @@ class PyLcmMessageToTimeInterface
         double, LcmMessageToTimeInterface, GetTimeInSeconds, &abstract_value);
   }
 };
+#pragma GCC diagnostic pop
 
 }  // namespace
 
@@ -129,13 +136,17 @@ PYBIND11_MODULE(lcm, m) {
   }
 
   {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     using Class = LcmMessageToTimeInterface;
     py::class_<Class, PyLcmMessageToTimeInterface>(
         m, "LcmMessageToTimeInterface")
         .def(py::init([]() {
+          WarnDeprecated(kLcmDrivenLoopDeprecationString);
           return std::make_unique<PyLcmMessageToTimeInterface>();
         }),
-            doc.LcmMessageToTimeInterface.doc);
+            doc.LcmMessageToTimeInterface.doc_deprecated);
+#pragma GCC diagnostic pop
   }
 
   {
@@ -148,16 +159,7 @@ PYBIND11_MODULE(lcm, m) {
             py::arg("channel"), py::arg("serializer"), py::arg("lcm"),
             py::arg("publish_period") = 0.0,
             // Keep alive: `self` keeps `DrakeLcmInterface` alive.
-            py::keep_alive<1, 3>(), doc.LcmPublisherSystem.ctor.doc)
-        .def("set_publish_period",
-            [](Class* self, double period) {
-              WarnDeprecated("set_publish_period() is deprecated");
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-              self->set_publish_period(period);
-#pragma GCC diagnostic pop
-            },
-            py::arg("period"), cls_doc.set_publish_period.doc);
+            py::keep_alive<1, 3>(), cls_doc.ctor.doc_4args);
   }
 
   {
@@ -167,21 +169,41 @@ PYBIND11_MODULE(lcm, m) {
         .def(py::init<const std::string&, std::unique_ptr<SerializerInterface>,
                  DrakeLcmInterface*>(),
             py::arg("channel"), py::arg("serializer"), py::arg("lcm"),
+            // Keep alive: `self` keeps `SerializerInterface` alive.
+            py::keep_alive<1, 3>(),
             // Keep alive: `self` keeps `DrakeLcmInterface` alive.
-            py::keep_alive<1, 3>(), doc.LcmSubscriberSystem.ctor.doc)
-        .def("CopyLatestMessageInto", &Class::CopyLatestMessageInto,
-            py::arg("state"), cls_doc.CopyLatestMessageInto.doc)
+            py::keep_alive<1, 4>(), doc.LcmSubscriberSystem.ctor.doc)
+        .def("CopyLatestMessageInto",
+            [](Class* self, State<double>* state) {
+              WarnDeprecated(
+                  "This unit-test-only method is being made non-public.");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+              self->CopyLatestMessageInto(state);
+#pragma GCC diagnostic pop
+            },
+            py::arg("state"), cls_doc.CopyLatestMessageInto.doc_deprecated)
         .def("WaitForMessage", &Class::WaitForMessage,
             py::arg("old_message_count"), py::arg("message") = nullptr,
-            cls_doc.WaitForMessage.doc);
+            py::arg("timeout") = -1, cls_doc.WaitForMessage.doc);
   }
 
   {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     using Class = LcmDrivenLoop;
     py::class_<Class>(m, "LcmDrivenLoop")
-        .def(py::init<const System<double>&, const LcmSubscriberSystem&,
-                 std::unique_ptr<Context<double>>, DrakeLcm*,
-                 std::unique_ptr<LcmMessageToTimeInterface>>(),
+        .def(
+            py::init(
+                [](const System<double>& system,
+                    const LcmSubscriberSystem& driving_subscriber,
+                    std::unique_ptr<Context<double>> context, DrakeLcm* lcm,
+                    std::unique_ptr<LcmMessageToTimeInterface> time_converter) {
+                  WarnDeprecated(kLcmDrivenLoopDeprecationString);
+                  return std::make_unique<LcmDrivenLoop>(system,
+                      driving_subscriber, std::move(context), lcm,
+                      std::move(time_converter));
+                }),
             py::arg("system"), py::arg("driving_subscriber"),
             py::arg("context"), py::arg("lcm"), py::arg("time_converter"),
             // Keep alive, ownership: `Context` keeps `self` alive.
@@ -189,7 +211,7 @@ PYBIND11_MODULE(lcm, m) {
             // Keep alive, reference: `self` keeps `DrakeLcm` alive.
             py::keep_alive<1, 5>(),
             // Keep alive, ownership: `time_converter` keeps `self` alive.
-            py::keep_alive<6, 1>(), doc.LcmDrivenLoop.ctor.doc)
+            py::keep_alive<6, 1>(), doc.LcmDrivenLoop.ctor.doc_deprecated)
         .def("WaitForMessage", &Class::WaitForMessage, py_reference_internal,
             doc.LcmDrivenLoop.WaitForMessage.doc)
         .def("RunToSecondsAssumingInitialized",
@@ -204,6 +226,7 @@ PYBIND11_MODULE(lcm, m) {
         .def("get_message_to_time_converter",
             &Class::get_message_to_time_converter, py_reference_internal,
             doc.LcmDrivenLoop.get_message_to_time_converter.doc);
+#pragma GCC diagnostic pop
   }
 
   m.def("ConnectLcmScope", &ConnectLcmScope, py::arg("src"), py::arg("channel"),

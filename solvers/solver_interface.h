@@ -57,9 +57,5 @@ class SolverInterface {
   SolverInterface();
 };
 
-using MathematicalProgramSolverInterface
-    DRAKE_DEPRECATED("This alias will be removed on 2019-05-01.")
-    = SolverInterface;
-
 }  // namespace solvers
 }  // namespace drake

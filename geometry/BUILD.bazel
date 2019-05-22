@@ -14,7 +14,6 @@ drake_cc_package_library(
     name = "geometry",
     deps = [
         ":frame_kinematics",
-        ":geometry_context",
         ":geometry_frame",
         ":geometry_ids",
         ":geometry_index",
@@ -50,9 +49,8 @@ drake_cc_library(
         ":utilities",
         "//common",
         "//common:default_scalars",
-        "//geometry/query_results:penetration_as_point_pair",
-        "//geometry/query_results:signed_distance_pair",
-        "//geometry/query_results:signed_distance_to_point",
+        "//geometry/proximity",
+        "//geometry/query_results",
         "//math",
         "@fcl",
         "@tinyobjloader",
@@ -73,16 +71,6 @@ drake_cc_library(
         "//common:autodiff",
         "//common:essential",
         "//common:symbolic",
-    ],
-)
-
-drake_cc_library(
-    name = "geometry_context",
-    srcs = ["geometry_context.cc"],
-    hdrs = ["geometry_context.h"],
-    deps = [
-        ":geometry_state",
-        "//systems/framework:leaf_context",
     ],
 )
 
@@ -180,10 +168,10 @@ drake_cc_library(
         "scene_graph.h",
     ],
     deps = [
-        ":geometry_context",
         ":geometry_state",
         ":scene_graph_inspector",
         "//common:essential",
+        "//geometry/query_results:contact_surface",
         "//geometry/query_results:penetration_as_point_pair",
         "//geometry/query_results:signed_distance_pair",
         "//geometry/query_results:signed_distance_to_point",
@@ -209,7 +197,7 @@ drake_cc_library(
         "//lcmtypes:viewer",
         "//math:geometric_transform",
         "//systems/framework:diagram_builder",
-        "//systems/lcm",
+        "//systems/lcm:lcm_pubsub_system",
         "//systems/rendering:pose_bundle_to_draw_message",
     ],
 )
@@ -258,7 +246,10 @@ drake_cc_library(
     name = "utilities",
     srcs = ["utilities.cc"],
     hdrs = ["utilities.h"],
-    deps = ["//common"],
+    deps = [
+        "//common",
+        "//math:geometric_transform",
+    ],
 )
 
 # -----------------------------------------------------
@@ -283,6 +274,8 @@ drake_cc_googletest(
     deps = [
         ":frame_kinematics",
         "//common/test_utilities",
+        "//common/test_utilities:limit_malloc",
+        "//math:geometric_transform",
     ],
 )
 
@@ -356,7 +349,7 @@ drake_cc_googletest(
         ":geometry_frame",
         ":geometry_instance",
         ":scene_graph",
-        "//common/test_utilities:expect_throws_message",
+        "//common/test_utilities",
     ],
 )
 

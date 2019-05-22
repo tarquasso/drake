@@ -9,7 +9,6 @@
 #include "drake/geometry/geometry_frame.h"
 #include "drake/geometry/geometry_instance.h"
 #include "drake/geometry/geometry_roles.h"
-#include "drake/geometry/geometry_visualization.h"
 #include "drake/systems/framework/continuous_state.h"
 #include "drake/systems/framework/discrete_values.h"
 
@@ -27,7 +26,7 @@ using geometry::GeometryFrame;
 using geometry::GeometryId;
 using geometry::GeometryInstance;
 using geometry::IllustrationProperties;
-using geometry::MakeDrakeVisualizerProperties;
+using geometry::MakePhongIllustrationProperties;
 using geometry::SceneGraph;
 using geometry::Mesh;
 using geometry::SourceId;
@@ -50,8 +49,8 @@ SolarSystem<T>::SolarSystem(SceneGraph<T>* scene_graph) {
 
   // Now that frames have been registered, allocate the output port.
   geometry_pose_port_ = this->DeclareAbstractOutputPort(
-          FramePoseVector<T>(source_id_, body_ids_),
-          &SolarSystem::CalcFramePoseOutput)
+          &SolarSystem::CalcFramePoseOutput,
+          {this->configuration_ticket()})
       .get_index();
 }
 
@@ -137,7 +136,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
   axes_.reserve(kBodyCount);
 
   IllustrationProperties post_material =
-      MakeDrakeVisualizerProperties(Vector4d(0.3, 0.15, 0.05, 1));
+      MakePhongIllustrationProperties(Vector4d(0.3, 0.15, 0.05, 1));
   const double orrery_bottom = -1.5;
   const double pipe_radius = 0.05;
 
@@ -148,8 +147,8 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
       source_id_, make_unique<GeometryInstance>(
                       Isometry3<double>::Identity(), make_unique<Sphere>(1.f),
                       "sun"));
-  scene_graph->AssignRole(source_id_, id,
-                          MakeDrakeVisualizerProperties(Vector4d(1, 1, 0, 1)));
+  scene_graph->AssignRole(
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(1, 1, 0, 1)));
 
   // The fixed post on which Sun sits and around which all planets rotate.
   const double post_height = 1;
@@ -172,7 +171,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
   const double kEarthBottom = orrery_bottom + 0.25;
   Isometry3<double> X_SOe{Translation3<double>{0, 0, kEarthBottom}};
   FrameId planet_id = scene_graph->RegisterFrame(
-      source_id_, GeometryFrame("EarthOrbit", X_SOe));
+      source_id_, GeometryFrame("EarthOrbit"));
   body_ids_.push_back(planet_id);
   body_offset_.push_back(X_SOe);
   axes_.push_back(Vector3<double>::UnitZ());
@@ -186,8 +185,8 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
       source_id_, planet_id,
       make_unique<GeometryInstance>(X_OeE, make_unique<Sphere>(0.25f),
                                     "Earth"));
-  scene_graph->AssignRole(source_id_, id,
-                          MakeDrakeVisualizerProperties(Vector4d(0, 0, 1, 1)));
+  scene_graph->AssignRole(
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(0, 0, 1, 1)));
   // Earth's orrery arm.
   MakeArm(source_id_, planet_id, kEarthOrbitRadius, -kEarthBottom, pipe_radius,
           post_material, scene_graph);
@@ -196,7 +195,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
   // So, X_OeOl = X_OeE.
   const Isometry3<double>& X_OeOl = X_OeE;
   FrameId luna_id = scene_graph->RegisterFrame(
-      source_id_, planet_id, GeometryFrame("LunaOrbit", X_OeOl));
+      source_id_, planet_id, GeometryFrame("LunaOrbit"));
   body_ids_.push_back(luna_id);
   body_offset_.push_back(X_OeOl);
   const Vector3<double> luna_axis_Oe{1, 1, 1};
@@ -216,12 +215,12 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
           X_OlL, make_unique<Sphere>(0.075f), "Luna"));
   scene_graph->AssignRole(
       source_id_, id,
-      MakeDrakeVisualizerProperties(Vector4d(0.5, 0.5, 0.35, 1)));
+      MakePhongIllustrationProperties(Vector4d(0.5, 0.5, 0.35, 1)));
 
   // Convex satellite orbits Earth in the same revolution as Luna but with
   // different initial position. See SetDefaultState().
   FrameId convexsat_id = scene_graph->RegisterFrame(source_id_, planet_id,
-                                          GeometryFrame("Convexsat", X_OeOl));
+                                          GeometryFrame("Convexsat"));
   body_ids_.push_back(convexsat_id);
   body_offset_.push_back(X_OeOl);
   axes_.push_back(luna_axis_Oe.normalized());
@@ -233,13 +232,13 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
       make_unique<GeometryInstance>(
           X_OlL, make_unique<Convex>(convexsat_absolute_path, 0.075),
           "convexsat"));
-  scene_graph->AssignRole(source_id_, id,
-                          MakeDrakeVisualizerProperties(Vector4d(1, 1, 0, 1)));
+  scene_graph->AssignRole(
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(1, 1, 0, 1)));
 
   // Box satellite orbits Earth in the same revolution as Luna but with
   // different initial position. See SetDefaultState().
   FrameId boxsat_id = scene_graph->RegisterFrame(
-      source_id_, planet_id, GeometryFrame("Boxsat", X_OeOl));
+      source_id_, planet_id, GeometryFrame("Boxsat"));
   body_ids_.push_back(boxsat_id);
   body_offset_.push_back(X_OeOl);
   axes_.push_back(luna_axis_Oe.normalized());
@@ -248,14 +247,14 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
       source_id_, boxsat_id,
       make_unique<GeometryInstance>(
           X_OlL, make_unique<Box>(0.15, 0.15, 0.15), "boxsat"));
-  scene_graph->AssignRole(source_id_, id,
-                          MakeDrakeVisualizerProperties(Vector4d(1, 0, 1, 1)));
+  scene_graph->AssignRole(
+      source_id_, id, MakePhongIllustrationProperties(Vector4d(1, 0, 1, 1)));
 
   // Mars's orbital frame Om lies directly *below* the sun (to account for the
   // orrery arm).
   Isometry3<double> X_SOm{Translation3<double>{0, 0, orrery_bottom}};
   planet_id =
-      scene_graph->RegisterFrame(source_id_, GeometryFrame("MarsOrbit", X_SOm));
+      scene_graph->RegisterFrame(source_id_, GeometryFrame("MarsOrbit"));
   body_ids_.push_back(planet_id);
   body_offset_.push_back(X_SOm);
   Vector3<double>  mars_axis_S {0, 0.1, 1};
@@ -273,7 +272,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
                                     "Mars"));
   scene_graph->AssignRole(
       source_id_, mars_geometry_id,
-      MakeDrakeVisualizerProperties(Vector4d(0.9, 0.1, 0, 1)));
+      MakePhongIllustrationProperties(Vector4d(0.9, 0.1, 0, 1)));
 
   std::string rings_absolute_path =
       FindResourceOrThrow("drake/examples/scene_graph/planet_rings.obj");
@@ -284,8 +283,8 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
       make_unique<GeometryInstance>(
           X_MR, make_unique<Mesh>(rings_absolute_path, kMarsSize),
           "MarsRings"));
-  scene_graph->AssignRole(
-      source_id_, id, MakeDrakeVisualizerProperties(Vector4d(0.45, 0.9, 0, 1)));
+  scene_graph->AssignRole(source_id_, id, MakePhongIllustrationProperties(
+                                              Vector4d(0.45, 0.9, 0, 1)));
 
   // Mars's orrery arm.
   MakeArm(source_id_, planet_id, kMarsOrbitRadius, -orrery_bottom, pipe_radius,
@@ -296,7 +295,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
   // opposite direction.
   const Isometry3<double>& X_OmOp = X_OmM;
   FrameId phobos_id = scene_graph->RegisterFrame(
-      source_id_, planet_id, GeometryFrame("PhobosOrbit", X_OmOp));
+      source_id_, planet_id, GeometryFrame("PhobosOrbit"));
   body_ids_.push_back(phobos_id);
   body_offset_.push_back(X_OmOp);
   mars_axis_S << 0, 0, -1;
@@ -310,7 +309,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
                                  X_OpP, make_unique<Sphere>(0.06f), "Phobos"));
   scene_graph->AssignRole(
       source_id_, id,
-      MakeDrakeVisualizerProperties(Vector4d(0.65, 0.6, 0.8, 1)));
+      MakePhongIllustrationProperties(Vector4d(0.65, 0.6, 0.8, 1)));
 
   DRAKE_DEMAND(static_cast<int>(body_ids_.size()) == kBodyCount);
 }
@@ -318,11 +317,7 @@ void SolarSystem<T>::AllocateGeometry(SceneGraph<T>* scene_graph) {
 template <typename T>
 void SolarSystem<T>::CalcFramePoseOutput(const Context<T>& context,
                                          FramePoseVector<T>* poses) const {
-  DRAKE_DEMAND(poses->size() == kBodyCount);
-  DRAKE_DEMAND(poses->source_id() == source_id_);
-
   const BasicVector<T>& state = get_state(context);
-
   poses->clear();
   for (int i = 0; i < kBodyCount; ++i) {
     Isometry3<T> pose = body_offset_[i];

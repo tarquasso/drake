@@ -9,7 +9,7 @@
 set -euo pipefail
 
 if [[ "${EUID}" -ne 0 ]]; then
-  echo 'This script must be run as root' >&2
+  echo 'ERROR: This script must be run as root' >&2
   exit 1
 fi
 
@@ -61,7 +61,7 @@ dpkg_install_from_wget() {
   if echo "${checksum} ${tmpdeb}" | sha256sum -c -; then
     echo  # Blank line between checkout output and dpkg output.
   else
-    echo "The ${package} deb does not have the expected SHA256. Not installing." >&2
+    echo "ERROR: The ${package} deb does NOT have the expected SHA256. Not installing." >&2
     exit 2
   fi
 
@@ -71,6 +71,6 @@ dpkg_install_from_wget() {
 }
 
 dpkg_install_from_wget \
-  bazel 0.21.0 \
-  https://github.com/bazelbuild/bazel/releases/download/0.21.0/bazel_0.21.0-linux-x86_64.deb \
-  cdc225dd1c1eb52ac7f4b0bebb40d2c6d6d8bc0f273718b26281077cd70a0403
+  bazel 0.25.2 \
+  https://github.com/bazelbuild/bazel/releases/download/0.25.2/bazel_0.25.2-linux-x86_64.deb \
+  7ca3bbec5730afc3732514cbebb1e8f451df455d85d6bed5eb5614c2bfe36f13

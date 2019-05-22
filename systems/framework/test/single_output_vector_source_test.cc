@@ -34,30 +34,22 @@ class SingleOutputVectorSourceTest : public ::testing::Test {
   void SetUp() override {
     source_ = std::make_unique<TestSource>();
     context_ = source_->CreateDefaultContext();
-    output_ = source_->AllocateOutput();
   }
 
   std::unique_ptr<System<double>> source_;
   std::unique_ptr<Context<double>> context_;
-  std::unique_ptr<SystemOutput<double>> output_;
 };
 
 // Tests that the output is correct.
 TEST_F(SingleOutputVectorSourceTest, OutputTest) {
-  ASSERT_EQ(context_->get_num_input_ports(), 0);
-  ASSERT_EQ(output_->get_num_ports(), 1);
-
-  std::unique_ptr<AbstractValue> output =
-      source_->get_output_port(0).Allocate();
-  source_->get_output_port(0).Calc(*context_, output.get());
-
-  const auto& output_vector = output->GetValueOrThrow<BasicVector<double>>();
-  EXPECT_EQ(output_vector.get_value(), Eigen::Vector3d::Ones());
+  ASSERT_EQ(context_->num_input_ports(), 0);
+  EXPECT_EQ(source_->get_output_port(0).Eval(*context_),
+            Eigen::Vector3d::Ones());
 }
 
 // Tests that the state is empty.
 TEST_F(SingleOutputVectorSourceTest, IsStateless) {
-  EXPECT_EQ(context_->get_continuous_state().size(), 0);
+  EXPECT_EQ(context_->num_continuous_states(), 0);
 }
 
 // Some tag types used to select which constructor gets called.

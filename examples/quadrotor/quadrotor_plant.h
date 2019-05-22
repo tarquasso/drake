@@ -15,6 +15,11 @@ namespace quadrotor {
 /// The Quadrotor - an underactuated aerial vehicle. This version of the
 /// Quadrotor is implemented to match the dynamics of the plant specified in
 /// the `quadrotor.urdf` model file.
+///
+/// @system{QuadrotorPlant,
+///    @input_port{propellor_force},
+///    @output_port{state}
+/// }
 template <typename T>
 class QuadrotorPlant final : public systems::LeafSystem<T> {
  public:
@@ -28,42 +33,19 @@ class QuadrotorPlant final : public systems::LeafSystem<T> {
 
   ~QuadrotorPlant() override;
 
-  int get_input_size() const { return kInputDimension; }
-
-  int get_num_states() const { return kStateDimension; }
-
-  void set_state(systems::Context<T>* context, const VectorX<T>& x) const {
-    context->get_mutable_continuous_state_vector().SetFromVector(x);
-  }
-
   double m() const { return m_; }
   double g() const { return g_; }
 
- protected:
-  void CopyStateOut(const systems::Context<T>& context,
-                    systems::BasicVector<T>* output) const;
-
+ private:
   void DoCalcTimeDerivatives(
       const systems::Context<T>& context,
       systems::ContinuousState<T>* derivatives) const override;
 
-  /// Declares that the system has no direct feedthrough from any input to any
-  /// output.
-  ///
-  /// The QuadrotorPlant is incompatible with the symbolic::Expression scalar
-  /// type because it invokes the Cholesky LDLT decomposition, which uses
-  /// conditionals in its implementation. Therefore, we must specify sparsity
-  /// by hand.
-  optional<bool> DoHasDirectFeedthrough(int, int) const override {
-    return false;
-  }
+  void CopyStateOut(const systems::Context<T>& context,
+                    systems::BasicVector<T>* output) const;
 
- private:
   // Allow different specializations to access each other's private data.
   template <typename> friend class QuadrotorPlant;
-
-  static constexpr int kStateDimension{12};
-  static constexpr int kInputDimension{4};
 
   // TODO(naveenoid): Declare these as parameters in the context.
   const double g_;           // Gravitational acceleration (m/s^2).

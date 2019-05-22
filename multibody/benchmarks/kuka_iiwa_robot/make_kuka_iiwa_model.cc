@@ -42,8 +42,7 @@ KukaIiwaModelBuilder<T>::AddRevoluteJointFromSpaceXYZAnglesAndXYZ(
   const math::RigidTransformd X_BBa;  // Identity transform.
 
   return model->template AddJoint<RevoluteJoint>(joint_name,
-                              A, X_AAb.GetAsIsometry3(),
-                              B, X_BBa.GetAsIsometry3(), revolute_unit_vector);
+                              A, X_AAb, B, X_BBa, revolute_unit_vector);
 }
 
 template <typename T>
@@ -146,7 +145,7 @@ KukaIiwaModelBuilder<T>::Build() const {
   // Add arbitrary tool frame.
   model->template AddFrame<FixedOffsetFrame>(
       "tool_arbitrary", model->GetFrameByName("iiwa_link_7"),
-      math::RigidTransformd(Eigen::Vector3d(0.1, 0.2, 0.3)).GetAsIsometry3());
+      math::RigidTransformd(Eigen::Vector3d(0.1, 0.2, 0.3)));
 
   // Add force element for a constant gravity pointing downwards, that is, in
   // the negative z-axis direction.
