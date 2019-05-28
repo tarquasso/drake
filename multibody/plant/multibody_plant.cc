@@ -1445,6 +1445,7 @@ void MultibodyPlant<T>::CalcImplicitStribeckResults(
 
   // If there is any input actuation, add it to the multibody forces.
   AddJointActuationForces(context0, &forces0);
+  AddAppliedExternalSpatialForces(context0, &forces0);
 
   AddJointLimitsPenaltyForces(context0, &forces0);
 
