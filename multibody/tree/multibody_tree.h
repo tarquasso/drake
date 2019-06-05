@@ -12,6 +12,7 @@
 
 #include "drake/common/default_scalars.h"
 #include "drake/common/drake_copyable.h"
+#include "drake/common/drake_deprecated.h"
 #include "drake/common/drake_optional.h"
 #include "drake/common/pointer_cast.h"
 #include "drake/common/random.h"
@@ -84,7 +85,8 @@ class MultibodyTree {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(MultibodyTree)
 
-  /// Creates a MultibodyTree containing only a **world** body.
+  /// Creates a MultibodyTree containing only a **world** body and a
+  /// UniformGravityFieldElement.
   MultibodyTree();
 
   /// @name Methods to add new MultibodyTree elements.
@@ -421,6 +423,8 @@ class MultibodyTree {
   // mantain indirection layers between MBP/MBT and can cause difficult to find
   // bugs, see #11051. It is bad practice and should removed, see #11080.
   template<template<typename Scalar> class ForceElementType, typename... Args>
+  DRAKE_DEPRECATED("2019-09-01",
+                   "Use mutable_gravity_field().set_gravity_vector() instead.")
   typename std::enable_if<std::is_same<
       ForceElementType<T>,
       UniformGravityFieldElement<T>>::value, const ForceElementType<T>&>::type
@@ -678,6 +682,18 @@ class MultibodyTree {
   const Mobilizer<T>& get_mobilizer(MobilizerIndex mobilizer_index) const {
     DRAKE_THROW_UNLESS(mobilizer_index < num_mobilizers());
     return *owned_mobilizers_[mobilizer_index];
+  }
+
+  /// An accessor to the current gravity field.
+  const UniformGravityFieldElement<T>& gravity_field() const {
+    DRAKE_ASSERT(gravity_field_);
+    return *gravity_field_;
+  }
+
+  /// A mutable accessor to the current gravity field.
+  UniformGravityFieldElement<T>& mutable_gravity_field() {
+    DRAKE_ASSERT(gravity_field_);
+    return *gravity_field_;
   }
 
   /// See MultibodyPlant method.
@@ -1259,9 +1275,13 @@ class MultibodyTree {
       EigenPtr<MatrixX<T>> Jv_WFp) const;
 
   /// See MultibodyPlant method.
-  Vector6<T> CalcBiasForFrameGeometricJacobianExpressedInWorld(
+  Vector6<T> CalcBiasForJacobianSpatialVelocity(
       const systems::Context<T>& context,
-      const Frame<T>& frame_F, const Eigen::Ref<const Vector3<T>>& p_FP) const;
+      JacobianWrtVariable with_respect_to,
+      const Frame<T>& frame_F,
+      const Eigen::Ref<const Vector3<T>>& p_FoFp_F,
+      const Frame<T>& frame_A,
+      const Frame<T>& frame_E) const;
 
   /// See MultibodyPlant method.
   void CalcJacobianSpatialVelocity(
@@ -1793,9 +1813,18 @@ class MultibodyTree {
       tree_clone->CloneMobilizerAndAdd(*mobilizer);
     }
 
+    // Throw away the default constructed gravity element.
+    tree_clone->owned_force_elements_.clear();
+    tree_clone->gravity_field_ = nullptr;
     for (const auto& force_element : owned_force_elements_) {
       tree_clone->CloneForceElementAndAdd(*force_element);
     }
+
+    DRAKE_DEMAND(tree_clone->num_force_elements() > 0);
+    tree_clone->gravity_field_ =
+        dynamic_cast<UniformGravityFieldElement<ToScalar>*>(
+            tree_clone->owned_force_elements_[0].get());
+    DRAKE_DEMAND(tree_clone->gravity_field_);
 
     // Since Joint<T> objects are implemented from basic element objects like
     // Body, Mobilizer, ForceElement and Constraint, they are cloned last so
@@ -2032,6 +2061,30 @@ class MultibodyTree {
   // The world body is special in that it is the only body in the model with no
   // mobilizer, even after Finalize().
   void AddQuaternionFreeMobilizerToAllBodiesWithNoMobilizer();
+
+  // Helper method for CalcBiasForJacobianTranslationalVelocity() and
+  // CalcBiasForJacobianSpatialVelocity() which shifts the spatial acceleration
+  // bias term from point Fo (the origin of a frame F) to point Fp (fixed on F),
+  // where frame F is fixed to a body B.
+  // @param[in] context The state of the multibody system, which includes the
+  // generalized positions q and generalized velocities v.
+  // @param[in] frame_F The frame on which point Fp is fixed/welded.
+  // @param[in] X_BF rigid transform relating body B's frame to frame F.
+  // @param[in] p_FoFp_F position vector from Fo (frame F's origin) to Fp,
+  // expressed in frame F.
+  // @param[in] Abias_WBo_W spatial acceleration bias of Bo (body B's origin) in
+  // world W, expressed in W.
+  // expressed in frame F.
+  // @param[in] frame_E The frame in which `Abias_WFp` is expressed on output.
+  // @returns Abias_WFp_E  Fp's spatial acceleration bias in world frame W,
+  // expressed in frame_E.
+  SpatialAcceleration<T> CalcSpatialAccelerationBiasShift(
+      const systems::Context<T>& context,
+      const Frame<T>& frame_F,
+      const math::RigidTransform<T>& X_BF,
+      const Vector3<T>& p_FoFp_F,
+      const SpatialAcceleration<T>& Abias_WBo_W,
+      const Frame<T>& frame_E) const;
 
   // Helper method to access the mobilizer of a free body.
   // If `body` is a free body in the model, this method will return the
@@ -2371,7 +2424,7 @@ class MultibodyTree {
   std::vector<const Frame<T>*> frames_;
 
   // The gravity field force element.
-  optional<const UniformGravityFieldElement<T>*> gravity_field_;
+  UniformGravityFieldElement<T>* gravity_field_{nullptr};
 
   // TODO(amcastro-tri): Consider moving these maps into MultibodyTreeTopology
   // since they are not templated on <T>.

@@ -27,7 +27,6 @@
 #include "drake/multibody/tree/multibody_tree-inl.h"
 #include "drake/multibody/tree/multibody_tree_system.h"
 #include "drake/multibody/tree/rigid_body.h"
-#include "drake/multibody/tree/uniform_gravity_field_element.h"
 #include "drake/multibody/tree/weld_joint.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/framework/leaf_system.h"
@@ -934,10 +933,14 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   /// @param[in] args
   ///   Zero or more parameters provided to the constructor of the new force
   ///   element. It must be the case that
-  ///   `JointType<T>(args)` is a valid constructor.
-  /// @tparam ForceElementType The type of the ForceElement to add.
-  /// This method can only be called once for elements of type
-  /// UniformGravityFieldElement. That is, gravity can only be specified once.
+  ///   `ForceElementType<T>(args)` is a valid constructor.
+  /// @tparam ForceElementType The type of the ForceElement to add.  As there
+  /// is always a UniformGravityFieldElement present (accessible through
+  /// gravity_field()), an exception will be thrown if this function is called
+  /// to add another UniformGravityFieldElement.  As there was not always a
+  /// default gravity field element, for compatibility purposes calling this
+  /// function to add a UniformGravityFieldElement which has the same value as
+  /// gravity_field() is not an error.
   /// @returns A constant reference to the new ForceElement just added, of type
   ///   `ForceElementType<T>` specialized on the scalar type T of `this`
   ///   %MultibodyPlant. It will remain valid for the lifetime of `this`
@@ -959,25 +962,28 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
 #ifndef DRAKE_DOXYGEN_CXX
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   // SFINAE overload for ForceElementType = UniformGravityFieldElement.
   // This allow us to keep track of the gravity field parameters.
   // TODO(amcastro-tri): This specialization pattern leads to difficult to
   // mantain indirection layers between MBP/MBT and can cause difficult to find
   // bugs, see #11051. It is bad practice and should removed, see #11080.
   template <template <typename Scalar> class ForceElementType, typename... Args>
+  // TODO(sammy-tri): When removing this SFINAE overload along with its
+  // deprecation message, remove the "backwards compatibility" notes from
+  // MultibodyPlant::AddForceElement().
+  DRAKE_DEPRECATED("2019-09-01",
+                   "Use mutable_gravity_field().set_gravity_vector() instead.")
   typename std::enable_if<
       std::is_same<ForceElementType<T>, UniformGravityFieldElement<T>>::value,
       const ForceElementType<T>&>::type
   AddForceElement(Args&&... args) {
     DRAKE_MBP_THROW_IF_FINALIZED();
-    DRAKE_DEMAND(!gravity_field_.has_value());
-    // We save the force element so that we can grant users access to it for
-    // gravity field specific queries.
-    gravity_field_ = &this->mutable_tree()
-                          .template AddForceElement<UniformGravityFieldElement>(
-                              std::forward<Args>(args)...);
-    return *gravity_field_.value();
+    return this->mutable_tree().template AddForceElement<ForceElementType>(
+        std::forward<Args>(args)...);
   }
+#pragma GCC diagnostic pop
 #endif
 
   /// Creates and adds a JointActuator model for an actuator acting on a given
@@ -1550,58 +1556,55 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   ///
   /// @throws std::exception if `p_FP_list` does not have 3 rows.
   // TODO(amcastro-tri): Rework this method as per issue #10155.
-  DRAKE_DEPRECATED("2019-08-17",
+  DRAKE_DEPRECATED("2019-09-01",
                    "Use CalcBiasForJacobianTranslationalVelocity().")
   VectorX<T> CalcBiasForPointsGeometricJacobianExpressedInWorld(
       const systems::Context<T>& context,
       const Frame<T>& frame_F,
       const Eigen::Ref<const MatrixX<T>>& p_FP_list) const {
-    return internal_tree().CalcBiasForJacobianTranslationalVelocity(
+    return CalcBiasForJacobianTranslationalVelocity(
         context, JacobianWrtVariable::kV, frame_F, p_FP_list,
         world_frame(), world_frame());
   }
 
   /// For a point Fp that is regarded as a point of (fixed/welded to) a frame F,
-  /// computes the bias term `b_AFp` associated with `a_AFp` (Fp's translational
+  /// computes bias term `abias_AFp` associated with `a_AFp` (Fp's translational
   /// acceleration in a frame A) with respect to "speeds" 𝑠, where 𝑠 is either
   /// q̇ ≜ [q̇₁ ... q̇ⱼ]ᵀ (time-derivatives of generalized positions) or
   /// v ≜ [v₁ ... vₖ]ᵀ (generalized velocities).
-  /// That is, the translational acceleration of point `Fp` can be computed as:
+  /// That is, point Fp's translational acceleration in frame A can be written
   /// <pre>
-  ///   a_AFp = Js_v_AFp(q)⋅ṡ + b_AFp(q, v)
+  ///   a_AFp = Js_v_AFp(q)⋅ṡ + abias_AFp(q, v)
   /// </pre>
-  /// where `b_AFp = J̇s_v_AFp(q, s)⋅s`.
+  /// where `abias_AFp = J̇s_v_AFp(q, s)⋅s`.
   ///
-  /// This method computes `b_AFp` for each such point Fp in the `p_FP_list`.
+  /// This method computes `abias_AFp` for each point Fp in the `p_FP_list`.
   /// The `p_FP_list` is a list of position vectors from Fo (Frame F's origin)
-  /// to Fp, expressed in frame F.
+  /// to each such point Fp, expressed in frame F.
   ///
-  /// @see CalcJacobianTranslationalVelocity() to compute `Js_v_AFp`, the
-  /// Jacobian with respect to s of Fp's velocity in A.
+  /// @see CalcJacobianTranslationalVelocity() to compute `Js_v_AFp`, point Fp's
+  /// translational velocity Jacobian in frame A with respect to s.
   ///
   /// @param[in] context The state of the multibody system, which includes the
   /// generalized positions q and generalized velocities v.
   /// @param[in] with_respect_to Enum equal to JacobianWrtVariable::kQDot or
-  /// JacobianWrtVariable::kV, indicating whether the Jacobian `Js_v_ABp` is
+  /// JacobianWrtVariable::kV, indicating whether the Jacobian `Js_v_AFp` is
   /// partial derivatives with respect to 𝑠 = q̇ (time-derivatives of generalized
   /// positions) or with respect to 𝑠 = v (generalized velocities).
   /// @param[in] frame_F The frame on which point Fp is fixed/welded.
   /// @param[in] p_FP_list `3 x n` matrix of position vectors `p_FoFp_F` from
   /// Fo (frame F's origin) to each such point Fp, expressed in frame F.
-  /// @param[in] frame_A The frame that measures `v_AFp` (Fp's velocity in A).
+  /// @param[in] frame_A The frame that measures `abias_AFp`.
   /// Currently, an exception is thrown if frame_A is not the World frame.
-  /// @param[in] frame_E The frame in which `v_AFp` is expressed on input and
-  /// the frame in which the bias term `b_AFp` is expressed on output.
-  /// Currently, an exception is thrown if frame_E is not the World frame.
-  /// @returns b_AFp `3 x n` matrix of bias terms for each of the associated n
-  /// points Fp, expressed in frame_E.  These bias terms are functions of the
-  /// generalized positions q and the generalized velocities v and depend on
-  /// whether `with_respect_to` is kQDot or kV.
+  /// @param[in] frame_E The frame in which `abias_AFp` is expressed on output.
+  /// @returns abias_AFp_E matrix of translational acceleration bias terms
+  /// in frame_A and expressed in frame_E for each of the `n` points associated
+  /// with p_FP_list.  These bias terms are functions of the generalized
+  /// positions q and the generalized velocities v and depend on whether
+  /// `with_respect_to` is kQDot or kV.
   /// @throws std::exception if `p_FP_list` does not have 3 rows.
   /// @throws std::exception if `with_respect_to` is not JacobianWrtVariable::kV
-  /// @throws std::exception if frame_A or frame_E are not the world frame.
-  // TODO(Mitiguy) Allow `with_respect_to` to be JacobianWrtVariable::kQDot
-  // and/or allow frame_A and frame_E to be non-world frames.
+  /// @throws std::exception if frame_A is not the world frame.
   VectorX<T> CalcBiasForJacobianTranslationalVelocity(
       const systems::Context<T>& context,
       JacobianWrtVariable with_respect_to,
@@ -1609,6 +1612,8 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
       const Eigen::Ref<const MatrixX<T>>& p_FP_list,
       const Frame<T>& frame_A,
       const Frame<T>& frame_E) const {
+    // TODO(Mitiguy) Allow `with_respect_to` to be JacobianWrtVariable::kQDot
+    // and/or allow frame_A to be a non-world frame.
     return internal_tree().CalcBiasForJacobianTranslationalVelocity(
         context, with_respect_to, frame_F, p_FP_list, frame_A, frame_E);
   }
@@ -1824,7 +1829,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   /// @throws std::exception if `J_ABp` is nullptr or if it is not of size
   ///   `6 x nv`.
   // TODO(amcastro-tri): Rework this method as per issue #10155.
-  DRAKE_DEPRECATED("2019-08-15", "Use CalcJacobianSpatialVelocity().")
+  DRAKE_DEPRECATED("2019-09-01", "Use CalcJacobianSpatialVelocity().")
   void CalcRelativeFrameGeometricJacobian(
       const systems::Context<T>& context,
       const Frame<T>& frame_B, const Eigen::Ref<const Vector3<T>>& p_BP,
@@ -1864,11 +1869,62 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   ///   related to the bias in translational acceleration.
   /// @note SpatialAcceleration(Ab_WFp) defines a valid SpatialAcceleration.
   // TODO(amcastro-tri): Rework this method as per issue #10155.
+  DRAKE_DEPRECATED("2019-09-01",
+                   "Use CalcBiasForJacobianSpatialVelocity().")
   Vector6<T> CalcBiasForFrameGeometricJacobianExpressedInWorld(
       const systems::Context<T>& context,
       const Frame<T>& frame_F, const Eigen::Ref<const Vector3<T>>& p_FP) const {
-    return internal_tree().CalcBiasForFrameGeometricJacobianExpressedInWorld(
-        context, frame_F, p_FP);
+    return CalcBiasForJacobianSpatialVelocity(context, JacobianWrtVariable::kV,
+        frame_F, p_FP, world_frame(), world_frame());
+  }
+
+  /// For a point Fp that is regarded as a point of (fixed/welded to) a frame F,
+  /// computes the bias term `Abias_AFp` associated with `A_AFp` (Fp's spatial
+  /// acceleration in a frame A) with respect to "speeds" 𝑠, where 𝑠 is either
+  /// q̇ ≜ [q̇₁ ... q̇ⱼ]ᵀ (time-derivatives of generalized positions) or
+  /// v ≜ [v₁ ... vₖ]ᵀ (generalized velocities).
+  /// That is, point Fp's spatial acceleration in frame A can be written
+  /// <pre>
+  ///   A_AFp = Js_V_AFp(q)⋅ṡ + Abias_AFp(q, v)
+  /// </pre>
+  /// where `Abias_AFp = J̇s_V_AFp(q, s)⋅s`.
+  ///
+  /// @see CalcJacobianSpatialVelocity() to compute `Js_V_AFp`, point Fp's
+  /// spatial velocity Jacobian in frame A with respect to s.
+  ///
+  /// @param[in] context The state of the multibody system, which includes the
+  /// generalized positions q and generalized velocities v.
+  /// @param[in] with_respect_to Enum equal to JacobianWrtVariable::kQDot or
+  /// JacobianWrtVariable::kV, indicating whether the Jacobian `Js_v_AFp` is
+  /// partial derivatives with respect to 𝑠 = q̇ (time-derivatives of generalized
+  /// positions) or with respect to 𝑠 = v (generalized velocities).
+  /// @param[in] frame_F The frame on which point Fp is fixed/welded.
+  /// @param[in] p_FoFp_F position vector from Fo (frame F's origin) to
+  /// point Fp, expressed in frame F.
+  /// @param[in] frame_A The frame that measures `Abias_AFp`.
+  /// Currently, an exception is thrown if frame_A is not the World frame.
+  /// @param[in] frame_E The frame in which `Abias_AFp` is expressed on output.
+  /// @returns Abias_AFp_E Fp's spatial acceleration bias in frame_A is returned
+  /// in a `6 x 1` matrix whose first three elements are frame_F's angular
+  /// acceleration bias in frame_A (expressed in frame_E) and whose last three
+  /// elements are point Fp's translational acceleration bias in frame_A
+  /// (expressed in frame_E).  These bias terms are functions of the generalized
+  /// positions q and the generalized velocities v and depend on whether
+  /// `with_respect_to` is kQDot or kV.  Note: Although the return quantity is a
+  /// Vector6, it is actually a SpatialAcceleration (having units of that type).
+  /// @throws std::exception if `with_respect_to` is not JacobianWrtVariable::kV
+  /// @throws std::exception if frame_A is not the world frame.
+  Vector6<T> CalcBiasForJacobianSpatialVelocity(
+      const systems::Context<T>& context,
+      JacobianWrtVariable with_respect_to,
+      const Frame<T>& frame_F,
+      const Eigen::Ref<const Vector3<T>>& p_FoFp_F,
+      const Frame<T>& frame_A,
+      const Frame<T>& frame_E) const {
+    // TODO(Mitiguy) Allow `with_respect_to` to be JacobianWrtVariable::kQDot
+    // and/or allow frame_A to be a non-world frame.
+    return internal_tree().CalcBiasForJacobianSpatialVelocity(
+        context, with_respect_to, frame_F, p_FoFp_F, frame_A, frame_E);
   }
 
   /// Computes the Jacobian of spatial velocity for a frame instantaneously
@@ -2833,6 +2889,16 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
     return internal_tree().get_frame(frame_index);
   }
 
+  /// An accessor to the current gravity field.
+  const UniformGravityFieldElement<T>& gravity_field() const {
+    return internal_tree().gravity_field();
+  }
+
+  /// A mutable accessor to the current gravity field.
+  UniformGravityFieldElement<T>& mutable_gravity_field() {
+    return this->mutable_tree().mutable_gravity_field();
+  }
+
   /// Returns the name of a `model_instance`.
   /// @throws std::logic_error when `model_instance` does not correspond to a
   /// model in this model.
@@ -3101,7 +3167,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   // #9865. Right now we offer them for backwards compatibility.
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   void SetFreeBodyPose(systems::Context<T>* context, const Body<T>& body,
@@ -3110,7 +3176,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   void SetFreeBodyPose(const systems::Context<T>& context,
@@ -3122,7 +3188,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   // Allows having a non-empty X_PF isometry and a nullopt X_BM.
   template <template <typename> class JointType, typename... Args>
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   const JointType<T>& AddJoint(const std::string& name, const Body<T>& parent,
@@ -3145,7 +3211,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   // Allows having a nullopt X_PF and a non-empty X_BM isometry.
   template <template <typename> class JointType, typename... Args>
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   const JointType<T>& AddJoint(const std::string& name, const Body<T>& parent,
@@ -3197,7 +3263,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   geometry::GeometryId RegisterVisualGeometry(
@@ -3210,7 +3276,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   geometry::GeometryId RegisterVisualGeometry(
@@ -3223,7 +3289,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   geometry::GeometryId RegisterVisualGeometry(
@@ -3235,7 +3301,7 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
   }
 
   DRAKE_DEPRECATED(
-      "2019-06-15",
+      "2019-07-01",
       "This Isometry3 overload will be removed pending the resolution of "
       "#9865. Use the RigidTransform overload instead.")
   geometry::GeometryId RegisterCollisionGeometry(
@@ -3630,9 +3696,6 @@ class MultibodyPlant : public internal::MultibodyTreeSystem<T> {
                               joint.parent_body().index(),
                               joint.child_body().index());
   }
-
-  // The gravity field force element.
-  optional<const UniformGravityFieldElement<T>*> gravity_field_;
 
   // Geometry source identifier for this system to interact with geometry
   // system. It is made optional for plants that do not register geometry

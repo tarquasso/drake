@@ -8,8 +8,8 @@
 #include "drake/common/drake_copyable.h"
 #include "drake/common/eigen_types.h"
 #include "drake/geometry/geometry_ids.h"
-#include "drake/geometry/query_results/mesh_field_linear.h"
-#include "drake/geometry/query_results/surface_mesh.h"
+#include "drake/geometry/proximity/mesh_field_linear.h"
+#include "drake/geometry/proximity/surface_mesh.h"
 
 namespace drake {
 namespace geometry {
@@ -133,18 +133,13 @@ class ContactSurface {
 
     id_M_ = surface.id_M_;
     id_N_ = surface.id_N_;
+    mesh_ = std::make_unique<SurfaceMesh<T>>(*surface.mesh_.get());
 
     // We can't simply copy the mesh fields; the copies must contain pointers
-    // to a unique mesh. So, we reconstruct new fields on the newly created
-    // mesh.
-    mesh_ = std::make_unique<SurfaceMesh<T>>(*surface.mesh_.get());
-    std::vector<T> e_MN_values = surface.e_MN_->values();
-    e_MN_ = std::make_unique<SurfaceMeshFieldLinear<T, T>>(
-        surface.e_MN_->name(), std::move(e_MN_values), mesh_.get());
-    std::vector<Vector3<T>> grad_h_MN_M_values = surface.grad_h_MN_M_->values();
-    grad_h_MN_M_ = std::make_unique<SurfaceMeshFieldLinear<Vector3<T>, T>>(
-        surface.grad_h_MN_M_->name(), std::move(grad_h_MN_M_values),
-        mesh_.get());
+    // to the new mesh. So, we use CloneAndSetMesh() instead.
+    e_MN_ = surface.e_MN_->CloneAndSetMesh(mesh_.get());
+    grad_h_MN_M_ = surface.grad_h_MN_M_->CloneAndSetMesh(mesh_.get());
+
     return *this;
   }
 
@@ -217,12 +212,11 @@ class ContactSurface {
   GeometryId id_N_;
   /** The surface mesh of the contact surface 𝕊ₘₙ between M and N. */
   std::unique_ptr<SurfaceMesh<T>> mesh_;
-  // TODO(DamrongGuoy): Change to SurfaceMeshField when we have it.
-  /** Represents the common scalar field eₘₙ on the surface mesh. */
-  std::unique_ptr<SurfaceMeshFieldLinear<T, T>> e_MN_;
+  /** Represents the scalar field eₘₙ on the surface mesh. */
+  std::unique_ptr<SurfaceMeshField<T, T>> e_MN_;
   /** Represents the vector field ∇hₘₙ on the surface mesh, expressed in M's
-      frame */
-  std::unique_ptr<SurfaceMeshFieldLinear<Vector3<T>, T>> grad_h_MN_M_;
+    frame */
+  std::unique_ptr<SurfaceMeshField<Vector3<T>, T>> grad_h_MN_M_;
   friend class ContactSurfaceTester;
 };
 
