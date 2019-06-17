@@ -52,8 +52,10 @@ using internal::CreateBinding;
 using internal::DecomposeLinearExpression;
 using internal::SymbolicError;
 
+#if  __cplusplus < 201703L
 constexpr double MathematicalProgram::kGlobalInfeasibleCost;
 constexpr double MathematicalProgram::kUnboundedCost;
+#endif
 
 MathematicalProgram::MathematicalProgram()
     : x_initial_guess_(0),
@@ -1117,6 +1119,14 @@ pair<MatrixXDecisionVariable, VectorX<symbolic::Monomial>>
 MathematicalProgram::AddSosConstraint(const symbolic::Expression& e) {
   return AddSosConstraint(
       symbolic::Polynomial{e, symbolic::Variables{indeterminates_}});
+}
+
+void MathematicalProgram::AddEqualityConstraintBetweenPolynomials(
+    const symbolic::Polynomial& p1, const symbolic::Polynomial& p2) {
+  const symbolic::Polynomial poly_diff = p1 - p2;
+  for (const auto& item : poly_diff.monomial_to_coefficient_map()) {
+    AddLinearEqualityConstraint(item.second, 0);
+  }
 }
 
 double MathematicalProgram::GetInitialGuess(

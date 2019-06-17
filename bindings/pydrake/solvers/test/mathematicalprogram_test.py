@@ -5,7 +5,8 @@ from pydrake.solvers.gurobi import GurobiSolver
 from pydrake.solvers.snopt import SnoptSolver
 from pydrake.solvers.mathematicalprogram import (
     SolverOptions,
-    SolverType
+    SolverType,
+    SolverId
     )
 
 from functools import partial
@@ -377,6 +378,17 @@ class TestMathematicalProgram(unittest.TestCase):
         result = mp.Solve(prog)
         self.assertTrue(result.is_success())
 
+    def test_equality_between_polynomials(self):
+        prog = mp.MathematicalProgram()
+        x = prog.NewIndeterminates(1, "x")
+        a = prog.NewContinuousVariables(2, "a")
+        prog.AddEqualityConstraintBetweenPolynomials(sym.Polynomial(
+            2 * a[0] * x[0] + a[1] + 2, x), sym.Polynomial(2 * x[0] + 4, x))
+        result = mp.Solve(prog)
+        a_val = result.GetSolution(a)
+        self.assertAlmostEqual(a_val[0], 1)
+        self.assertAlmostEqual(a_val[1], 2)
+
     def test_log_determinant(self):
         # Find the minimal ellipsoid that covers some given points.
         prog = mp.MathematicalProgram()
@@ -550,16 +562,27 @@ class TestMathematicalProgram(unittest.TestCase):
         prog = mp.MathematicalProgram()
 
         prog.SetSolverOption(SolverType.kGurobi, "double_key", 1.0)
-        prog.SetSolverOption(SolverType.kGurobi, "int_key", 2)
+        prog.SetSolverOption(GurobiSolver().solver_id(), "int_key", 2)
         prog.SetSolverOption(SolverType.kGurobi, "string_key", "3")
 
         options = prog.GetSolverOptions(SolverType.kGurobi)
+        self.assertDictEqual(
+            options, {"double_key": 1.0, "int_key": 2, "string_key": "3"})
+        options = prog.GetSolverOptions(GurobiSolver().solver_id())
         self.assertDictEqual(
             options, {"double_key": 1.0, "int_key": 2, "string_key": "3"})
 
         # For now, just make sure the constructor exists.  Once we bind more
         # accessors, we can test them here.
         options_object = SolverOptions()
+        solver_id = SolverId("dummy")
+        self.assertEqual(solver_id.name(), "dummy")
+        options_object.SetOption(solver_id, "double_key", 1.0)
+        options_object.SetOption(solver_id, "int_key", 2)
+        options_object.SetOption(solver_id, "string_key", "3")
+        options = options_object.GetOptions(solver_id)
+        self.assertDictEqual(
+            options, {"double_key": 1.0, "int_key": 2, "string_key": "3"})
 
     def test_infeasible_constraints(self):
         prog = mp.MathematicalProgram()
