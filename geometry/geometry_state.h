@@ -19,6 +19,7 @@
 #include "drake/geometry/internal_frame.h"
 #include "drake/geometry/internal_geometry.h"
 #include "drake/geometry/proximity_engine.h"
+#include "drake/geometry/render/render_engine.h"
 #include "drake/geometry/utilities.h"
 
 namespace drake {
@@ -68,7 +69,6 @@ class GeometryState {
  public:
   DRAKE_DEFAULT_COPY_AND_MOVE_AND_ASSIGN(GeometryState)
 
- public:
   /** An object that represents the range of FrameId values in the state. It
    is used in range-based for loops to iterate through registered frames.  */
   using FrameIdRange = internal::MapKeyRange<FrameId, internal::InternalFrame>;
@@ -196,14 +196,13 @@ class GeometryState {
    SceneGraphInspector::GetOwningSourceName(GeometryId) const.  */
   const std::string& GetOwningSourceName(GeometryId id) const;
 
-
   /** Implementation of SceneGraphInspector::GetFrameId().  */
   FrameId GetFrameId(GeometryId geometry_id) const;
 
   /** Implementation of SceneGraphInspector::GetName(GeometryId) const.  */
-  const std::string& get_name(GeometryId geometry_id) const;
+  const std::string& GetName(GeometryId geometry_id) const;
 
-  /** Implementation of SceneGraphInspector::GetShape().  */
+  /** Support for SceneGraphInspector::Reify().  */
   const Shape& GetShape(GeometryId id) const;
 
   /** Implementation of SceneGraphInspector::X_FG().  */
@@ -213,11 +212,13 @@ class GeometryState {
   const Isometry3<double>& GetPoseInParent(GeometryId geometry_id) const;
 
   /** Implementation of SceneGraphInspector::GetProximityProperties().  */
-  const ProximityProperties* get_proximity_properties(GeometryId id) const;
+  const ProximityProperties* GetProximityProperties(GeometryId id) const;
 
   /** Implementation of SceneGraphInspector::GetIllustrationProperties().  */
-  const IllustrationProperties* get_illustration_properties(
-      GeometryId id) const;
+  const IllustrationProperties* GetIllustrationProperties(GeometryId id) const;
+
+  /** Implementation of SceneGraphInspector::GetPerceptionProperties().  */
+  const PerceptionProperties* GetPerceptionProperties(GeometryId id) const;
 
   /** Implementation of SceneGraphInspector::CollisionFiltered().  */
   bool CollisionFiltered(GeometryId id1, GeometryId id2) const;
@@ -230,24 +231,13 @@ class GeometryState {
    registered frames.  */
   //@{
 
-  /** Reports the pose of the frame with the given id.
-   @param frame_id  The identifier of the queried frame.
-   @returns The pose in the world (X_WF) of the identified frame.
-   @throws std::logic_error if the frame id is not valid.  */
+  /** Implementation of QueryObject::X_WF().  */
   const Isometry3<T>& get_pose_in_world(FrameId frame_id) const;
 
-  /** Reports the pose of the geometry with the given id.
-   @param geometry_id  The identifier of the queried geometry.
-   @returns The pose in the world (X_WG) of the identified geometry.
-   @throws std::logic_error if the geometry id is not valid.  */
+  /** Implementation of QueryObject::X_WG().  */
   const Isometry3<T>& get_pose_in_world(GeometryId geometry_id) const;
 
-  /** Reports the pose of the frame with the given id relative to its parent
-   frame. If the frame's parent is the world, the value should be the same as
-   a call to get_pose_in_world().
-   @param frame_id  The identifier of the queried frame.
-   @returns The pose in the _parent_ frame (X_PF) of the identified frame.
-   @throws std::logic_error if the frame id is not valid.  */
+  /** Implementation of QueryObject::X_PF().  */
   const Isometry3<T>& get_pose_in_parent(FrameId frame_id) const;
 
   //@}
@@ -339,37 +329,21 @@ class GeometryState {
   bool IsValidGeometryName(FrameId frame_id, Role role,
                            const std::string& candidate_name) const;
 
-  /** Assigns the given geometry id the proximity role by assigning it the given
-   set of proximity properties. At this time, the geometry's name is tested for
-   uniqueness in among geometries with the proximity role.
-
-   @param source_id     The id of the geometry source that owns the geometry.
-   @param geometry_id   The geometry to assign a role.
-   @param properties    The proximity properties for this geometry.
-   @throws std::logic_error if 1. source id is invalid,
-                               2. geometry id is invalid,
-                               3. geometry id is not owned by the source id,
-                               4. geometry has already had a proximity role
-                                  assigned,
-                               5. the geometry's name is *not* unique in this
-                                  role.  */
+  /** Implementation of
+   @ref SceneGraph::AssignRole(SourceId,GeometryId, ProximityProperties)
+   "SceneGraph::AssignRole()".  */
   void AssignRole(SourceId source_id, GeometryId geometry_id,
                   ProximityProperties properties);
 
-  /** Assigns the given geometry id the illustration role by assigning it the
-   given set of proximity properties. At this time, the geometry's name is
-   tested for uniqueness in among geometries with the illustration role.
+  /** Implementation of
+   @ref SceneGraph::AssignRole(SourceId,GeometryId, PerceptionProperties)
+   "SceneGraph::AssignRole()".  */
+  void AssignRole(SourceId source_id, GeometryId geometry_id,
+                  PerceptionProperties properties);
 
-   @param source_id     The id of the geometry source that owns the geometry.
-   @param geometry_id   The geometry to assign a role.
-   @param properties    The illustration properties for this geometry.
-   @throws std::logic_error if 1. source id is invalid,
-                               2. geometry id is invalid,
-                               3. geometry id is not owned by the source id,
-                               4. geometry has already had a illustration role
-                                  assigned,
-                               5. the geometry's name is *not* unique in this
-                                  role.    */
+  /** Implementation of
+   @ref SceneGraph::AssignRole(SourceId,GeometryId, IllustrationProperties)
+   "SceneGraph::AssignRole()".  */
   void AssignRole(SourceId source_id, GeometryId geometry_id,
                   IllustrationProperties properties);
 
@@ -389,6 +363,12 @@ class GeometryState {
   std::vector<PenetrationAsPointPair<double>> ComputePointPairPenetration()
       const {
     return geometry_engine_->ComputePointPairPenetration(
+        geometry_index_to_id_map_);
+  }
+
+  /** See QueryObject::ComputeContactSurfaces() for documentation.  */
+  std::vector<ContactSurface<T>> ComputeContactSurfaces() const {
+    return geometry_engine_->ComputeContactSurfaces(
         geometry_index_to_id_map_);
   }
 
@@ -419,30 +399,20 @@ class GeometryState {
   //---------------------------------------------------------------------------
   /** @name                Signed Distance Queries
 
-  Refer to @ref signed_distance_query "Signed Distance Queries" for more details.
-  */
+   Refer to @ref signed_distance_query "Signed Distance Queries" for more
+   details.  */
 
   //@{
 
-  /**
-   * Computes the signed distance together with the witness points across all
-   * pairs of geometries in the world. Reports both the separating geometries
-   * and penetrating geometries.
-   * @retval witness_pairs A vector of reporting the signed distance
-   * characterized as witness point pairs. Notice that this is an O(N²)
-   * operation, where N is the number of geometries in the world. We report the
-   * distance between dynamic objects, or between a dynamic object and an
-   * anchored object. We DO NOT report the distance between two anchored
-   * objects.
-   */
-  std::vector<SignedDistancePair<double>>
-  ComputeSignedDistancePairwiseClosestPoints() const {
+  /** Supporting function for
+   QueryObject::ComputeSignedDistancePairwiseClosestPoints().  */
+  std::vector<SignedDistancePair<T>>
+  ComputeSignedDistancePairwiseClosestPoints(const double max_distance) const {
     return geometry_engine_->ComputeSignedDistancePairwiseClosestPoints(
-        geometry_index_to_id_map_);
+        geometry_index_to_id_map_, X_WG_, max_distance);
   }
 
-  /** Performs work in support of QueryObject::ComputeSignedDistanceToPoint().
-   */
+  /** Supporting function for QueryObject::ComputeSignedDistanceToPoint().  */
   std::vector<SignedDistanceToPoint<T>>
   ComputeSignedDistanceToPoint(
       const Vector3<T> &p_WQ,
@@ -453,7 +423,11 @@ class GeometryState {
 
   //@}
 
-  /** @name Scalar conversion  */
+  /** Implementation support for SceneGraph::AddRenderer().  */
+  void AddRenderer(std::string name,
+                   std::unique_ptr<render::RenderEngine> renderer);
+
+  /** @name Scalar conversion */
   //@{
 
   /** Returns a deep copy of this state using the AutoDiffXd scalar with all
@@ -487,7 +461,8 @@ class GeometryState {
         frame_index_to_id_map_(source.frame_index_to_id_map_),
         dynamic_proximity_index_to_internal_map_(
             source.dynamic_proximity_index_to_internal_map_),
-        geometry_engine_(std::move(source.geometry_engine_->ToAutoDiffXd())) {
+        geometry_engine_(std::move(source.geometry_engine_->ToAutoDiffXd())),
+        render_engines_(source.render_engines_) {
     // NOTE: Can't assign Isometry3<double> to Isometry3<AutoDiff>. But we _can_
     // assign Matrix<double> to Matrix<AutoDiff>, so that's what we're doing.
     auto convert = [](const std::vector<Isometry3<U>>& s,
@@ -623,6 +598,10 @@ class GeometryState {
   void AssignRoleInternal(SourceId source_id, GeometryId geometry_id,
                           PropertyType properties, Role role);
 
+  // Retrieves the requested renderer (if supported), throwing otherwise.
+  const render::RenderEngine& GetRenderEngineOrThrow(
+      const std::string& renderer_name) const;
+
   // NOTE: If adding a member it is important that it be _explicitly_ copied
   // in the converting copy constructor and likewise tested in the unit test
   // for that constructor.
@@ -715,6 +694,7 @@ class GeometryState {
   // frame Fₖ, and the world frame W is the parent of frame Fₙ.
   // In other words, it is the full evaluation of the kinematic chain from the
   // geometry to the world frame.
+  // TODO(SeanCurtis-TRI): Rename this to X_WGs_ to reflect multiplicity.
   std::vector<Isometry3<T>> X_WG_;
 
   // The pose of each frame relative to the _world_ frame.
@@ -735,6 +715,10 @@ class GeometryState {
   // rely on temporal coherency to speed up the calculations. Thus we persist
   // and copy it.
   copyable_unique_ptr<internal::ProximityEngine<T>> geometry_engine_;
+
+  // The collection of all registered renderers.
+  std::unordered_map<std::string, copyable_unique_ptr<render::RenderEngine>>
+      render_engines_;
 };
 }  // namespace geometry
 }  // namespace drake

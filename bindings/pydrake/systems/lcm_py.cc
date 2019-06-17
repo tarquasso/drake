@@ -7,7 +7,6 @@
 #include "drake/bindings/pydrake/documentation_pybind.h"
 #include "drake/bindings/pydrake/pydrake_pybind.h"
 #include "drake/bindings/pydrake/systems/lcm_py_bind_cpp_serializers.h"
-#include "drake/bindings/pydrake/systems/systems_pybind.h"
 #include "drake/lcm/drake_lcm.h"
 #include "drake/lcm/drake_lcm_interface.h"
 #include "drake/systems/lcm/connect_lcm_scope.h"
@@ -160,16 +159,7 @@ PYBIND11_MODULE(lcm, m) {
             py::arg("channel"), py::arg("serializer"), py::arg("lcm"),
             py::arg("publish_period") = 0.0,
             // Keep alive: `self` keeps `DrakeLcmInterface` alive.
-            py::keep_alive<1, 3>(), doc.LcmPublisherSystem.ctor.doc_4args)
-        .def("set_publish_period",
-            [](Class* self, double period) {
-              WarnDeprecated("set_publish_period() is deprecated");
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-              self->set_publish_period(period);
-#pragma GCC diagnostic pop
-            },
-            py::arg("period"), cls_doc.set_publish_period.doc_deprecated);
+            py::keep_alive<1, 3>(), cls_doc.ctor.doc_4args);
   }
 
   {
@@ -183,16 +173,6 @@ PYBIND11_MODULE(lcm, m) {
             py::keep_alive<1, 3>(),
             // Keep alive: `self` keeps `DrakeLcmInterface` alive.
             py::keep_alive<1, 4>(), doc.LcmSubscriberSystem.ctor.doc)
-        .def("CopyLatestMessageInto",
-            [](Class* self, State<double>* state) {
-              WarnDeprecated(
-                  "This unit-test-only method is being made non-public.");
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-              self->CopyLatestMessageInto(state);
-#pragma GCC diagnostic pop
-            },
-            py::arg("state"), cls_doc.CopyLatestMessageInto.doc_deprecated)
         .def("WaitForMessage", &Class::WaitForMessage,
             py::arg("old_message_count"), py::arg("message") = nullptr,
             py::arg("timeout") = -1, cls_doc.WaitForMessage.doc);

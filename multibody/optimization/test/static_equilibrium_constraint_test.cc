@@ -4,8 +4,10 @@
 
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
 #include "drake/math/autodiff_gradient.h"
+#include "drake/math/compute_numerical_gradient.h"
 #include "drake/multibody/optimization/test/optimization_with_contact_utilities.h"
 #include "drake/solvers/mathematical_program.h"
+#include "drake/solvers/snopt_solver.h"
 #include "drake/solvers/solve.h"
 
 namespace drake {
@@ -36,7 +38,9 @@ class TwoFreeSpheresTest : public ::testing::Test {
     for (const auto& geometry_pair : collision_candidate_pairs) {
       auto wrench_evaluator =
           std::make_shared<ContactWrenchFromForceInWorldFrameEvaluator>(
-              &plant, spheres_->get_mutable_plant_context(), geometry_pair);
+              &plant, spheres_->get_mutable_plant_context(),
+              SortedPair<geometry::GeometryId>(geometry_pair.first,
+                                               geometry_pair.second));
       auto lambda_i = prog_.NewContinuousVariables(
           wrench_evaluator->num_lambda(),
           "lambda" + std::to_string(geometry_pair_count));
@@ -66,7 +70,7 @@ class TwoFreeSpheresTest : public ::testing::Test {
     const auto& query_object =
         query_port.Eval<geometry::QueryObject<AutoDiffXd>>(
             spheres_->plant_context());
-    const std::vector<geometry::SignedDistancePair<double>>
+    const std::vector<geometry::SignedDistancePair<AutoDiffXd>>
         signed_distance_pairs =
             query_object.ComputeSignedDistancePairwiseClosestPoints();
     EXPECT_EQ(signed_distance_pairs.size(), 3);
@@ -85,22 +89,20 @@ class TwoFreeSpheresTest : public ::testing::Test {
       Eigen::Matrix<AutoDiffXd, 6, Eigen::Dynamic> Jv_V_WCb(6, 12);
       spheres_->plant().CalcJacobianSpatialVelocity(
           spheres_->plant_context(), JacobianWrtVariable::kV, frameA,
-          signed_distance_pair.p_ACa.cast<AutoDiffXd>(),
-          spheres_->plant().world_frame(), spheres_->plant().world_frame(),
-          &Jv_V_WCa);
+          signed_distance_pair.p_ACa, spheres_->plant().world_frame(),
+          spheres_->plant().world_frame(), &Jv_V_WCa);
       spheres_->plant().CalcJacobianSpatialVelocity(
           spheres_->plant_context(), JacobianWrtVariable::kV, frameB,
-          signed_distance_pair.p_BCb.cast<AutoDiffXd>(),
-          spheres_->plant().world_frame(), spheres_->plant().world_frame(),
-          &Jv_V_WCb);
+          signed_distance_pair.p_BCb, spheres_->plant().world_frame(),
+          spheres_->plant().world_frame(), &Jv_V_WCb);
 
       AutoDiffVecXd F_AB_W(6);
 
       auto lambda_indices_in_all_lambda =
           static_equilibrium_binding.evaluator()
               ->contact_pair_to_wrench_evaluator()
-              .at(std::make_pair(signed_distance_pair.id_A,
-                                 signed_distance_pair.id_B))
+              .at(SortedPair<geometry::GeometryId>(signed_distance_pair.id_A,
+                                                   signed_distance_pair.id_B))
               .lambda_indices_in_all_lambda;
       for (int i = 0; i < 3; ++i) {
         F_AB_W(i) = 0 * lambda_autodiff(lambda_indices_in_all_lambda[0]);
@@ -122,6 +124,21 @@ class TwoFreeSpheresTest : public ::testing::Test {
     EXPECT_TRUE(CompareMatrices(
         math::autoDiffToGradientMatrix(y_autodiff),
         math::autoDiffToGradientMatrix(y_autodiff_expected), 100 * kEps));
+
+    // Use a std::function instead of auto eval_fun as a lambda. This is
+    // explained in ComputeNumericalGradient.
+    std::function<void(const Eigen::Ref<const Eigen::VectorXd>&,
+                       Eigen::VectorXd*)>
+        eval_fun = [&static_equilibrium_binding](
+                       const Eigen::Ref<const Eigen::VectorXd>& x,
+                       Eigen::VectorXd* y) {
+          static_equilibrium_binding.evaluator()->Eval(x, y);
+        };
+
+    const auto J = math::ComputeNumericalGradient(
+        eval_fun, math::autoDiffToValueMatrix(x_autodiff));
+    EXPECT_TRUE(
+        CompareMatrices(math::autoDiffToGradientMatrix(y_autodiff), J, 1e-5));
   }
 
  protected:
@@ -220,15 +237,24 @@ TEST_F(TwoFreeSpheresTest, Eval) {
       Eigen::Vector3d(std::sqrt(4 * spheres_->spheres()[0].radius *
                                 spheres_->spheres()[1].radius),
                       0, spheres_->spheres()[1].radius));
+  q_val.head<4>() << 1, 0, 0, 0;
   q_val.segment<3>(4) = X_WS0.translation();
+  q_val.segment<4>(7) << 1, 0, 0, 0;
   q_val.tail<3>() = X_WS1.translation();
 
-  prog_.AddBoundingBoxConstraint(q_val, q_val, q_vars_);
   prog_.AddConstraint(static_equilibrium_binding);
 
   Eigen::VectorXd x_init(prog_.num_vars());
   x_init.setZero();
   prog_.SetDecisionVariableValueInVector(q_vars_, q_val, &x_init);
+  prog_.SetDecisionVariableValueInVector(
+      contact_wrench_evaluators_and_lambda_[1].second,
+      Eigen::Vector3d(0, 0, -spheres_->spheres()[0].inertia.get_mass() * 9.81),
+      &x_init);
+  prog_.SetDecisionVariableValueInVector(
+      contact_wrench_evaluators_and_lambda_[2].second,
+      Eigen::Vector3d(0, 0, -spheres_->spheres()[1].inertia.get_mass() * 9.81),
+      &x_init);
 
   auto result = solvers::Solve(prog_, x_init);
   EXPECT_TRUE(result.is_success());
@@ -256,8 +282,8 @@ TEST_F(TwoFreeSpheresTest, Eval) {
     const Eigen::Vector3d lambda_sol =
         result.GetSolution(contact_wrench_evaluator_and_lambda.second);
     if (contact_wrench_evaluator_and_lambda.first->geometry_id_pair() ==
-        std::make_pair(spheres_->sphere_geometry_ids()[0],
-                       spheres_->sphere_geometry_ids()[1])) {
+        SortedPair<geometry::GeometryId>(spheres_->sphere_geometry_ids()[0],
+                                         spheres_->sphere_geometry_ids()[1])) {
       // contact between two spheres.
       // Compute the witness points on sphere 0 and sphere 1.
       const Eigen::Vector3d p_WC0 =
@@ -273,8 +299,9 @@ TEST_F(TwoFreeSpheresTest, Eval) {
       sphere0_total_wrench.tail<3>() += -lambda_sol;
       sphere1_total_wrench.tail<3>() += lambda_sol;
     } else if (contact_wrench_evaluator_and_lambda.first->geometry_id_pair() ==
-               std::make_pair(spheres_->sphere_geometry_ids()[0],
-                              spheres_->ground_geometry_id())) {
+               SortedPair<geometry::GeometryId>(
+                   spheres_->sphere_geometry_ids()[0],
+                   spheres_->ground_geometry_id())) {
       // contact between the ground and the sphere 0.
       // Compute the witness point on sphere 0
       const Eigen::Vector3d p_WC0 =
@@ -283,8 +310,9 @@ TEST_F(TwoFreeSpheresTest, Eval) {
       sphere0_total_wrench.head<3>() += p_WC0.cross(-lambda_sol);
       sphere0_total_wrench.tail<3>() += -lambda_sol;
     } else if (contact_wrench_evaluator_and_lambda.first->geometry_id_pair() ==
-               std::make_pair(spheres_->sphere_geometry_ids()[1],
-                              spheres_->ground_geometry_id())) {
+               SortedPair<geometry::GeometryId>(
+                   spheres_->sphere_geometry_ids()[1],
+                   spheres_->ground_geometry_id())) {
       // contact between the ground and the sphere 1.
       // Compute the witness point on sphere 1
       const Eigen::Vector3d p_WC1 =

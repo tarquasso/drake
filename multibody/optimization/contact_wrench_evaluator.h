@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 
+#include "drake/common/sorted_pair.h"
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/solvers/evaluator_base.h"
 
@@ -18,19 +19,51 @@ class ContactWrenchEvaluator : public solvers::EvaluatorBase {
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(ContactWrenchEvaluator)
 
   /**
+   * @anchor ComposeVariableValues
+   * @name compose variable values.
    * Composes the value of the variable `x` in Eval(x, &y) function, based on
    * the context and value of lambda, x = [q, λ].
+   * @pre q has size plant.num_positions() x 1
+   * @pre lambda has size num_lambda_ x 1.
+   */
+  //@{
+  /**
+   * Overloads @ref ComposeVariableValues
    */
   template <typename T, typename Derived>
   typename std::enable_if<std::is_same<T, typename Derived::Scalar>::value,
                           VectorX<T>>::type
   ComposeVariableValues(const systems::Context<T>& context,
                         const Derived& lambda_value) const {
+    DRAKE_ASSERT(lambda_value.rows() == num_lambda_ &&
+                 lambda_value.cols() == 1);
     VectorX<T> x(num_vars());
     x.head(plant_->num_positions()) = plant_->GetPositions(context);
     x.tail(num_lambda_) = lambda_value;
     return x;
   }
+
+  /**
+   * Overloads @ref ComposeVariableValues with q, λ as the input instead of
+   * context, λ.
+   */
+  template <typename DerivedQ, typename DerivedLambda>
+  typename std::enable_if<std::is_same<typename DerivedQ::Scalar,
+                                       typename DerivedLambda::Scalar>::value,
+                          VectorX<typename DerivedQ::Scalar>>::type
+  ComposeVariableValues(
+      const Eigen::MatrixBase<DerivedQ>& q_value,
+      const Eigen::MatrixBase<DerivedLambda>& lambda_value) const {
+    DRAKE_ASSERT(q_value.rows() == plant_->num_positions() &&
+                 q_value.cols() == 1);
+    DRAKE_ASSERT(lambda_value.rows() == num_lambda_ &&
+                 lambda_value.cols() == 1);
+    VectorX<typename DerivedQ::Scalar> x(num_vars());
+    x.head(plant_->num_positions()) = q_value;
+    x.tail(num_lambda_) = lambda_value;
+    return x;
+  }
+  //@}
 
   /**
    * Returns the size of lambda.
@@ -40,10 +73,17 @@ class ContactWrenchEvaluator : public solvers::EvaluatorBase {
   /**
    * Returns the pair of geometry IDs.
    */
-  const std::pair<geometry::GeometryId, geometry::GeometryId>&
-  geometry_id_pair() const {
+  const SortedPair<geometry::GeometryId>& geometry_id_pair() const {
     return geometry_id_pair_;
   }
+
+  const MultibodyPlant<AutoDiffXd>& plant() const { return *plant_; }
+
+  /** Getter for const context */
+  const systems::Context<AutoDiffXd>& context() const { return *context_; }
+
+  /** Getter for the mutable context */
+  systems::Context<AutoDiffXd>& get_mutable_context() { return *context_; }
 
  protected:
   /**
@@ -60,8 +100,7 @@ class ContactWrenchEvaluator : public solvers::EvaluatorBase {
   ContactWrenchEvaluator(
       const MultibodyPlant<AutoDiffXd>* plant,
       systems::Context<AutoDiffXd>* context, int num_lambda,
-      const std::pair<geometry::GeometryId, geometry::GeometryId>&
-          geometry_id_pair,
+      const SortedPair<geometry::GeometryId>& geometry_id_pair,
       const std::string& description)
       : solvers::EvaluatorBase(6, plant->num_positions() + num_lambda,
                                description),
@@ -90,13 +129,12 @@ class ContactWrenchEvaluator : public solvers::EvaluatorBase {
     return x.tail(num_lambda_);
   }
 
-  /** Getter for the mutable context */
-  systems::Context<AutoDiffXd>* get_mutable_context() const { return context_; }
-
  private:
   const MultibodyPlant<AutoDiffXd>* plant_;
+  // The derived class might need to modify the position value stored inside
+  // this context, so we don't keep context_ as a pointer to const.
   systems::Context<AutoDiffXd>* context_;
-  const std::pair<geometry::GeometryId, geometry::GeometryId> geometry_id_pair_;
+  const SortedPair<geometry::GeometryId> geometry_id_pair_;
   int num_lambda_;
 };
 
@@ -123,8 +161,7 @@ class ContactWrenchFromForceInWorldFrameEvaluator final
   ContactWrenchFromForceInWorldFrameEvaluator(
       const MultibodyPlant<AutoDiffXd>* plant,
       systems::Context<AutoDiffXd>* context,
-      const std::pair<geometry::GeometryId, geometry::GeometryId>&
-          geometry_id_pair)
+      const SortedPair<geometry::GeometryId>& geometry_id_pair)
       : ContactWrenchEvaluator(
             plant, context, 3, geometry_id_pair,
             "contact_wrench_from_pure_force_in_world_frame") {}

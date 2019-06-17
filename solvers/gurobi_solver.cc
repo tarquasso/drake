@@ -206,7 +206,7 @@ __attribute__((unused)) bool HasCorrectNumberOfVariables(
  * A*x == lb, false otherwise.
  * @return error as an integer. The full set of error values are
  * described here :
- * https://www.gurobi.com/documentation/7.5/refman/error_codes.html
+ * https://www.gurobi.com/documentation/8.0/refman/error_codes.html
  *
  * TODO(hongkai.dai): Use a sparse matrix A.
  */
@@ -362,7 +362,7 @@ int AddSecondOrderConeConstraints(
 
     // Gurobi uses a matrix Q to differentiate Lorentz cone and rotated Lorentz
     // cone constraint.
-    // https://www.gurobi.com/documentation/7.5/refman/c_grbaddqconstr.html
+    // https://www.gurobi.com/documentation/8.0/refman/c_grbaddqconstr.html
     // For Lorentz cone constraint,
     // Q = [-1 0 0 ... 0]
     //     [ 0 1 0 ... 0]
@@ -978,22 +978,6 @@ void GurobiSolver::DoSolve(
 
   result->set_solution_result(solution_result);
 }
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-SolutionResult GurobiSolver::Solve(MathematicalProgram& prog) const {
-  MathematicalProgramResult result;
-  Solve(prog, {}, {}, &result);
-  internal::SolverResult solver_result = result.ConvertToSolverResult();
-  const double objective_bound =
-      result.get_solver_details<GurobiSolver>().objective_bound;
-  if (!std::isnan(objective_bound)) {
-    solver_result.set_optimal_cost_lower_bound(objective_bound);
-  }
-  prog.SetSolverResult(solver_result);
-  return result.get_solution_result();
-}
-#pragma GCC diagnostic pop
 
 }  // namespace solvers
 }  // namespace drake
